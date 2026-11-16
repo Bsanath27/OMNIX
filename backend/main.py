@@ -8,6 +8,7 @@ from backend.api import doctor, projects, tools
 # Ensure tools are imported and registered
 import backend.tools.ingestion  # noqa
 import backend.tools.slides  # noqa
+import backend.tools.quizzes  # noqa
 
 app = FastAPI(
     title=settings.APP_NAME,
