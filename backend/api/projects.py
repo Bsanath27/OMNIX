@@ -1,12 +1,14 @@
 import json
 import uuid
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from backend.core.config import settings
-from backend.core.models import ProjectManifest, Artifact
+from backend.core.models import ProjectManifest, Artifact, ChapterOutline
 from backend.tools.ingestion.extractor import extract_document
 from backend.tools.ingestion.grounding import build_passages, save_passages_to_json, load_passages_from_json
+from backend.tools.outline.outline_tool import extract_chapter_outline
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 
@@ -103,4 +105,42 @@ async def get_project_passages(project_id: str) -> Dict[str, str]:
     """Return passages map for grounding verification and text inspection."""
     p_dir = get_project_dir(project_id)
     return load_passages_from_json(p_dir / "passages.json")
+
+
+class OutlineRequest(BaseModel):
+    subject: Optional[str] = None
+    grade_level: Optional[str] = None
+    title: Optional[str] = None
+    prefer_offline: bool = False
+
+
+@router.post("/{project_id}/outline", response_model=ChapterOutline)
+async def generate_outline(project_id: str, req: OutlineRequest = OutlineRequest()) -> ChapterOutline:
+    """Extract structured pedagogical outline from chapter passages."""
+    try:
+        outline = extract_chapter_outline(
+            project_id=project_id,
+            subject=req.subject,
+            grade_level=req.grade_level,
+            title=req.title,
+            prefer_offline=req.prefer_offline,
+        )
+        return outline
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{project_id}/outline", response_model=Optional[ChapterOutline])
+async def get_outline(project_id: str) -> Optional[ChapterOutline]:
+    """Retrieve saved pedagogical outline for project."""
+    p_dir = get_project_dir(project_id)
+    outline_path = p_dir / "outline.json"
+    if not outline_path.exists():
+        raise HTTPException(status_code=404, detail="Outline not yet generated for this project")
+    with open(outline_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return ChapterOutline(**data)
+
 

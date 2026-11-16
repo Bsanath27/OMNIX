@@ -48,6 +48,7 @@ class StoryboardScenePlan(BaseModel):
     narration_script: str
     visual_description: str
     key_formulas: List[str] = Field(default_factory=list)
+    grounding: Optional[GroundingRef] = None
 
 
 class ChapterOutline(BaseModel):
