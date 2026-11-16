@@ -22,23 +22,68 @@ To uphold **Rule 8 (Radical Component Minimization)** in `AGENT.md`, OMNIX uses 
 
 ---
 
-## 2. The 4-View Minimal Modular Architecture
+## 2. Core Home Page Architecture (Chat-Centric Tri-Zone Layout)
 
-In accordance with **Rule 8 of AGENT.md**, agents must **never create bespoke per-tool components** (such as `SlideForm.tsx`, `QuizForm.tsx`, `VideoForm.tsx`). All frontend capabilities are handled by 4 core, data-driven views:
+The OMNIX home page is structured around **three coordinated visual zones**:
 
 ```
-frontend/src/
-├── api.ts                     # Type-safe API client (Projects, Tools, Doctor, Artifacts)
-├── App.tsx                    # Root layout shell with DoctorBanner
-├── components/
-│   ├── DoctorBanner.tsx       # System health strip (FFmpeg, Manim, kokoro-onnx, API keys)
-│   ├── ChapterDashboard.tsx   # View 1: Project sidebar, chapter upload & outline inspector
-│   ├── SchemaFormModal.tsx    # View 2: Universal dynamic form dialog driven by /api/tools schemas
-│   ├── ArtifactCard.tsx       # View 3: Polymorphic card rendering Slides, Quizzes, Diagrams, or Packages
-│   ├── StoryboardGrid.tsx     # View 4: Visual parallel scene cards with audio sync indicators
-│   └── GroundingPopover.tsx   # Reusable flyout displaying highlighted source chapter passages
-└── index.css                  # Tailwind directives and base styles
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [≡ Toggle Drawer]   OMNIX Multimodal Studio      ● FFmpeg: OK  ● Manim: OK  ● Kokoro: OK   [Settings]  │
+├──────────────────┬─────────────────────────────────────────────────────────────────────────────────────┤
+│ SLIDING DRAWER   │                                                                                     │
+│ (Left Panel)     │                               CENTER CONVERSATIONAL CANVAS                          │
+│                  │                                                                                     │
+│ • Chapter Files  │      "What classroom materials would you like to create for this chapter?"         │
+│ • Past Projects  │                                                                                     │
+│ • Indexed Passages│   ┌─────────────────────────────────────────────────────────────────────────────┐   │
+│   (P01-S01...)   │   │  [ ✨ All Capabilities ]  [ 📊 Slides ]  [ 🎬 Video ]  [ 🧩 Quizzes ]       │   │
+│ • Chapter Outline│   │ ─────────────────────────────────────────────────────────────────────────── │   │
+│                  │   │  Ask OMNIX or enter a topic (e.g. 'Create a 6-slide deck on Newton's Laws')│   │
+│                  │   │                                                         [ 📎 Upload ] [ ➔ ] │   │
+│                  │   └─────────────────────────────────────────────────────────────────────────────┘   │
+│                  │                                                                                     │
+│                  │   Generated Artifacts & Conversation Stream appears here in real-time...            │
+│                  │   [ Presentation Deck Card ]   [ Explainer Video Card ]   [ H5P Quiz Player Card ]  │
+│                  │                                                                                     │
+├──────────────────┴─────────────────────────────────────────────────────────────────────────────────────┤
+│ BOTTOM SHELF: PRESET ASSETS & VIDEO SHOWCASE (Horizontal Scrollable Rail)                              │
+│ ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐ │
+│ │ 🎬 Manim Video Sample│  │ 📊 Newton Slides Deck│  │ 🧩 Physics H5P Quiz  │  │ 🔬 PhET Force Lab    │ │
+│ │ Newton's 1st Law     │  │ 6-Slide Presentation │  │ 4 Practice Questions │  │ Interactive HTML5 Sim│ │
+│ │ [Preview / Fork]     │  │ [Preview / Fork]     │  │ [Play Activity]      │  │ [Open Simulation]    │ │
+│ └──────────────────────┘  └──────────────────────┘  └──────────────────────┘  └──────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Zone 1: Collapsible Left Sliding Window ("Knowledge & Project Drawer")
+* **Purpose:** Manages context, chapter files, and source text without cluttering the main conversation.
+* **Controls:** Toggled via top-left hamburger button (`≡`) or hotkey (`Cmd/Ctrl + B`).
+* **Contents:**
+  * Chapter project list (recent chapters, creation dates).
+  * Uploaded document viewer (PDF/DOCX) with indexing status.
+  * Searchable list of extracted passages (`P01-S01` to `PXX-SXX`) with green grounding indicator dots.
+
+### Zone 2: Center Conversational Canvas ("Dual-Mode Multimodal Prompt Hub")
+* **Master Natural Language Prompt Box:**
+  * Centered, welcoming conversational prompt input with rich multi-line expansion.
+  * Teachers can type broad package requests: *"Turn Chapter 9 into a complete teaching kit with slides, an explainer video on inertia, and a 4-question quiz."*
+* **Capability Scope Pills (Fast-Action Filter):**
+  * Attached directly above/inside the prompt input:
+    `[ ✨ All (Auto) ] [ 📊 Slides ] [ 🎬 Video ] [ 🧩 Quizzes ] [ 📐 Diagrams ] [ 🔬 Simulations ]`.
+  * **Dual Interaction:**
+    1. *Default Mode (`All`):* General chat prompt; LLM classifier routes intent to appropriate tools.
+    2. *Scoped Mode (e.g. clicking `[ 📊 Slides ]`):* Prompts are scoped specifically to slide generation, pre-filling parameters (e.g., slide count, template style) and opening the schema configuration if desired.
+* **Conversational Artifact Stream:**
+  * Generated outputs appear directly in the feed as polymorphic `ArtifactCard` components (slide decks, playable video drafts, interactive quizzes) side-by-side with source citation chips.
+
+### Zone 3: Bottom Preset Assets & Video Showcase ("Inspiration Rail")
+* **Purpose:** Gives educators immediate, one-click access to pre-made templates, Golden Chapter explainers, and interactive samples.
+* **Layout:** Horizontal scrollable card carousel docked cleanly at the bottom.
+* **Card Types:**
+  * **Pre-rendered Manim Explainer Videos:** Sample 3Blue1Brown-style physics/maths videos.
+  * **Template Presentation Decks:** Standard NCERT/CBSE style slide masters.
+  * **Interactive Science Simulations:** Featured PhET HTML5 simulations.
+* **One-Click Action:** Clicking any card loads the asset immediately into the workspace or pre-fills the prompt box to customize it.
 
 ---
 
@@ -47,126 +92,82 @@ frontend/src/
 * **Surfaces:**
   * Application Background: `bg-slate-50`
   * Card / Modal Surface: `bg-white` with `border-slate-200` and `shadow-sm`
-  * Secondary Surface / Sidebar: `bg-slate-100/70`
+  * Sliding Drawer Surface: `bg-white` with `border-r border-slate-200 shadow-lg`
+  * Bottom Showcase Surface: `bg-slate-100/80 border-t border-slate-200 backdrop-blur-sm`
 * **Typography:**
   * Title / Display: `font-bold text-slate-900 tracking-tight`
-  * Section Headers: `font-semibold text-slate-800`
-  * Body Text: `text-sm text-slate-600 leading-relaxed`
-  * Microcopy / Metadata: `text-xs font-medium text-slate-400`
+  * Body / Prompts: `text-sm text-slate-700 leading-relaxed`
+  * Metadata / Badges: `text-xs font-medium`
 * **Brand Accents:**
   * Primary Action: `bg-indigo-600 hover:bg-indigo-700 text-white`
-  * Secondary Action: `bg-white hover:bg-slate-50 text-slate-700 border border-slate-300`
-  * Focus Ring: `focus:ring-2 focus:ring-indigo-500 focus:outline-none`
-* **Source Grounding & Verification Badges:**
-  * **Verified Chapter Passage:** `bg-emerald-50 text-emerald-700 border border-emerald-200` (Icon: `CheckCircle2`)
-  * **Supplemental / Not in Chapter:** `bg-amber-50 text-amber-700 border border-amber-200` (Icon: `AlertTriangle`)
-  * **Processing / Draft Mode:** `bg-indigo-50 text-indigo-700 border border-indigo-200` (Icon: `Clock`)
-  * **Generation Failure:** `bg-rose-50 text-rose-700 border border-rose-200` (Icon: `XCircle`)
+  * Capability Pills: `bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200`
+  * Active Pill: `bg-indigo-600 text-white font-medium border-indigo-600`
+* **Grounding Indicators:**
+  * **Verified Chapter Source:** `bg-emerald-50 text-emerald-700 border border-emerald-200`
+  * **Supplemental / External:** `bg-amber-50 text-amber-700 border border-amber-200`
 
 ---
 
-## 4. Production Prompts for Stitch Wireframe Generation
-
-Use these prompts in **Google Stitch** (or modern AI wireframing tools) to experiment with and generate pixel-perfect UI wireframes for OMNIX:
+## 4. Production Prompts for Google Stitch Wireframe Generation
 
 ---
 
-### Prompt 1: Chapter Workspace & Pedagogical Outline Inspector
+### 🎨 Master Prompt: The Chat-Centric Home Page (Left Drawer, Center Chat, Bottom Showcase)
 
-> **Design Prompt for Stitch:**
+> **Copy-paste this prompt into Google Stitch:**
 > 
-> "Design a modern, clean web application interface for an educator tool called OMNIX. 
+> "Design a modern, minimalist web application interface for an AI educational tool called OMNIX.
 > 
-> Layout: Desktop split-view workspace on a soft slate-50 background.
-> Top Bar: Clean white navbar with OMNIX logo, subtitle 'Multimodal Learning Studio', and a compact system diagnostics strip with pill badges: 'FFmpeg: Ready', 'Manim: Ready', 'TTS: ONNX', 'Groq: Connected' in emerald-600.
-> Left Sidebar (30% width): White card with rounded-xl border. Section header 'Chapter Projects' with a '+ New Chapter' primary button. List of projects with chapter titles, subject tag ('Physics', 'Biology'), and upload status indicator. Active project highlighted in subtle indigo-50 with an indigo border.
-> Main Panel (70% width): 
-> - Header section with active chapter title 'Chapter 9: Force & Newton's Laws of Motion', grade badge 'Grade 9-10 Science', and a subtle document badge 'Source: NCERT_Class9_Physics.pdf (18 passages indexed)'.
-> - Navigation tabs: 'Pedagogical Outline', 'Slide Decks', 'Explainer Video', 'Quizzes & Games', 'Learning Package'.
-> - Active Tab content (Pedagogical Outline):
->   1. 'Learning Objectives' card with 3 checkmark bullet points.
->   2. 'Core Concepts' section: Cards showing concept titles ('Inertia', 'Force & Momentum') and concise definitions. Beside each concept, display a small clickable pill badge 'P01-S02: Verified Source' in emerald-50 with an eye icon.
->   3. Action bar at bottom with two prominent launcher buttons: 'Generate Slide Deck (.pptx)' and 'Generate Interactive Quiz (H5P)' styled with clean indigo and purple accent buttons."
+> Overall Layout: Full-height desktop application on a soft `slate-50` background with a tri-zone layout:
+> 
+> 1. Top Navigation Bar:
+>    - Left: Hamburger drawer toggle button (`≡`) beside the logo 'OMNIX' with a badge 'COL / IIT Madras Edition'.
+>    - Center/Right: Live health pill strip with green status dots: 'FFmpeg: Ready', 'Manim: Ready', 'Kokoro TTS: Online', 'Groq: 300 t/s'.
+> 
+> 2. Left Sliding Drawer (Expanded, 280px width, clean white surface with right border):
+>    - Header: 'Chapter Projects' with a '+ New Chapter' button.
+>    - Active Project card: 'Newton's Laws of Motion' (Grade 9 Science).
+>    - Sub-section: 'Indexed Document' showing 'Chapter_09.pdf' with a green badge '18 Passages Ready'.
+>    - Searchable list of passages: 'P01-S01: Definition of Force', 'P01-S02: Law of Inertia', 'P02-S01: F = ma'.
+> 
+> 3. Center Conversational Canvas (Main focus, comfortable reading width 760px centered):
+>    - Greeting headline: 'What classroom materials would you like to build today?' with subtitle 'Upload a textbook chapter or prompt in natural language below.'
+>    - Prominent Multimodal Prompt Box (Floating white card with rounded-2xl border, drop shadow):
+>      - Top row inside prompt box: Horizontal row of capability filter pills:
+>        `[✨ All Capabilities (Active)]` in solid indigo-600, followed by `[📊 Slides]`, `[🎬 Video]`, `[🧩 Quizzes]`, `[📐 Diagrams]`, `[🔬 Simulations]` in neutral gray border pills.
+>      - Text area: Placeholder 'e.g. Generate a 6-slide presentation on inertia and an interactive 4-question quiz from Chapter 9...'
+>      - Bottom row inside prompt box: Left side has a paperclip icon 'Attach Chapter File' and 'Chapter_09.pdf linked'. Right side has a circular indigo send arrow button.
+>    - Below Prompt Box: Recent generated response snippet showing an artifact card preview for 'Newton's Laws Slide Deck (6 Slides)' with a 'Download .pptx' button and a green 'Grounding: 100% Verified' badge.
+> 
+> 4. Bottom Showcase Shelf (Docked at the bottom, 180px height, subtle gray background with top border):
+>    - Section title: 'Preset Assets & Video Explainer Library' with a 'Browse All Presets ->' link.
+>    - Horizontal scrollable row of 4 visual preset cards:
+>      - Card 1: '🎬 Newton's 1st Law Manim Video' (16:9 thumbnail showing math animation curve, duration pill '14.2s', [Preview Clip]).
+>      - Card 2: '📊 Laws of Motion Slide Deck' (presentation icon, '6 Slides · Editable PPTX', [Load Template]).
+>      - Card 3: '🧩 Inertia Practice Quiz' (puzzle icon, 'H5P Interactive Quiz', [Play Sample]).
+>      - Card 4: '🔬 PhET Force & Motion Simulation' (science beaker icon, 'Interactive HTML5 Lab', [Open Sim]).
+> 
+> Aesthetic: Clean, airy, typography-first, modern educational SaaS (similar to NotebookLM and Perplexity), professional and friendly for educators."
 
 ---
 
-### Prompt 2: Universal Schema-Driven Tool Generator Dialog
+### 🎨 Prompt 2: Capability-Scoped Mode (`[ 🎬 Video ]` Selected)
 
-> **Design Prompt for Stitch:**
+> **Copy-paste this prompt into Google Stitch:**
 > 
-> "Design a focused modal dialog for an educational content generation tool. 
+> "Design a state variant of the OMNIX central prompt canvas where the user has selected the `[ 🎬 Video ]` capability pill.
 > 
-> Modal Specs: Centered white dialog box with subtle drop shadow, rounded-2xl corners, max-width 560px on a dimmed backdrop.
-> Header: Title 'Configure Presentation Deck' with a subtitle 'Driven by chapter pedagogical outline'. Top right has a minimal gray close 'X' button.
-> Body Form Elements (Clean, accessible, stacked with 16px spacing):
-> 1. Input Field: 'Presentation Title' with value pre-filled as 'Newton's Three Laws of Motion'.
-> 2. Dropdown Select: 'Grade & Audience Level' selected as 'Secondary School (Grade 9-10)'.
-> 3. Segmented Control / Radio Group: 'Slide Template Style' with 3 visual options: 'Modern Minimalist', 'Academic Clean', 'STEM Bold'.
-> 4. Slider / Number Input: 'Number of Slides' showing '6 Slides (Recommended)'.
-> 5. Toggle Switch: 'Include Visual Diagram Slots' toggled ON with helper text 'Auto-reserves slots for Mermaid flowcharts and formulas'.
-> 6. Info Box at bottom: Light blue/slate box showing 'Grounding Check: 100% of slide topics will be cross-referenced with 18 indexed chapter passages'.
-> Footer: Border-top with two buttons: 'Cancel' (secondary ghost button) and 'Generate Deck' (solid indigo-600 button with a sparkle icon and 'Est. Time: ~25s')."
-
----
-
-### Prompt 3: Slide Deck Artifact Review Card with Source Grounding
-
-> **Design Prompt for Stitch:**
+> Center Canvas:
+> - The prompt box highlights the `[ 🎬 Video ]` pill in solid purple-600.
+> - An inline configuration bar appears directly beneath the capability pills:
+>   - Template selector dropdown: 'STEM: Kinematics & Coordinate Vectors ▼'.
+>   - Target duration pill: '2 Minutes (4 Storyboard Scenes)'.
+>   - Voice narrator pill: 'Kokoro: af_heart (Natural Female Voice)'.
+>   - Draft Mode toggle: '480p Fast Draft (<30s)' toggled ON.
+> - Prompt input displays: 'Explain Newton's second law with moving mass vectors and formula derivation.'
+> - Below the prompt box, display the 'Parallel Storyboard Draft Grid' with 4 visual scene cards:
+>   - Scene 1: 'Concept Hook: Frictionless Surface' (preview thumbnail with velocity arrow, audio timing '12.4s', [✓ Approved]).
+>   - Scene 2: 'Derivation: F = ma' (preview thumbnail showing equation transform, status 'Rendering Draft 65%...').
+>   - Scene 3 & 4: Outlined placeholder cards with 'Drafting in parallel...'.
 > 
-> "Design a rich educational artifact review card for a generated PowerPoint presentation deck.
-> 
-> Card Specs: White rounded-xl container with slate-200 border, padded with 24px.
-> Card Header:
-> - Left: Slide presentation icon in indigo, title 'Newton's Laws of Motion — Slide Deck', subtitle '6 Editable Slides (.pptx) · Generated via python-pptx in 18s'.
-> - Right: Status pill 'Approved' in emerald-100 text-emerald-800, and 'Grounding: 100% Verified'.
-> Card Body:
-> - Horizontal slide carousel preview: 3 miniature slide preview frames side-by-side with 16:9 aspect ratio.
->   - Slide 1: Dark indigo title slide 'Newton's Laws of Motion'.
->   - Slide 2: Two-column slide with bullet points and a highlighted citation tag 'P01-S02'.
->   - Slide 3: Formula slide 'F = ma' with acceleration vector diagram placeholder.
-> - Grounding Inspection Box: A light gray callout panel below the slides showing: 'Selected Bullet: An object remains at rest unless acted upon by a net force.' -> Cites Chapter Passage P01-S02: '...an object in motion stays in motion unless acted upon by an external net force.' with a green 'Source Matched' checkmark.
-> Card Actions Footer:
-> - Left: 'Download .pptx' (solid dark slate button with download icon).
-> - Right: 'Reprompt / Adjust Parameters' (ghost button) and 'Add to Final Classroom Package' (primary indigo button)."
-
----
-
-### Prompt 4: Interactive H5P Classroom Quiz Card with Live Feedback
-
-> **Design Prompt for Stitch:**
-> 
-> "Design an interactive quiz card component for classroom educators.
-> 
-> Card Specs: Clean white container, rounded-xl, slate-200 border, subtle elevation.
-> Header: Puzzle piece icon in amber-500, title 'Newton's Laws Interactive Practice Quiz', metadata '4 Questions · H5P.MultiChoice & Flashcards · Playable in browser'.
-> Body (Simulating an active in-browser H5P quiz player):
-> - Progress indicator: 'Question 2 of 4' with a thin indigo progress bar at 50%.
-> - Question Prompt: 'According to Newton's First Law, what causes a moving object to change its velocity?'
-> - Multiple Choice Options: 3 radio options with rounded-lg borders:
->   - ( ) 'Constant internal momentum'
->   - (•) 'An external net unbalanced force' [Selected state with indigo border and light indigo background]
->   - ( ) 'The mass of the object alone'
-> - Feedback Container (expanded below options):
->   - Green banner: 'Correct! An external net force is required to change an object's state of motion.'
->   - Chapter Source Footnote: 'Verified from Chapter Passage P01-S02' with a clickable eye icon.
-> Footer:
-> - Left: 'Download .h5p Package' (for Moodle / offline use).
-> - Right: 'Approve Activity' (emerald button) and 'Edit Questions' (subtle gray button)."
-
----
-
-### Prompt 5: Explainer Video Storyboard Grid (Manim + Kokoro Sync)
-
-> **Design Prompt for Stitch:**
-> 
-> "Design a parallel video storyboard editor interface for educational explainer videos.
-> 
-> Container: Section header 'Video Storyboard: Newton's Laws Explainer (Target: 2 min)' with a 'Draft All Scenes (480p Preview)' action button.
-> Grid Layout: 4 scene cards arranged in a responsive 2x2 grid representing sequential video clips.
-> Card Anatomy (Scene Card):
-> - Top bar: 'Scene 1: Introduction to Inertia', template badge 'STEM: KinematicsVector', and a duration pill '14.2s (Audio Synced)' with a subtle waveform icon.
-> - Center: 16:9 video preview frame showing a rendered Manim animation draft (coordinate axes with a rolling sphere and velocity arrow). Play overlay button on hover.
-> - Lower section: 'Narration Script' text box showing Kokoro TTS voiceover sentence with audio timing badge: 'Kokoro Voice: af_heart · 14.2s'.
-> - Bounding Box Safety status: Small green dot 'Layout Validated: No Overlap'.
-> - Bottom actions: 'Play Preview' | 'Reprompt Scene' | '✓ Approve Clip'.
-> Overall aesthetic: Clean, technical, highly legible, modern SaaS interface for educators."
+> Bottom showcase remains docked at the bottom with pre-rendered Manim STEM video clips."
