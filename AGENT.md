@@ -110,6 +110,10 @@ OMNIX/
 
 All development tasks, bug fixes, and feature additions **must be tracked through MuonTickets**. Never commit untracked code changes without an associated ticket.
 
+### Inviolable Ticket Rules:
+1. **Record Every Move in Tickets:** Log every meaningful step, code change, test execution, or design decision as a comment in the ticket (`mt comment`). A ticket should read like an immutable execution log.
+2. **Atomic Git Commit After Each Ticket:** Immediately after marking a ticket `done`, you **must create an atomic git commit** referencing the ticket ID. Never batch multiple completed tickets into one commit.
+
 ### Standard Agent Workflow:
 
 ```bash
@@ -125,8 +129,9 @@ python3 muontickets/mt.py claim T-XXXXXX --owner <agent-name>
 # 4. Fill Acceptance Criteria in tickets/T-XXXXXX.md
 # Update markdown checkboxes: - [ ] -> - [x]
 
-# 5. Log progress comment
-python3 muontickets/mt.py comment T-XXXXXX "Implemented feature X and verified tests"
+# 5. Record moves & progress continuously
+python3 muontickets/mt.py comment T-XXXXXX "Starting implementation of module X..."
+python3 muontickets/mt.py comment T-XXXXXX "Tests passed: 4 passed, 0 failed."
 
 # 6. Submit for review & complete
 python3 muontickets/mt.py set-status T-XXXXXX needs_review
@@ -134,6 +139,10 @@ python3 muontickets/mt.py done T-XXXXXX
 
 # 7. Validate ticket board integrity
 python3 muontickets/mt.py validate
+
+# 8. MANDATORY: Atomic Git Commit for the completed ticket
+git add .
+git commit -m "<type>(<scope>): <concise description> [T-XXXXXX]"
 ```
 
 ---
@@ -168,10 +177,12 @@ npm run build
 
 ## 7. Definition of Done (DoD)
 
-Before marking any ticket `done`:
+Before marking any ticket `done` and committing:
 1. All acceptance criteria checkboxes in `tickets/T-XXXXXX.md` must be checked `[x]`.
 2. No hardcoded constants, mock payloads, or magic values exist in production code.
 3. No redundant components or wrapper classes were created; components follow the 4-view minimal structure.
 4. Unit and integration tests must pass cleanly without warnings or unhandled exceptions.
-5. No breaking changes or regressions introduced to existing API endpoints.
-6. MuonTickets board must validate clean (`python3 muontickets/mt.py validate`).
+5. Every move, progress step, and test result is recorded in the ticket comments (`mt comment`).
+6. No breaking changes or regressions introduced to existing API endpoints.
+7. MuonTickets board must validate clean (`python3 muontickets/mt.py validate`).
+8. **All changes are committed to Git immediately after completion** with the ticket ID in the commit message.
