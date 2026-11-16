@@ -1,6 +1,6 @@
 # AGENT.md — OMNIX Autonomous Agent Operating Guide
 
-Welcome, Agent. This file is your operational handbook for developing and maintaining **OMNIX** (Open Multimodal Network for Immersive eXperiences).
+Welcome, Agent. This file is your operational handbook for developing and maintaining **OMNIX** (Open Multimodal Network for Immersive eXperiences). Every agent interacting with this codebase must read, internalize, and strictly adhere to these instructions.
 
 ---
 
@@ -15,11 +15,11 @@ Welcome, Agent. This file is your operational handbook for developing and mainta
 
 ## 2. Inviolable Architectural Principles
 
-Whenever you design, refactor, or generate code in OMNIX, you **must adhere to these 6 rules**:
+Whenever you design, refactor, or generate code in OMNIX, you **must adhere to these 8 core rules**:
 
 1. **No Free-Form Code Generation in Production:**
    * LLMs must never generate unconstrained Python scripts for rendering outputs.
-   * Production paths rely on strict Pydantic JSON schemas and deterministic renderers (`python-pptx`, Manim template registry, pure-Python H5P builders).
+   * Production paths rely strictly on verified Pydantic JSON schemas and deterministic renderers (`python-pptx`, Manim template registry, pure-Python H5P builders).
 2. **Models Never Render Text Directly:**
    * Generative image models frequently hallucinate or garble typography.
    * All labels, titles, equations, and annotations must be overlaid deterministically using layout code (Pango/Cairo `Text()`, SVG overlays, or HTML/CSS).
@@ -38,23 +38,51 @@ Whenever you design, refactor, or generate code in OMNIX, you **must adhere to t
 6. **Moodle Scope Boundary:**
    * Moodle `.mbz` course backup archives and LTI dynamic links are deferred for post-January discussion.
    * The package export format is a standalone offline classroom bundle (`index.html` + media assets) playable in any browser.
+7. **Zero Hardcoding Mandate (Config-Driven & Dynamic Everything):**
+   * **Never hardcode values at any point:** No hardcoded credentials, ports, hosts, model strings, thresholds, file paths, tool lists, or mock payload data.
+   * **Backend Configuration:** All settings must originate from `backend/core/config.py` (`Settings`) reading from environment variables (`.env`).
+   * **Dynamic Provider Adapters:** Provider endpoints, model IDs, rate limits, and headers must be defined in configuration or provider adapters, never hardcoded in endpoint handlers.
+   * **Dynamic File Paths:** Always resolve paths relative to `settings.DATA_DIR`, `settings.PROJECTS_DIR`, or `project_id`. Never construct absolute paths with hardcoded usernames or machine folders.
+   * **No Dummy/Mock Returns in Production:** Do not stub API endpoints with static fake data unless running under an explicit test suite.
+8. **Radical Component Minimization (Anti-Proliferation):**
+   * **Avoid creating components unless absolutely necessary.** Do not build micro-components, one-off wrapper elements, or tool-specific form components.
+   * **Strict 4-View Architecture:** The frontend UI is restricted to four generic, data-driven views:
+     1. `ChapterDashboard.tsx` — Project creation, project selection, document upload.
+     2. `SchemaFormModal.tsx` — **Single, universal schema-driven form** that dynamically renders inputs for *any* capability tool using the tool's Pydantic JSON schema (`/api/tools/{name}`). Never create `SlideForm.tsx`, `QuizForm.tsx`, `VideoForm.tsx`, etc.
+     3. `ArtifactCard.tsx` — **Single, universal artifact card** that renders status, preview, download buttons, and source grounding badges for any generated output.
+     4. `StoryboardGrid.tsx` — Visual card grid for parallel video scene drafts and clip reordering.
+   * **Inline over Abstraction:** If a visual element can be styled with standard HTML tags and Tailwind CSS classes, keep it inline. Do not wrap standard elements in superfluous single-use component files.
 
 ---
 
-## 3. Repository Architecture
+## 3. Agent Behavioral Guardrails & Anti-Patterns
+
+| Anti-Pattern (DO NOT DO) | Correct Pattern (DO THIS) |
+| :--- | :--- |
+| Hardcoding `"groq/llama-3.3-70b-versatile"` inside a route | Read `settings.PRIMARY_LLM_MODEL` from `backend/core/config.py` |
+| Creating separate `.tsx` components for each tool's form | Use a single schema-driven form component rendering `/api/tools` schema |
+| Using `torch` or `transformers` for Kokoro TTS | Use `kokoro-onnx` with `onnxruntime` on CPU |
+| Hardcoding `http://localhost:8000` in React fetch calls | Use relative `/api/...` paths relying on Vite proxy / server routing |
+| Generating raw, free-form Manim python scripts | Select a template class from the STEM component registry and pass parameters |
+| Fabricating dummy chapter text when files aren't uploaded | Read genuine extracted passages from `projects/<id>/passages.json` |
+| Copying GPL code (Piper TTS, Lumi H5P) into core | Use MIT/Apache-2.0 alternatives (`kokoro-onnx`, custom pure-Python H5P builder) |
+
+---
+
+## 4. Repository Architecture
 
 ```
 OMNIX/
 ├── backend/                  # FastAPI backend application
 │   ├── core/                 # Config, Pydantic schemas, ToolRegistry, and models
-│   │   ├── config.py         # Settings & environment variables
+│   │   ├── config.py         # Dynamic Settings & environment variables (Zero hardcoding)
 │   │   ├── models.py         # Strongly-typed data contracts
 │   │   └── registry.py       # BaseTool contract & central tool registry
 │   ├── api/                  # REST API routers
 │   │   ├── doctor.py         # /api/doctor system capability diagnostics
 │   │   ├── projects.py       # /api/projects CRUD and chapter file upload
 │   │   └── tools.py          # /api/tools capability runner
-│   ├── tools/                # Capability engines
+│   ├── tools/                # Capability engines (Self-contained, registered dynamically)
 │   │   ├── ingestion/        # Document extraction (pypdf, docx) & passages.json
 │   │   ├── slides/           # python-pptx presentation deck generator
 │   │   ├── video/            # Manim STEM registry, kokoro-onnx, storyboard
@@ -63,8 +91,8 @@ OMNIX/
 │   └── main.py               # Application entrypoint & static frontend mount
 ├── frontend/                 # React 18 + TypeScript + Vite + Tailwind web app
 │   ├── src/
-│   │   ├── api.ts            # Type-safe API client
-│   │   ├── components/       # ChapterDashboard, DoctorBanner, StoryboardGrid
+│   │   ├── api.ts            # Dynamic API client
+│   │   ├── components/       # Minimal component set (Dashboard, DoctorBanner, ArtifactCard, StoryboardGrid)
 │   │   └── App.tsx           # Main application layout
 │   └── dist/                 # Production web bundle (served by FastAPI)
 ├── data/
@@ -78,7 +106,7 @@ OMNIX/
 
 ---
 
-## 4. Ticket Management Protocol (MuonTickets)
+## 5. Ticket Management Protocol (MuonTickets)
 
 All development tasks, bug fixes, and feature additions **must be tracked through MuonTickets**. Never commit untracked code changes without an associated ticket.
 
@@ -110,7 +138,7 @@ python3 muontickets/mt.py validate
 
 ---
 
-## 5. Development & Testing Commands
+## 6. Development & Testing Commands
 
 ### Backend Operations
 ```bash
@@ -138,10 +166,12 @@ npm run build
 
 ---
 
-## 6. Definition of Done (DoD)
+## 7. Definition of Done (DoD)
 
 Before marking any ticket `done`:
 1. All acceptance criteria checkboxes in `tickets/T-XXXXXX.md` must be checked `[x]`.
-2. Unit and integration tests must pass cleanly without warnings or unhandled exceptions.
-3. No breaking changes or regressions introduced to existing API endpoints.
-4. MuonTickets board must validate clean (`python3 muontickets/mt.py validate`).
+2. No hardcoded constants, mock payloads, or magic values exist in production code.
+3. No redundant components or wrapper classes were created; components follow the 4-view minimal structure.
+4. Unit and integration tests must pass cleanly without warnings or unhandled exceptions.
+5. No breaking changes or regressions introduced to existing API endpoints.
+6. MuonTickets board must validate clean (`python3 muontickets/mt.py validate`).
