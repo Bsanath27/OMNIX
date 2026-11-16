@@ -113,6 +113,7 @@ All development tasks, bug fixes, and feature additions **must be tracked throug
 ### Inviolable Ticket Rules:
 1. **Record Every Move in Tickets:** Log every meaningful step, code change, test execution, or design decision as a comment in the ticket (`mt comment`). A ticket should read like an immutable execution log.
 2. **Atomic Git Commit After Each Ticket:** Immediately after marking a ticket `done`, you **must create an atomic git commit** referencing the ticket ID. Never batch multiple completed tickets into one commit.
+3. **Mandatory 10-Ticket Milestone Review:** After every batch of 10 tickets completed ($N \times 10$: T-000010, T-000020, T-000030...), the agent **must author a consolidated review file** inside the `tickets/` directory named `tickets/REVIEW-XXXXXX-YYYYYY.md` (e.g. `tickets/REVIEW-000001-000010.md`). This file tracks the ticket ledger, deliverables, test status, architectural decisions, and next batch roadmap. Never proceed past a 10-ticket boundary without publishing this review.
 
 ### Standard Agent Workflow:
 
@@ -186,3 +187,4 @@ Before marking any ticket `done` and committing:
 6. No breaking changes or regressions introduced to existing API endpoints.
 7. MuonTickets board must validate clean (`python3 muontickets/mt.py validate`).
 8. **All changes are committed to Git immediately after completion** with the ticket ID in the commit message.
+9. **If the completed ticket crosses a 10-ticket milestone boundary ($N \times 10$), a consolidated review file `tickets/REVIEW-XXXXXX-YYYYYY.md` must be created and committed.**
