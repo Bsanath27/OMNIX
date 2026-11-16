@@ -58,3 +58,4 @@ async def run_diagnostics() -> Dict[str, Any]:
         "app_version": settings.APP_VERSION,
         "components": checks
     }
+

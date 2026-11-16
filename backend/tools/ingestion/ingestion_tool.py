@@ -49,3 +49,4 @@ class IngestionTool(BaseTool):
 
 # Register tool
 registry.register(IngestionTool())
+

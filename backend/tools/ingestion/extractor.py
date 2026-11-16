@@ -75,3 +75,4 @@ def extract_document(file_path: Path) -> List[Dict[str, Any]]:
         return extract_text_from_txt(file_path)
     else:
         raise ValueError(f"Unsupported file format: {suffix}. Supported: .pdf, .docx, .txt, .md")
+

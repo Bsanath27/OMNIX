@@ -99,3 +99,4 @@ class ProjectManifest(BaseModel):
     outline: Optional[ChapterOutline] = None
     artifacts: Dict[str, Artifact] = Field(default_factory=dict)
     schema_version: str = "0.5.0"
+

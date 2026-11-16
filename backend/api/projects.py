@@ -103,3 +103,4 @@ async def get_project_passages(project_id: str) -> Dict[str, str]:
     """Return passages map for grounding verification and text inspection."""
     p_dir = get_project_dir(project_id)
     return load_passages_from_json(p_dir / "passages.json")
+

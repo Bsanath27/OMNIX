@@ -51,3 +51,4 @@ settings = Settings()
 # Ensure directories exist
 settings.PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 settings.GOLDEN_CHAPTERS_DIR.mkdir(parents=True, exist_ok=True)
+

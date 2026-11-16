@@ -40,3 +40,4 @@ export const DoctorBanner: React.FC = () => {
     </div>
   );
 };
+

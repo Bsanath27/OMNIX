@@ -61,3 +61,4 @@ def verify_grounding(passage_id: str, quote: str, passages_map: Dict[str, str], 
     overlap = quote_tokens.intersection(passage_tokens)
     similarity = len(overlap) / len(quote_tokens)
     return similarity >= threshold
+
