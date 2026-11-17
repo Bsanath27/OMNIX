@@ -41,8 +41,9 @@ import {
   Check,
   ArrowRight,
 } from 'lucide-react';
+import { SlideStudioView } from './SlideStudioView';
 
-type NavView = 'home' | 'tools' | 'library' | 'settings';
+type NavView = 'home' | 'tools' | 'library' | 'settings' | 'studio';
 type CapabilityType = 'all' | 'slides' | 'video' | 'quizzes' | 'diagrams';
 
 export const ChapterDashboard: React.FC = () => {
@@ -52,6 +53,7 @@ export const ChapterDashboard: React.FC = () => {
   // Global Navigation & View state
   const [activeView, setActiveView] = useState<NavView>('home');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [selectedSlideArtifact, setSelectedSlideArtifact] = useState<Artifact | null>(null);
 
   // Project & Ingestion states
   const [projects, setProjects] = useState<ProjectManifest[]>([]);
@@ -133,8 +135,31 @@ export const ChapterDashboard: React.FC = () => {
     try {
       const data = await fetchProjects();
       setProjects(data);
-      if (data.length > 0 && !selectedProject) {
-        setSelectedProject(data[0]);
+      const urlParams = new URLSearchParams(window.location.search);
+      const projParam = urlParams.get('project');
+      const viewParam = urlParams.get('view');
+      const darkParam = urlParams.get('dark');
+
+      if (darkParam === '1' || darkParam === 'true') {
+        setIsDarkMode(true);
+      }
+
+      let matchedProj = data.find((p) => p.project_id === projParam);
+      if (!matchedProj && data.length > 0) {
+        // prefer a project that already has slides if view is studio
+        matchedProj = (viewParam === 'studio' && data.find((p) => Object.values(p.artifacts || {}).some(a => a.tool_name === 'slides'))) || data[0];
+      }
+
+      if (matchedProj) {
+        setSelectedProject(matchedProj);
+        if (matchedProj.artifacts) {
+          const slideArt = Object.values(matchedProj.artifacts).find(a => a.tool_name === 'slides');
+          if (slideArt) setSelectedSlideArtifact(slideArt);
+        }
+      }
+
+      if (viewParam === 'studio') {
+        setActiveView('studio');
       }
     } catch (err) {
       console.error('Failed to load projects', err);
@@ -231,6 +256,12 @@ export const ChapterDashboard: React.FC = () => {
       const newArtifact = await runTool(targetTool, currentProj.project_id, brief);
       setArtifacts((prev) => [newArtifact, ...prev]);
       setPromptText('');
+
+      // When generating slides, navigate directly to the dedicated full-page Presenton studio
+      if (targetTool === 'slides') {
+        setSelectedSlideArtifact(newArtifact);
+        setActiveView('studio');
+      }
     } catch (err: any) {
       alert(`Generation failed: ${err.message}`);
     } finally {
@@ -1196,6 +1227,23 @@ export const ChapterDashboard: React.FC = () => {
     </div>
   );
 
+  // Dedicated Full-Page Presentation Studio Workspace (Identical to reference spec)
+  if (activeView === 'studio') {
+    return (
+      <SlideStudioView
+        project={selectedProject}
+        artifact={selectedSlideArtifact || artifacts.find((a) => a.tool_name === 'slides') || null}
+        passages={passages}
+        isDarkMode={isDarkMode}
+        onBack={() => setActiveView('home')}
+        onArtifactUpdated={(updated) => {
+          setSelectedSlideArtifact(updated);
+          setArtifacts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+        }}
+      />
+    );
+  }
+
   return (
     <div
       className={`relative min-h-screen transition-colors duration-300 flex flex-col md:flex-row font-sans overflow-x-hidden ${
@@ -1235,10 +1283,11 @@ export const ChapterDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Primary Navigation Menu - STRICTLY 4 ITEMS */}
+          {/* Primary Navigation Menu */}
           <nav className="space-y-1.5" aria-label="Global Navigation">
             {[
               { id: 'home' as NavView, label: 'Home', icon: Home, desc: 'Conversational Studio' },
+              { id: 'studio' as NavView, label: 'Slide Studio', icon: Presentation, desc: 'Presenton 16:9 Stage' },
               { id: 'tools' as NavView, label: 'Tools', icon: Wrench, desc: 'Pedagogical Engines' },
               { id: 'library' as NavView, label: 'Library', icon: BookOpen, desc: 'Chapters & Passages' },
               { id: 'settings' as NavView, label: 'Settings', icon: Settings, desc: 'Diagnostics & System' },
@@ -1389,6 +1438,7 @@ export const ChapterDashboard: React.FC = () => {
                 <nav className="space-y-1.5">
                   {[
                     { id: 'home' as NavView, label: 'Home', icon: Home },
+                    { id: 'studio' as NavView, label: 'Slide Studio', icon: Presentation },
                     { id: 'tools' as NavView, label: 'Tools', icon: Wrench },
                     { id: 'library' as NavView, label: 'Library', icon: BookOpen },
                     { id: 'settings' as NavView, label: 'Settings', icon: Settings },
