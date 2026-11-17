@@ -110,3 +110,20 @@ export async function fetchTools(): Promise<ToolMetadata[]> {
   return res.json();
 }
 
+export async function updateProjectSlides(
+  projectId: string,
+  payload: { artifact_id?: string; theme?: string; slides: any[] }
+): Promise<Artifact> {
+  const res = await fetch(`/api/projects/${projectId}/slides`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to update slides' }));
+    throw new Error(err.detail || 'Failed to update slides');
+  }
+  return res.json();
+}
+
+

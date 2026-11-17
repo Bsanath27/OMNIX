@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 
 from backend.core.config import settings
@@ -20,32 +21,50 @@ logger = logging.getLogger(__name__)
 THEME_PALETTES = {
     "academic_clean": {
         "bg": RGBColor(255, 255, 255),
-        "primary": RGBColor(30, 58, 138),     # Blue 900
-        "accent": RGBColor(14, 116, 144),    # Cyan 700
-        "text": RGBColor(30, 41, 59),        # Slate 800
-        "muted": RGBColor(100, 116, 139),    # Slate 500
+        "card_bg": RGBColor(248, 250, 252),        # Slate 50
+        "card_border": RGBColor(226, 232, 240),    # Slate 200
+        "primary": RGBColor(30, 58, 138),          # Blue 900
+        "accent": RGBColor(14, 116, 144),          # Cyan 700
+        "highlight": RGBColor(255, 92, 0),         # Solar Orange #FF5C00
+        "text": RGBColor(30, 41, 59),              # Slate 800
+        "muted": RGBColor(100, 116, 139),          # Slate 500
     },
     "midnight_tech": {
-        "bg": RGBColor(15, 23, 42),          # Slate 900
-        "primary": RGBColor(56, 189, 248),   # Sky 400
-        "accent": RGBColor(168, 85, 247),    # Purple 500
-        "text": RGBColor(241, 245, 249),     # Slate 100
-        "muted": RGBColor(148, 163, 184),    # Slate 400
+        "bg": RGBColor(15, 23, 42),               # Slate 900
+        "card_bg": RGBColor(30, 41, 59),           # Slate 800
+        "card_border": RGBColor(51, 65, 85),       # Slate 700
+        "primary": RGBColor(56, 189, 248),        # Sky 400
+        "accent": RGBColor(168, 85, 247),         # Purple 500
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange
+        "text": RGBColor(241, 245, 249),          # Slate 100
+        "muted": RGBColor(148, 163, 184),         # Slate 400
     },
     "col_blue": {
-        "bg": RGBColor(248, 250, 252),       # Slate 50
-        "primary": RGBColor(3, 105, 161),    # COL Sky Blue
-        "accent": RGBColor(234, 88, 12),     # Amber/Orange 600
-        "text": RGBColor(15, 23, 42),
-        "muted": RGBColor(71, 85, 105),
+        "bg": RGBColor(250, 247, 242),            # Warm Creme Paper (#FAF7F2)
+        "card_bg": RGBColor(255, 255, 255),       # Pure White Surface
+        "card_border": RGBColor(232, 226, 216),   # Subtle Sand Border
+        "primary": RGBColor(3, 105, 161),         # COL Sky Blue
+        "accent": RGBColor(37, 99, 235),          # Cobalt Blue
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange
+        "text": RGBColor(24, 24, 27),             # Charcoal
+        "muted": RGBColor(113, 109, 100),         # Muted Sand
     }
 }
+
+
+class SlideCard(BaseModel):
+    title: str = ""
+    body: str = ""
+    badge: Optional[str] = None
+    stat: Optional[str] = None
 
 
 class SlideContent(BaseModel):
     slide_number: int
     title: str
     subtitle: Optional[str] = None
+    archetype: str = "card_grid_3"  # "hero_stat", "card_grid_3", "split_comparison", "key_takeaways"
+    cards: List[SlideCard] = Field(default_factory=list)
     bullets: List[str] = Field(default_factory=list)
     speaker_notes: str = ""
     grounding: Optional[GroundingRef] = None
@@ -54,14 +73,153 @@ class SlideContent(BaseModel):
 class SlideBrief(ToolBrief):
     """Configuration for slide deck synthesis."""
     num_slides: int = Field(default=6, ge=3, le=20, description="Target number of slides")
-    theme: str = Field(default="academic_clean", description="Theme name: academic_clean, midnight_tech, col_blue")
+    theme: str = Field(default="col_blue", description="Theme name: col_blue, academic_clean, midnight_tech")
     include_speaker_notes: bool = Field(default=True, description="Embed teaching notes for educator")
     include_passage_citations: bool = Field(default=True, description="Include [Pxx-Sxx] grounding citations")
 
 
+def build_presentation_file(slides: List[SlideContent], theme_name: str, output_path: Path) -> None:
+    """Deterministic OpenXML PowerPoint compiler using container card layouts."""
+    prs = Presentation()
+    # 16:9 widescreen dimensions (13.33 x 7.5 inches)
+    prs.slide_width = Inches(13.33)
+    prs.slide_height = Inches(7.5)
+
+    palette = THEME_PALETTES.get(theme_name, THEME_PALETTES["col_blue"])
+    blank_layout = prs.slide_layouts[6]  # Blank slide
+
+    for slide_data in slides:
+        slide = prs.slides.add_slide(blank_layout)
+
+        # 1. Slide Header Area (Title & Subtitle)
+        title_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.5), Inches(11.73), Inches(1.3))
+        tf = title_box.text_frame
+        tf.word_wrap = True
+        tf.margin_left = tf.margin_top = tf.margin_right = tf.margin_bottom = 0
+
+        # Top Badge / Citation indicator
+        p_badge = tf.paragraphs[0]
+        if slide_data.grounding and slide_data.grounding.passage_id:
+            p_badge.text = f"CITATION [{slide_data.grounding.passage_id}] • {slide_data.archetype.replace('_', ' ').upper()}"
+        else:
+            p_badge.text = f"LEARNING MODULE • {slide_data.archetype.replace('_', ' ').upper()}"
+        p_badge.font.size = Pt(10)
+        p_badge.font.bold = True
+        p_badge.font.color.rgb = palette["highlight"]
+        p_badge.space_after = Pt(2)
+
+        # Main Title
+        p_title = tf.add_paragraph()
+        p_title.text = slide_data.title
+        p_title.font.size = Pt(28)
+        p_title.font.bold = True
+        p_title.font.color.rgb = palette["primary"]
+
+        # Subtitle
+        if slide_data.subtitle:
+            p_sub = tf.add_paragraph()
+            p_sub.text = slide_data.subtitle
+            p_sub.font.size = Pt(14)
+            p_sub.font.color.rgb = palette["muted"]
+            p_sub.space_before = Pt(2)
+
+        # 2. Main Content Container Cards
+        cards = slide_data.cards
+        if not cards and slide_data.bullets:
+            # Fallback: convert bullets to cards
+            cards = [SlideCard(title=f"Point {i+1}", body=b, badge="Core Note") for i, b in enumerate(slide_data.bullets[:3])]
+
+        card_count = len(cards)
+        content_top = Inches(2.0)
+        content_height = Inches(4.8)
+        total_width = Inches(11.73)
+        start_left = Inches(0.8)
+
+        if card_count > 0:
+            if card_count == 1:
+                col_width = total_width
+                gap = Inches(0)
+            elif card_count == 2 or slide_data.archetype == "split_comparison":
+                col_width = Inches(5.65)
+                gap = Inches(0.43)
+            else:
+                # 3 or more cards horizontal grid
+                col_width = Inches(3.68)
+                gap = Inches(0.34)
+
+            for c_idx, card in enumerate(cards[:3]):
+                c_left = start_left + c_idx * (col_width + gap)
+
+                # Draw Card Background Container
+                card_shape = slide.shapes.add_shape(
+                    MSO_SHAPE.ROUNDED_RECTANGLE, c_left, content_top, col_width, content_height
+                )
+                card_shape.fill.solid()
+                card_shape.fill.fore_color.rgb = palette["card_bg"]
+                card_shape.line.color.rgb = palette["card_border"]
+                card_shape.line.width = Pt(1.5)
+
+                # Card Text Frame
+                ctf = card_shape.text_frame
+                ctf.word_wrap = True
+                ctf.margin_left = Inches(0.3)
+                ctf.margin_right = Inches(0.3)
+                ctf.margin_top = Inches(0.3)
+                ctf.margin_bottom = Inches(0.3)
+
+                first_para = True
+
+                # Optional Card Badge / Chip
+                if card.badge:
+                    p = ctf.paragraphs[0] if first_para else ctf.add_paragraph()
+                    first_para = False
+                    p.text = f"• {card.badge.upper()}"
+                    p.font.size = Pt(10)
+                    p.font.bold = True
+                    p.font.color.rgb = palette["accent"]
+                    p.space_after = Pt(4)
+
+                # Optional Hero Stat Callout
+                if card.stat:
+                    p = ctf.paragraphs[0] if first_para else ctf.add_paragraph()
+                    first_para = False
+                    p.text = card.stat
+                    p.font.size = Pt(36)
+                    p.font.bold = True
+                    p.font.color.rgb = palette["highlight"]
+                    p.space_after = Pt(4)
+
+                # Card Title
+                if card.title:
+                    p = ctf.paragraphs[0] if first_para else ctf.add_paragraph()
+                    first_para = False
+                    p.text = card.title
+                    p.font.size = Pt(18)
+                    p.font.bold = True
+                    p.font.color.rgb = palette["primary"]
+                    p.space_after = Pt(8)
+
+                # Card Body
+                if card.body:
+                    p = ctf.paragraphs[0] if first_para else ctf.add_paragraph()
+                    first_para = False
+                    p.text = card.body
+                    p.font.size = Pt(13)
+                    p.font.color.rgb = palette["text"]
+                    p.space_before = Pt(4)
+
+        # 3. Speaker Notes
+        if slide_data.speaker_notes:
+            notes_slide = slide.notes_slide
+            notes_text_frame = notes_slide.notes_text_frame
+            notes_text_frame.text = slide_data.speaker_notes
+
+    prs.save(output_path)
+
+
 class SlideTool(BaseTool):
     name: str = "slides"
-    description: str = "Generates editable PowerPoint presentations (.pptx) and JSON previews with grounded teacher speaker notes."
+    description: str = "Generates editable PowerPoint presentations (.pptx) with modern visual card layouts and grounded teacher speaker notes."
     brief_model = SlideBrief
 
     async def run(self, brief: SlideBrief, ctx: ExecutionContext) -> Artifact:
@@ -84,10 +242,10 @@ class SlideTool(BaseTool):
             except Exception as e:
                 logger.warning(f"Could not load outline.json: {e}")
 
-        # Plan slides
+        # Plan slides with layout archetypes
         slides = self._plan_slides(brief, ctx.passages, outline_data)
 
-        # Build PowerPoint
+        # Build PowerPoint via deterministic compiler
         self._build_pptx(slides, brief.theme, pptx_path)
 
         # Build JSON preview
@@ -127,38 +285,52 @@ class SlideTool(BaseTool):
         slides: List[SlideContent] = []
         topic = brief.topic or (outline.get("title") if outline else "Lesson Presentation")
 
-        # 1. Title Slide
+        # 1. Hero / Title Slide
         slides.append(SlideContent(
             slide_number=1,
             title=topic,
-            subtitle=f"{brief.subject} | {brief.grade_level}",
+            subtitle=f"{brief.subject} • Level: {brief.grade_level}",
+            archetype="hero_stat",
+            cards=[
+                SlideCard(badge="Domain", stat=brief.subject[:3].upper(), title="Pedagogical Field", body=f"Instructional unit tailored for {brief.grade_level} learners."),
+                SlideCard(badge="Framework", title="Classroom Ready", body="Structured lesson module for direct projector delivery or self-paced review."),
+                SlideCard(badge="Grounding", title="Textbook Aligned", body="Synthesized deterministically from chapter passages with verified references.")
+            ],
             bullets=[
                 f"Curriculum Level: {brief.grade_level}",
                 f"Pedagogical Domain: {brief.subject}",
                 "Source-Grounded Classroom Learning Module"
             ],
-            speaker_notes="Welcome students to today's session. State the core goal of mastering this chapter.",
+            speaker_notes="Welcome students to today's session. Introduce the overarching chapter goal and connect it to prior knowledge.",
             grounding=None
         ))
 
-        # 2. Objectives Slide
+        # 2. Learning Objectives Slide (3-Card Grid)
         objectives = outline.get("learning_objectives", []) if outline else []
         if not objectives:
             objectives = [
-                f"Master core principles of {topic}",
-                "Identify foundational terminology and formulas",
-                "Apply theoretical concepts to practical examples"
+                f"Master core principles and definitions of {topic}",
+                "Identify foundational mechanisms, formulas, and terminology",
+                "Apply theoretical concepts to solve real-world problems"
             ]
+        
+        obj_cards = [
+            SlideCard(badge=f"Objective {i+1}", title=f"Goal {i+1}", body=obj)
+            for i, obj in enumerate(objectives[:3])
+        ]
+
         slides.append(SlideContent(
             slide_number=2,
             title="Learning Objectives",
-            subtitle="What we will accomplish in this unit",
-            bullets=objectives[:4],
-            speaker_notes="Walk students through these Bloom's taxonomy objectives before diving into technical details.",
+            subtitle="Core competences targeted in this unit",
+            archetype="card_grid_3",
+            cards=obj_cards,
+            bullets=objectives[:3],
+            speaker_notes="Walk students through these Bloom's taxonomy objectives before diving into detailed mechanisms.",
             grounding=None
         ))
 
-        # 3. Content Slides from Outline or Passages
+        # 3. Content Slides from Outline Concepts or Passages
         concepts = outline.get("concepts", []) if outline else []
         passage_items = list(passages.items())
 
@@ -172,16 +344,24 @@ class SlideTool(BaseTool):
                     g_ref = GroundingRef(passage_id=g.get("passage_id", ""), quote=g.get("quote", ""))
                     notes_citation = f" [Ref: {g_ref.passage_id}]"
 
+                c_name = c.get("concept", f"Concept {idx + 1}")
+                c_expl = c.get("explanation", "")
+
+                # Split Comparison or 3-Card layout archetype
+                slide_cards = [
+                    SlideCard(badge="Definition", title="Core Principle", body=c_expl[:180]),
+                    SlideCard(badge="Application", title="Classroom Context", body=f"Examine practical implications and analytical methods for {c_name}."),
+                    SlideCard(badge="Checkpoint", title="Key Takeaway", body=f"Verified understanding grounded in curriculum reference.{notes_citation}")
+                ]
+
                 slides.append(SlideContent(
                     slide_number=slide_num,
-                    title=c.get("concept", f"Concept {idx + 1}"),
-                    subtitle="Key Concept Exploration",
-                    bullets=[
-                        c.get("explanation", ""),
-                        f"Targeted for {brief.grade_level} comprehension",
-                        "Examine core dynamics and relationships"
-                    ],
-                    speaker_notes=f"Explain {c.get('concept')}. Ask students to reflect on real-world analogies.{notes_citation}",
+                    title=c_name,
+                    subtitle=f"Section grounded in {g_ref.passage_id}" if g_ref else "In-depth Concept Exploration",
+                    archetype="card_grid_3",
+                    cards=slide_cards,
+                    bullets=[c_expl, f"Targeted for {brief.grade_level} comprehension"],
+                    speaker_notes=f"Deep-dive discussion on {c_name}. Prompt students for real-world analogies.{notes_citation}",
                     grounding=g_ref
                 ))
         else:
@@ -189,82 +369,48 @@ class SlideTool(BaseTool):
             for idx, (pid, text) in enumerate(passage_items[:brief.num_slides - 3]):
                 slide_num = len(slides) + 1
                 g_ref = GroundingRef(passage_id=pid, quote=text[:60].strip())
+
+                slide_cards = [
+                    SlideCard(badge="Curriculum Excerpt", title=f"Source [{pid}]", body=text[:160].strip()),
+                    SlideCard(badge="Pedagogical Focus", title="Key Mechanism", body="Critical concept extracted from primary chapter text for focused student review."),
+                    SlideCard(badge="Reflection", title="Discussion Anchor", body="Ask students how this principle applies to observable phenomena.")
+                ]
+
                 slides.append(SlideContent(
                     slide_number=slide_num,
                     title=f"Core Concept {idx + 1}",
-                    subtitle=f"Section grounded in {pid}",
-                    bullets=[
-                        text[:160].strip(),
-                        "Critical learning point from chapter reading",
-                    ],
-                    speaker_notes=f"Deep-dive discussion for {pid}: {text[:120]}... [Ref: {pid}]",
+                    subtitle=f"Curriculum Section Grounded in {pid}",
+                    archetype="card_grid_3",
+                    cards=slide_cards,
+                    bullets=[text[:160].strip(), f"Passage grounding: [{pid}]"],
+                    speaker_notes=f"Discuss {pid}: {text[:120]}... [Ref: {pid}]",
                     grounding=g_ref
                 ))
 
-        # 4. Summary / Reflection Slide
+        # 4. Summary & Checkpoint Slide
         slides.append(SlideContent(
             slide_number=len(slides) + 1,
             title="Summary & Classroom Checkpoint",
-            subtitle="Consolidating our understanding",
+            subtitle="Consolidating knowledge and preparing for exercises",
+            archetype="key_takeaways",
+            cards=[
+                SlideCard(badge="Review", title="Core Takeaway", body=f"Synthesize the foundational principles of {topic} covered today."),
+                SlideCard(badge="Formative Assessment", title="Quick Check", body="Formulate open discussion questions and clarify remaining ambiguities."),
+                SlideCard(badge="Next Step", title="Interactive Practice", body="Proceed to practice flashcards and the interactive classroom quiz.")
+            ],
             bullets=[
                 f"Review the key takeaways of {topic}",
-                "Formulate questions on complex mechanisms",
+                "Clarify remaining questions on complex mechanisms",
                 "Prepare for upcoming interactive quiz & practice exercise"
             ],
-            speaker_notes="Allow 5 minutes for open Q&A and ask a student to summarize the top takeaway.",
+            speaker_notes="Allow 5 minutes for open Q&A. Ask a volunteer to summarize the top concept before proceeding to the quiz.",
             grounding=None
         ))
 
         return slides
 
     def _build_pptx(self, slides: List[SlideContent], theme_name: str, output_path: Path) -> None:
-        prs = Presentation()
-        # Set 16:9 widescreen dimensions (13.33 x 7.5 inches)
-        prs.slide_width = Inches(13.33)
-        prs.slide_height = Inches(7.5)
-
-        palette = THEME_PALETTES.get(theme_name, THEME_PALETTES["academic_clean"])
-        blank_layout = prs.slide_layouts[6]  # Blank slide
-
-        for slide_data in slides:
-            slide = prs.slides.add_slide(blank_layout)
-
-            # Title box
-            title_box = slide.shapes.add_textbox(Inches(1.0), Inches(0.8), Inches(11.33), Inches(1.2))
-            tf = title_box.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            p.text = slide_data.title
-            p.font.size = Pt(36)
-            p.font.bold = True
-            p.font.color.rgb = palette["primary"]
-
-            # Subtitle
-            if slide_data.subtitle:
-                p_sub = tf.add_paragraph()
-                p_sub.text = slide_data.subtitle
-                p_sub.font.size = Pt(18)
-                p_sub.font.color.rgb = palette["muted"]
-
-            # Bullets box
-            if slide_data.bullets:
-                body_box = slide.shapes.add_textbox(Inches(1.0), Inches(2.3), Inches(11.33), Inches(4.2))
-                btf = body_box.text_frame
-                btf.word_wrap = True
-                for b_idx, bullet in enumerate(slide_data.bullets):
-                    bp = btf.paragraphs[0] if b_idx == 0 else btf.add_paragraph()
-                    bp.text = f"•  {bullet}"
-                    bp.font.size = Pt(22)
-                    bp.font.color.rgb = palette["text"]
-                    bp.space_after = Pt(14)
-
-            # Speaker Notes
-            if slide_data.speaker_notes:
-                notes_slide = slide.notes_slide
-                text_frame = notes_slide.notes_text_frame
-                text_frame.text = slide_data.speaker_notes
-
-        prs.save(output_path)
+        build_presentation_file(slides, theme_name, output_path)
 
 
 # Register slide tool
