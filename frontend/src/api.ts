@@ -30,12 +30,35 @@ export interface Artifact {
   updated_at: string;
 }
 
+export interface ConceptItem {
+  concept: string;
+  explanation: string;
+  grounding?: GroundingRef;
+}
+
+export interface VocabularyItem {
+  term: string;
+  definition: string;
+  grounding?: GroundingRef;
+}
+
+export interface ChapterOutline {
+  title: string;
+  subject: string;
+  grade_level: string;
+  summary: string;
+  learning_objectives: string[];
+  concepts: ConceptItem[];
+  vocabulary: VocabularyItem[];
+}
+
 export interface ProjectManifest {
   project_id: string;
   name: string;
   source_filename?: string;
   created_at: string;
   updated_at: string;
+  outline?: ChapterOutline;
   artifacts?: Record<string, Artifact>;
 }
 

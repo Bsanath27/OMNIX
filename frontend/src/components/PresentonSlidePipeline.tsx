@@ -448,7 +448,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                 rows={3}
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
-                placeholder="e.g. Newton's Laws of Motion: Physical Inertia, momentum derivations, and Galileo's inclined plane experiment..."
+                placeholder={project?.outline?.title ? `e.g. In-depth lecture module on ${project.outline.title}...` : "e.g. Foundational principles, key mechanisms, and real-world applications..."}
                 className={`w-full p-4 rounded-2xl border text-sm focus:outline-none transition-all ${
                   isDarkMode
                     ? 'bg-[#151413] border-[#32302C] text-white focus:border-[#FF5C00]'
@@ -760,7 +760,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                           className="text-[9px] font-mono font-bold uppercase tracking-wider"
                           style={{ color: tpl.accentColor }}
                         >
-                          PHYSICS 11 · UNIT 01
+                          {(project?.outline?.subject || 'CURRICULUM').toUpperCase()} · {(project?.outline?.grade_level || 'GRADE 10').toUpperCase()}
                         </span>
                       </div>
                       <span className="text-[9px] font-mono opacity-60" style={{ color: tpl.textColor }}>
@@ -773,7 +773,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                         className="text-sm font-extrabold truncate max-w-[220px]"
                         style={{ color: tpl.textColor }}
                       >
-                        {outlines[0]?.title || 'Newtonian Mechanics'}
+                        {outlines[0]?.title || project?.name || 'Classroom Learning Module'}
                       </div>
                       <div
                         className="h-1 rounded-full w-20"

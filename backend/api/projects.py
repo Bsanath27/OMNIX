@@ -354,61 +354,105 @@ async def generate_slide_outline(project_id: str, req: GenerateSlideOutlineReque
     if passages_path.exists():
         passages = load_passages_from_json(passages_path)
 
-    topic = (req.prompt or "").strip() or manifest.name
+    outline_data = manifest.outline
+    subject = outline_data.subject if outline_data and outline_data.subject else "General Science"
+    grade = outline_data.grade_level if outline_data and outline_data.grade_level else "Grade 10"
+    topic = (req.prompt or "").strip() or (outline_data.title if outline_data else manifest.name)
     count = max(3, min(12, req.num_slides))
 
     outlines: List[SlideOutlineItem] = []
 
     # Slide 1: Introduction
-    intro_content = f"### {topic}\n- Curriculum Context: Fundamental Postulates & Core Definitions\n- Pedagogical Scope: Classroom instruction and guided inquiries\n- Verified Grounding: Textbook references linked throughout"
+    p_count = len(passages)
+    b_focus = f"Pedagogical Framework: Tailored for {grade} {subject} learners."
+    b_summary = f"Chapter Scope: {outline_data.summary[:90]}..." if outline_data and outline_data.summary else f"Core chapter inquiry covering {topic}."
+    b_grounding = f"Textbook Grounding: Linked to {p_count} extracted textbook passages." if p_count > 0 else "Grounded in standard curriculum references."
+    
     outlines.append(SlideOutlineItem(
         id=str(uuid.uuid4())[:8],
         slide_number=1,
         title=topic,
-        content=intro_content,
-        bullets=[
-            "Curriculum Context: Fundamental Postulates & Core Definitions",
-            "Pedagogical Scope: Classroom instruction and guided inquiries",
-            "Verified Grounding: Textbook references linked throughout"
-        ]
+        content=f"### {topic}\n- {b_focus}\n- {b_summary}\n- {b_grounding}",
+        bullets=[b_focus, b_summary, b_grounding]
     ))
 
-    # Concept slides
-    passage_items = list(passages.items())
-    for i in range(2, count):
-        if passage_items and (i - 2) < len(passage_items):
-            pid, text = passage_items[i - 2]
-            title = f"Core Principle: Part {i-1}"
-            first_sentence = text.split(".")[0] if "." in text else text[:80]
-            b1 = f"Primary Mechanism: {first_sentence} [Ref: {pid}]"
-            b2 = "Observable Phenomenon: Experimental verification and physical evidence."
-            b3 = "Instructional Focus: Critical conceptual model for student mastery."
-        else:
-            title = f"Analytical Mechanism {i-1}"
-            b1 = f"Theoretical Foundation: Key postulates defining {topic} in practice."
-            b2 = "Mathematical Representation: Governing relations and vector dynamics."
-            b3 = "Practical Demonstration: Thought experiment illustrating key constraints."
-
-        content = f"### {title}\n- {b1}\n- {b2}\n- {b3}"
+    # Slide 2: Learning Objectives if available
+    if outline_data and outline_data.learning_objectives and count >= 4:
+        objs = outline_data.learning_objectives[:3]
+        obj_bullets = [f"Competency {i+1}: {o}" for i, o in enumerate(objs)]
         outlines.append(SlideOutlineItem(
             id=str(uuid.uuid4())[:8],
-            slide_number=i,
-            title=title,
-            content=content,
-            bullets=[b1, b2, b3]
+            slide_number=len(outlines) + 1,
+            title="Learning Objectives & Standards",
+            content="### Learning Objectives & Standards\n" + "\n".join([f"- {b}" for b in obj_bullets]),
+            bullets=obj_bullets
         ))
+
+    # Concept slides from real outline concepts, vocabulary, or passages
+    concepts = outline_data.concepts if outline_data else []
+    vocabulary = outline_data.vocabulary if outline_data else []
+    passage_items = list(passages.items())
+
+    # Generate remaining intermediate slides up to count - 1
+    target_intermediate = count - len(outlines) - 1
+
+    for i in range(target_intermediate):
+        slide_num = len(outlines) + 1
+        if i < len(concepts):
+            c = concepts[i]
+            c_title = c.concept or f"Core Principle {i+1}"
+            pid_tag = f" [Ref: {c.grounding.passage_id}]" if c.grounding and c.grounding.passage_id else ""
+            b1 = f"Primary Principle: {c.explanation}{pid_tag}"
+            
+            vocab_def = vocabulary[i].definition if i < len(vocabulary) else None
+            vocab_term = vocabulary[i].term if i < len(vocabulary) else None
+            b2 = f"Key Definition: {vocab_term} - {vocab_def}" if vocab_term and vocab_def else "Observable Evidence: Verified classroom experimental observation."
+            b3 = "Practical Insight: Real-world application and governing mechanics."
+            
+            outlines.append(SlideOutlineItem(
+                id=str(uuid.uuid4())[:8],
+                slide_number=slide_num,
+                title=c_title,
+                content=f"### {c_title}\n- {b1}\n- {b2}\n- {b3}",
+                bullets=[b1, b2, b3]
+            ))
+        elif i < len(passage_items):
+            pid, text = passage_items[i]
+            first_sentence = text.split(".")[0] if "." in text else text[:80]
+            c_title = f"Section Focus: {first_sentence[:40]}..."
+            b1 = f"Textbook Passage: {first_sentence} [Ref: {pid}]"
+            b2 = f"Conceptual Model: {text[:100]}..." if len(text) > 100 else "Supporting instructional context from chapter text."
+            b3 = "Classroom Discussion: Connect this mechanism to practical applications."
+            outlines.append(SlideOutlineItem(
+                id=str(uuid.uuid4())[:8],
+                slide_number=slide_num,
+                title=c_title,
+                content=f"### {c_title}\n- {b1}\n- {b2}\n- {b3}",
+                bullets=[b1, b2, b3]
+            ))
+        else:
+            c_title = f"Pedagogical Mechanism {i+1}"
+            b1 = f"Foundational Rule: Core definitions governing {topic}."
+            b2 = "Observable Relations: Systematic relationship between domain variables."
+            b3 = "Inquiry Exercise: Guided question for student peer discussion."
+            outlines.append(SlideOutlineItem(
+                id=str(uuid.uuid4())[:8],
+                slide_number=slide_num,
+                title=c_title,
+                content=f"### {c_title}\n- {b1}\n- {b2}\n- {b3}",
+                bullets=[b1, b2, b3]
+            ))
 
     # Final Slide: Summary & Checkpoint
     summary_title = "Summary & Classroom Checkpoint"
     s1 = f"Core Consolidation: Review of governing mechanisms of {topic}."
-    s2 = "Common Misconceptions: Explicit contrast between physical intuition and theoretical proof."
+    s2 = f"Common Misconceptions: Contrast intuitive misconceptions against {subject} principles."
     s3 = "Formative Assessment: 3-question peer discussion and self-reflection exercise."
-    summary_content = f"### {summary_title}\n- {s1}\n- {s2}\n- {s3}"
     outlines.append(SlideOutlineItem(
         id=str(uuid.uuid4())[:8],
-        slide_number=count,
+        slide_number=len(outlines) + 1,
         title=summary_title,
-        content=summary_content,
+        content=f"### {summary_title}\n- {s1}\n- {s2}\n- {s3}",
         bullets=[s1, s2, s3]
     ))
 
@@ -429,6 +473,10 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
     pptx_path = output_dir / "slides.pptx"
     json_path = output_dir / "slides.json"
 
+    outline_data = manifest.outline
+    subject = outline_data.subject if outline_data and outline_data.subject else "General Science"
+    grade = outline_data.grade_level if outline_data and outline_data.grade_level else "Grade 10"
+
     slides_data: List[SlideContent] = []
     raw_slides_for_json: List[Dict[str, Any]] = []
 
@@ -442,10 +490,12 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
         archetype = "hero_stat" if idx == 0 else "card_grid_3"
         cards = []
         for c_idx, b in enumerate(bullets[:3]):
+            term = b.split(":")[0].strip() if ":" in b else f"Principle {c_idx + 1}"
+            desc = b.split(":", 1)[1].strip() if ":" in b else b
             cards.append(SlideCard(
-                badge=f"Concept {c_idx + 1}",
-                title=f"Principle {c_idx + 1}",
-                body=b
+                badge=f"Part {c_idx + 1}",
+                title=term,
+                body=desc
             ))
         if not cards:
             cards.append(SlideCard(badge="Postulate", title="Core Concept", body="Classroom instructional focal point."))
@@ -453,11 +503,11 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
         slide_obj = SlideContent(
             slide_number=idx + 1,
             title=title,
-            subtitle="Curriculum Unit · Grade 11 Physics",
+            subtitle=f"{subject} • Level: {grade}",
             archetype=archetype,
             cards=cards,
             bullets=bullets,
-            speaker_notes=f"Guide learners through {title}. Connect to chapter textbook passages before moving to next slide."
+            speaker_notes=f"Guide learners through {title}. Connect this mechanism to textbook passage grounding before facilitating the formative check."
         )
         slides_data.append(slide_obj)
         raw_slides_for_json.append(slide_obj.model_dump())

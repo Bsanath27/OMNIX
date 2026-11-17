@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Artifact,
   ProjectManifest,
+  ConceptItem,
+  VocabularyItem,
   updateProjectSlides,
   suggestSlideEdits,
   SuggestEditsResponse,
@@ -49,6 +51,186 @@ interface SlideStudioViewProps {
   onArtifactUpdated?: (art: Artifact) => void;
 }
 
+function buildDynamicSlidesFromProject(proj: ProjectManifest | null, passages: Record<string, string> = {}) {
+  const subject = proj?.outline?.subject || 'Curriculum';
+  const grade = proj?.outline?.grade_level || 'Grade 10';
+  const title = proj?.outline?.title || proj?.name || 'Lesson Presentation';
+  const summary = proj?.outline?.summary || 'Comprehensive instructional unit aligned with textbook grounding.';
+  const concepts = proj?.outline?.concepts || [];
+  const objectives = proj?.outline?.learning_objectives || [];
+  const vocabulary = proj?.outline?.vocabulary || [];
+  const passageEntries = Object.entries(passages || {});
+
+  const slides: any[] = [];
+
+  // Slide 1: Hero / Overview
+  const conceptNames = concepts.slice(0, 3).map((c: ConceptItem) => c.concept).join(', ');
+  slides.push({
+    slide_number: 1,
+    title: title,
+    subtitle: `${subject.toUpperCase()} · ${grade.toUpperCase()} · FOUNDATIONAL UNIT`,
+    badge: 'UNIT OVERVIEW',
+    postulate: 'PEDAGOGICAL FOUNDATION',
+    standard: `${subject} Standard`,
+    archetype: 'hero_stat',
+    cards: [
+      {
+        badge: 'Curriculum Focus',
+        stat: grade,
+        title: `${subject} Scope`,
+        body: summary.length > 150 ? summary.slice(0, 147) + '...' : summary,
+      },
+      {
+        badge: 'Core Concepts',
+        title: `${concepts.length || 3} Key Topics`,
+        body: conceptNames ? `Key areas: ${conceptNames}.` : `Structured lesson module for direct classroom delivery.`,
+      },
+      {
+        badge: 'Grounding',
+        title: 'Textbook Verified',
+        body: `Synthesized deterministically from ${proj?.source_filename || 'chapter text'} with passage grounding.`,
+      },
+    ],
+    speaker_notes: `Welcome students to ${title}. Introduce the overarching chapter goal and connect it to foundational ${subject} concepts.`,
+    est_delivery: '3m 30s',
+  });
+
+  // Slide 2: Learning Objectives
+  if (objectives.length > 0) {
+    slides.push({
+      slide_number: 2,
+      title: 'Learning Objectives & Competencies',
+      subtitle: `${subject.toUpperCase()} · PEDAGOGICAL TARGETS`,
+      badge: 'OBJECTIVES',
+      postulate: "BLOOM'S TAXONOMY ALIGNMENT",
+      standard: `${subject} Standard`,
+      archetype: 'card_grid_3',
+      cards: objectives.slice(0, 3).map((obj: string, i: number) => ({
+        badge: `Competency 0${i + 1}`,
+        title: `Goal 0${i + 1}`,
+        body: obj,
+      })),
+      speaker_notes: `Walk students through these Bloom's taxonomy objectives before diving into detailed mechanisms.`,
+      est_delivery: '3m 45s',
+    });
+  }
+
+  // Slide 3..N: Real Concepts from Outline
+  if (concepts.length > 0) {
+    concepts.slice(0, 4).forEach((c: ConceptItem, idx: number) => {
+      const gRef = c.grounding?.passage_id || (passageEntries[idx] ? passageEntries[idx][0] : undefined);
+      const quote = c.grounding?.quote || (gRef && passages[gRef] ? passages[gRef].slice(0, 120) : '');
+      slides.push({
+        slide_number: slides.length + 1,
+        title: c.concept,
+        subtitle: `${subject.toUpperCase()} · ${grade.toUpperCase()} · CONCEPT EXPLORATION`,
+        badge: `CONCEPT 0${idx + 1}`,
+        postulate: gRef ? `GROUNDED IN [${gRef}]` : 'CORE PRINCIPLE',
+        standard: gRef ? `Passage [${gRef}]` : `${subject} Standard`,
+        archetype: 'card_grid_3',
+        cards: [
+          {
+            badge: 'Mechanism',
+            title: 'Core Explanation',
+            body: c.explanation || `Fundamental mechanism governing ${c.concept}.`,
+            citation: gRef,
+          },
+          {
+            badge: 'Application',
+            title: 'Classroom Context',
+            body: `Examine practical implications, scientific models, and analytical methods for ${c.concept}.`,
+          },
+          {
+            badge: 'Grounding',
+            title: 'Textbook Evidence',
+            body: quote || `Verified understanding grounded in primary curriculum reference.`,
+            citation: gRef,
+          },
+        ],
+        speaker_notes: `Deep-dive discussion on ${c.concept}. Prompt students for real-world examples and clarify theoretical misconceptions.${gRef ? ` [Ref: ${gRef}]` : ''}`,
+        est_delivery: '4m 15s',
+      });
+    });
+  } else if (passageEntries.length > 0) {
+    // Fallback to passages
+    passageEntries.slice(0, 4).forEach(([pid, text]: [string, string], idx: number) => {
+      slides.push({
+        slide_number: slides.length + 1,
+        title: `Core Concept 0${idx + 1}`,
+        subtitle: `${subject.toUpperCase()} · SECTION GROUNDED IN ${pid}`,
+        badge: `SECTION 0${idx + 1}`,
+        postulate: 'PRIMARY SOURCE TEXT',
+        standard: `Passage [${pid}]`,
+        archetype: 'card_grid_3',
+        cards: [
+          {
+            badge: 'Excerpt',
+            title: `Source [${pid}]`,
+            body: text.slice(0, 160),
+            citation: pid,
+          },
+          {
+            badge: 'Pedagogy',
+            title: 'Key Mechanism',
+            body: 'Critical concept extracted from primary chapter text for focused student review.',
+          },
+          {
+            badge: 'Reflection',
+            title: 'Discussion Anchor',
+            body: 'Ask students how this principle applies to observable natural phenomena.',
+          },
+        ],
+        speaker_notes: `Discuss ${pid}: ${text.slice(0, 120)}... [Ref: ${pid}]`,
+        est_delivery: '3m 45s',
+      });
+    });
+  } else if (vocabulary.length > 0) {
+    slides.push({
+      slide_number: slides.length + 1,
+      title: 'Foundational Terminology',
+      subtitle: `${subject.toUpperCase()} · SCIENTIFIC VOCABULARY`,
+      badge: 'TERMS',
+      postulate: 'CURRICULUM LEXICON',
+      standard: `${subject} Standard`,
+      archetype: 'card_grid_3',
+      cards: vocabulary.slice(0, 3).map((v: VocabularyItem, i: number) => ({
+        badge: `Term 0${i + 1}`,
+        title: v.term,
+        body: v.definition,
+      })),
+      speaker_notes: 'Reinforce essential terminology before moving on to quantitative problem solving.',
+      est_delivery: '3m 30s',
+    });
+  }
+
+  // Final Slide: Summary & Checkpoint
+  slides.push({
+    slide_number: slides.length + 1,
+    title: 'Summary & Classroom Checkpoint',
+    subtitle: `${subject.toUpperCase()} · ${grade.toUpperCase()} · FORMATIVE ASSESSMENT`,
+    badge: 'REVIEW',
+    postulate: 'CORE TAKEAWAYS',
+    standard: `${subject} Standard`,
+    archetype: 'key_takeaways',
+    cards: [
+      {
+        badge: 'Takeaway 1',
+        title: 'Consolidated Principle',
+        body: `Synthesize foundational principles of ${title} covered in this instructional unit.`,
+      },
+      {
+        badge: 'Takeaway 2',
+        title: 'Formative Checkpoint',
+        body: 'Evaluate student comprehension through open discussion questions and clarify ambiguities.',
+      },
+    ],
+    speaker_notes: 'Conclude lesson with key takeaways. Formulate open discussion questions before proceeding to interactive practice.',
+    est_delivery: '4m 00s',
+  });
+
+  return slides;
+}
+
 export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   project,
   artifact: initialArtifact,
@@ -68,160 +250,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     if (initialArtifact?.source_data?.slides?.length) {
       return JSON.parse(JSON.stringify(initialArtifact.source_data.slides));
     }
-    // Default curriculum slide set if empty
-    return [
-      {
-        slide_number: 1,
-        title: "Newton's First Law: Physical Inertia",
-        subtitle: "PHYSICS · GRADE 11 · UNIT 03: DYNAMICS",
-        badge: "LAW I",
-        postulate: "FUNDAMENTAL POSTULATE",
-        standard: "NCERT Standard P88",
-        archetype: "card_grid_3",
-        cards: [
-          {
-            badge: "Principle",
-            title: "State of Rest",
-            body: "A body continues in its state of rest unless acted upon by an external unbalanced force.",
-            citation: "P01-S01",
-          },
-          {
-            badge: "Dynamics",
-            title: "Uniform Motion",
-            body: "Maintains constant velocity along a straight line in the absence of net external influence.",
-            citation: "P01-S02",
-          },
-          {
-            badge: "Measure",
-            title: "Mass as Inertia",
-            body: "Inertia is an intrinsic property of matter; mass is the quantitative measure of inertia.",
-            citation: "P01-S03",
-          },
-        ],
-        speaker_notes:
-          "Pedagogical Opening Strategy: Start by demonstrating Galileo's friction-free double-ramp thought experiment before writing mathematical formulas. Explicitly warn students about the common misconception that 'inertia is a force', emphasize it is an intrinsic measure of mass. Engage the class by asking why standing passengers lurch forward during sudden vehicle braking.",
-        est_delivery: "3m 45s",
-      },
-      {
-        slide_number: 2,
-        title: "Momentum Derivations & Invariance",
-        subtitle: "PHYSICS · GRADE 11 · VECTOR FORMULATION",
-        badge: "EQUATION",
-        postulate: "RATE OF CHANGE",
-        standard: "NCERT Standard P90",
-        archetype: "hero_stat",
-        cards: [
-          {
-            badge: "Newtonian Flux",
-            stat: "F = dp / dt",
-            title: "Linear Momentum Conservation",
-            body: "In the absence of external net forces, the total momentum vector of an isolated system remains strictly invariant.",
-            citation: "P01-S04",
-          },
-        ],
-        speaker_notes:
-          "Walk students through vector decomposition. Emphasize that momentum is a vector quantity and directional signs matter in 2D collision calculations.",
-        est_delivery: "4m 10s",
-      },
-      {
-        slide_number: 3,
-        title: "Galileo's Inclined Plane Experiment",
-        subtitle: "PHYSICS · HISTORICAL THOUGHT EXPERIMENT",
-        badge: "EXPERIMENT",
-        postulate: "LIMITING MECHANISM",
-        standard: "NCERT Standard P91",
-        archetype: "split_comparison",
-        cards: [
-          {
-            badge: "Downward Roll",
-            title: "Acceleration Phase",
-            body: "A sphere rolling down an inclined plane gains velocity continuously due to gravity.",
-            citation: "P01-S05",
-          },
-          {
-            badge: "Horizontal Plane",
-            title: "Infinite Trajectory",
-            body: "On a frictionless horizontal surface, the sphere would neither speed up nor slow down, proceeding infinitely.",
-            citation: "P01-S06",
-          },
-        ],
-        speaker_notes:
-          "Highlight Galileo's departure from Aristotelian physics. Aristotle believed constant force was required for continuous motion; Galileo proved force changes motion.",
-        est_delivery: "3m 30s",
-      },
-      {
-        slide_number: 4,
-        title: "Balanced vs. Unbalanced Forces",
-        subtitle: "PHYSICS · GRADE 11 · EQUILIBRIUM",
-        badge: "EQUILIBRIUM",
-        postulate: "RESULTANT VECTOR",
-        standard: "NCERT Standard P92",
-        archetype: "card_grid_3",
-        cards: [
-          {
-            badge: "Net Force = 0",
-            title: "Translational Equilibrium",
-            body: "Opposing forces cancel out exactly; acceleration is zero (velocity is constant).",
-          },
-          {
-            badge: "Net Force ≠ 0",
-            title: "Accelerated Dynamics",
-            body: "Non-zero resultant force induces acceleration inversely proportional to mass.",
-          },
-        ],
-        speaker_notes:
-          "Draw free body diagrams (FBD) on the blackboard before asking students to solve textbook numerical example 5.1.",
-        est_delivery: "4m 00s",
-      },
-      {
-        slide_number: 5,
-        title: "Inertia in Vehicles & Daily Phenomena",
-        subtitle: "PHYSICS · REAL-WORLD OBSERVATIONS",
-        badge: "OBSERVATION",
-        postulate: "EVERYDAY DYNAMICS",
-        standard: "NCERT Standard P93",
-        archetype: "card_grid_3",
-        cards: [
-          {
-            badge: "Inertia of Rest",
-            title: "Sudden Vehicle Start",
-            body: "Feet move forward with the bus floor while the upper torso tends to remain at rest, causing backward pitch.",
-          },
-          {
-            badge: "Inertia of Motion",
-            title: "Sudden Braking",
-            body: "Vehicle halts while passenger's upper body continues forward trajectory until restrained by seatbelts.",
-          },
-        ],
-        speaker_notes:
-          "Relate this to automotive safety standards: Explain why headrests and seatbelts are essential physical safeguards against whiplash.",
-        est_delivery: "3m 15s",
-      },
-      {
-        slide_number: 6,
-        title: "Summary & Classroom Checkpoint",
-        subtitle: "PHYSICS · GRADE 11 · FORMATIVE ASSESSMENT",
-        badge: "REVIEW",
-        postulate: "CORE TAKEAWAYS",
-        standard: "NCERT Standard P94",
-        archetype: "key_takeaways",
-        cards: [
-          {
-            badge: "Takeaway 1",
-            title: "Inertia is Mass",
-            body: "Heavier bodies require greater external net force to alter their velocity.",
-          },
-          {
-            badge: "Takeaway 2",
-            title: "Equilibrium Principle",
-            body: "Rest and uniform rectilinear motion are physically equivalent inertial states.",
-          },
-        ],
-        speaker_notes:
-          "Give students 4 minutes to attempt the 3 formative checkpoint questions before conducting the live quiz.",
-        est_delivery: "5m 00s",
-      },
-    ];
+    return buildDynamicSlidesFromProject(project, _passages);
   });
 
   // State for AI Refinements & Editing
@@ -238,8 +267,10 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     if (initialArtifact?.source_data?.slides?.length) {
       setCurrentArtifact(initialArtifact);
       setEditableSlides(JSON.parse(JSON.stringify(initialArtifact.source_data.slides)));
+    } else if (project) {
+      setEditableSlides(buildDynamicSlidesFromProject(project, _passages));
     }
-  }, [initialArtifact]);
+  }, [initialArtifact, project]);
 
   const activeSlide = editableSlides[currentSlideIndex] || editableSlides[0];
 
@@ -269,19 +300,21 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   };
 
   const handleAddNewSlide = () => {
+    const subject = project?.outline?.subject || 'Curriculum';
+    const grade = project?.outline?.grade_level || 'Grade 10';
     const newSlide = {
       slide_number: editableSlides.length + 1,
       title: "New Concept Presentation",
-      subtitle: "PHYSICS · GRADE 11 · LECTURE MODULE",
-      badge: "CONCEPT",
+      subtitle: `${subject.toUpperCase()} · ${grade.toUpperCase()} · LECTURE MODULE`,
+      badge: `CONCEPT 0${editableSlides.length + 1}`,
       postulate: "KEY POSTULATE",
-      standard: "NCERT Standard",
+      standard: `${subject} Standard`,
       archetype: "card_grid_3",
       cards: [
         { badge: "Part 1", title: "Primary Mechanism", body: "Concise description of the foundational concept." },
         { badge: "Part 2", title: "Observable Result", body: "Classroom observation and experimental proof." },
       ],
-      speaker_notes: "Guide students through the physical intuition before showing the mathematical derivations.",
+      speaker_notes: `Guide students through the core intuition of this concept before showing mathematical derivations or practical applications.`,
       est_delivery: "3m 30s",
     };
     setEditableSlides((prev) => [...prev, newSlide]);
@@ -387,10 +420,10 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
           <div className="hidden md:flex items-center gap-2 text-xs text-slate-400 font-medium">
             <span className="hover:text-slate-200 cursor-pointer" onClick={onBack}>Library</span>
             <span>›</span>
-            <span>Grade 11 Physics</span>
+            <span>{project?.outline?.subject || 'Curriculum'} · {project?.outline?.grade_level || 'Grade 10'}</span>
             <span>›</span>
             <span className="text-slate-200 font-semibold truncate max-w-xs">
-              {project?.name || "Chapter 1: Newton's Laws of Motion"}
+              {project?.outline?.title || project?.name || "Curriculum Chapter"}
             </span>
           </div>
         </div>
@@ -599,7 +632,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                     {/* Miniature visual wireframe preview */}
                     <div className="h-16 w-full rounded-xl bg-[#11100F] border border-white/5 p-2 flex flex-col justify-between overflow-hidden">
                       <div className="flex items-center justify-between text-[8px] text-slate-500 font-mono">
-                        <span>PHYSICS · U03</span>
+                        <span>{(project?.outline?.subject || 'UNIT').slice(0, 7).toUpperCase()} · SL{idx + 1}</span>
                         <span className="text-emerald-500">VERIFIED</span>
                       </div>
                       <div className="w-3/4 h-1 rounded bg-[#FF5C00] opacity-80" />
@@ -667,11 +700,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse" />
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#FF5C00]">
-                CURRICULUM MODE · PHYSICS 11
+                CURRICULUM MODE · {(project?.outline?.subject || 'Curriculum').toUpperCase()} {(project?.outline?.grade_level || '').toUpperCase()}
               </span>
               <span className="text-slate-600">|</span>
               <span className="text-slate-400 text-[11px] font-mono">
-                NCERT Syllabus 2024-25 Grounding Sync: Stable
+                {project?.outline?.subject || 'Curriculum'} Grounding Sync: Stable
               </span>
             </div>
 
@@ -705,7 +738,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <div className="flex items-center justify-between text-xs font-mono">
                 <div className="flex items-center gap-2">
                   <span className="text-slate-400 font-semibold">
-                    {activeSlide?.subtitle || "PHYSICS · GRADE 11 · UNIT 03: DYNAMICS"}
+                    {activeSlide?.subtitle || `${(project?.outline?.subject || 'Curriculum').toUpperCase()} · ${(project?.outline?.grade_level || 'Grade 10').toUpperCase()}`}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -714,7 +747,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                    <span>NCERT Standard P88</span>
+                    <span>{activeSlide?.standard || `${project?.outline?.subject || 'Curriculum'} Standard`}</span>
                   </span>
                 </div>
               </div>
@@ -722,10 +755,10 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               {/* Law Badge */}
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-[#FF5C00] text-white font-bold text-[10px] tracking-wider uppercase">
-                  {activeSlide?.badge || "LAW I"}
+                  {activeSlide?.badge || `CARD 0${currentSlideIndex + 1}`}
                 </span>
                 <span className="text-[10px] font-mono text-slate-400 tracking-wider uppercase">
-                  {activeSlide?.postulate || "FUNDAMENTAL POSTULATE"}
+                  {activeSlide?.postulate || "GROUNDED CURRICULUM TOPIC"}
                 </span>
               </div>
 
@@ -866,7 +899,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono pt-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="truncate">Synced: {project?.source_filename || "Chapter_01_Physics.pdf"}</span>
+                <span className="truncate">Synced: {project?.source_filename || `${project?.name || 'chapter'}.pdf`}</span>
               </div>
             </div>
 
@@ -906,7 +939,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   className="px-2.5 py-2 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] hover:border-[#FF5C00] text-slate-200 text-left flex items-center gap-1.5 transition-colors"
                 >
                   <Sigma className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Formula Proof</span>
+                  <span>Key Principles</span>
                 </button>
               </div>
             </div>
@@ -918,7 +951,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 <span className="text-emerald-400 font-bold">99.4% confidence</span>
               </div>
               <p className="text-xs text-slate-300 leading-snug">
-                Grounded in <strong className="text-white">NCERT Physics Grade 11 Ch.1</strong>, Pages 88–92 (Inertia & Motion Postulates).
+                Grounded in <strong className="text-white">{project?.outline?.subject || 'Curriculum'} {project?.outline?.grade_level || ''}</strong>: {project?.outline?.title || project?.name || 'Extracted Chapter Text'}.
               </p>
               <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" />
@@ -933,7 +966,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 <span>Slide Synthesizer v2.4</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Synthesized 3 bento cards to contrast static rest, momentum vector invariance, and mass as an inertial scalar based on your Grade 11 curriculum prompt.
+                Synthesized {activeSlide?.cards?.length || 3} cards covering "{activeSlide?.title || 'core concepts'}" tailored for {project?.outline?.grade_level || 'Grade 10'} learners.
               </p>
               <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-[#2B2926]">
                 <span>Tokens: 342</span>
@@ -942,11 +975,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[10px] text-slate-400 font-mono">Bloom's Taxonomy:</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">
-                  Level 3: Apply
+                  {currentSlideIndex === 0 ? "Level 1: Remember" : currentSlideIndex === 1 ? "Level 2: Understand" : "Level 3: Apply"}
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 font-mono">
-                Conceptual clarity score: <span className="text-emerald-400 font-bold">92/100</span>
+                Conceptual clarity score: <span className="text-emerald-400 font-bold">94/100</span>
               </div>
             </div>
 

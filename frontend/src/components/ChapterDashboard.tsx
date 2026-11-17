@@ -107,7 +107,12 @@ export const ChapterDashboard: React.FC = () => {
       fetchPassages(selectedProject.project_id).then(setPassages);
       fetchProject(selectedProject.project_id).then((p) => {
         if (p.artifacts) {
-          setArtifacts(Object.values(p.artifacts));
+          const sorted = Object.values(p.artifacts).sort(
+            (a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()
+          );
+          setArtifacts(sorted);
+          const latestSlide = sorted.find((a) => a.tool_name === 'slides');
+          if (latestSlide) setSelectedSlideArtifact(latestSlide);
         }
       });
     } else {
@@ -163,8 +168,14 @@ export const ChapterDashboard: React.FC = () => {
       if (matchedProj) {
         setSelectedProject(matchedProj);
         if (matchedProj.artifacts) {
-          const slideArt = Object.values(matchedProj.artifacts).find(a => a.tool_name === 'slides');
-          if (slideArt) setSelectedSlideArtifact(slideArt);
+          const slideArts = Object.values(matchedProj.artifacts)
+            .filter((a) => a.tool_name === 'slides')
+            .sort(
+              (a, b) =>
+                new Date(b.updated_at || b.created_at || 0).getTime() -
+                new Date(a.updated_at || a.created_at || 0).getTime()
+            );
+          if (slideArts[0]) setSelectedSlideArtifact(slideArts[0]);
         }
       }
 

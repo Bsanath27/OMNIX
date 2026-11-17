@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -303,25 +304,59 @@ class SlideTool(BaseTool):
         outline: Optional[Dict[str, Any]]
     ) -> List[SlideContent]:
         slides: List[SlideContent] = []
-        topic = brief.topic or (outline.get("title") if outline else "Lesson Presentation")
+        raw_topic = brief.topic or (outline.get("title") if outline else "Lesson Presentation")
+        # Clean up command prompts like "create a 6 slide on force" -> "Force"
+        cleaned_topic = re.sub(
+            r'^(?:please\s+)?(?:create|make|generate|build|give\s+me)?\s*(?:a|an)?\s*(?:\d+)?\s*(?:slides?|presentation|deck)?\s*(?:on|about|for)?\s*',
+            '',
+            raw_topic,
+            flags=re.IGNORECASE
+        ).strip()
+        cleaned_topic = re.sub(
+            r'\s*(?:with|for)\s+(?:speaker\s+notes|class\s+\d+|grade\s+\d+|students).*$',
+            '',
+            cleaned_topic,
+            flags=re.IGNORECASE
+        ).strip()
+        
+        topic = cleaned_topic.title() if len(cleaned_topic) >= 2 else (outline.get("title") if outline else raw_topic)
 
-        # 1. Hero / Title Slide
+        # 1. Hero / Title Slide with real chapter data
+        summary_text = (outline.get("summary") if outline else "") or f"Instructional unit tailored for {brief.grade_level} learners in {brief.subject}."
+        concepts = outline.get("concepts", []) if outline else []
+        concepts_highlight = ", ".join([c.get("concept", "") for c in concepts[:3]])
+
+        slide_1_cards = [
+            SlideCard(
+                badge="Curriculum Focus",
+                stat=brief.grade_level if len(brief.grade_level) <= 8 else brief.grade_level[:8],
+                title=f"{brief.subject} Overview",
+                body=summary_text[:140] + ("..." if len(summary_text) > 140 else "")
+            ),
+            SlideCard(
+                badge="Core Concepts",
+                title=f"{len(concepts)} Key Topics" if concepts else "Pedagogical Structure",
+                body=f"Topics covered: {concepts_highlight}" if concepts_highlight else "Structured lesson module for direct classroom delivery."
+            ),
+            SlideCard(
+                badge="Grounding",
+                title="Textbook Aligned",
+                body=f"Synthesized deterministically from chapter passages with verified references."
+            )
+        ]
+
         slides.append(SlideContent(
             slide_number=1,
             title=topic,
             subtitle=f"{brief.subject} • Level: {brief.grade_level}",
             archetype="hero_stat",
-            cards=[
-                SlideCard(badge="Domain", stat=brief.subject[:3].upper(), title="Pedagogical Field", body=f"Instructional unit tailored for {brief.grade_level} learners."),
-                SlideCard(badge="Framework", title="Classroom Ready", body="Structured lesson module for direct projector delivery or self-paced review."),
-                SlideCard(badge="Grounding", title="Textbook Aligned", body="Synthesized deterministically from chapter passages with verified references.")
-            ],
+            cards=slide_1_cards,
             bullets=[
                 f"Curriculum Level: {brief.grade_level}",
                 f"Pedagogical Domain: {brief.subject}",
                 "Source-Grounded Classroom Learning Module"
             ],
-            speaker_notes="Welcome students to today's session. Introduce the overarching chapter goal and connect it to prior knowledge.",
+            speaker_notes=f"Welcome students to today's session on {topic}. Introduce the overarching chapter goal and connect it to foundational concepts.",
             grounding=None
         ))
 
