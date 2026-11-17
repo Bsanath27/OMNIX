@@ -39,6 +39,12 @@ export interface ProjectManifest {
   artifacts?: Record<string, Artifact>;
 }
 
+export interface ToolMetadata {
+  name: string;
+  description: string;
+  brief_schema?: Record<string, any>;
+}
+
 export async function fetchDoctor(): Promise<DoctorReport> {
   const res = await fetch('/api/doctor');
   if (!res.ok) throw new Error('Failed to fetch doctor diagnostics');
@@ -97,3 +103,10 @@ export async function runTool(toolName: string, projectId: string, brief: Record
   }
   return res.json();
 }
+
+export async function fetchTools(): Promise<ToolMetadata[]> {
+  const res = await fetch('/api/tools');
+  if (!res.ok) return [];
+  return res.json();
+}
+
