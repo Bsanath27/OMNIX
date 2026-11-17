@@ -57,6 +57,7 @@ export const ChapterDashboard: React.FC = () => {
   const [projects, setProjects] = useState<ProjectManifest[]>([]);
   const [selectedProject, setSelectedProject] = useState<ProjectManifest | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
+  const [projectSearch, setProjectSearch] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
   // Passages & search states
@@ -103,7 +104,7 @@ export const ChapterDashboard: React.FC = () => {
     }
   }, [selectedProject?.project_id]);
 
-  // Click outside to close attachment popover
+  // Click outside or Escape to close attachment popover
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -113,11 +114,18 @@ export const ChapterDashboard: React.FC = () => {
         setIsAttachmentOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAttachmentOpen(false);
+      }
+    };
     if (isAttachmentOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isAttachmentOpen]);
 
@@ -166,6 +174,7 @@ export const ChapterDashboard: React.FC = () => {
       }
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -232,6 +241,11 @@ export const ChapterDashboard: React.FC = () => {
   const filteredPassages = Object.entries(passages).filter(([id, text]) => {
     const q = passageSearch.toLowerCase();
     return id.toLowerCase().includes(q) || text.toLowerCase().includes(q);
+  });
+
+  const filteredProjects = projects.filter((p) => {
+    const q = projectSearch.toLowerCase();
+    return p.name.toLowerCase().includes(q) || (p.source_filename && p.source_filename.toLowerCase().includes(q));
   });
 
   const capsuleFilteredPassages = Object.entries(passages).filter(([id, text]) => {
@@ -860,9 +874,25 @@ export const ChapterDashboard: React.FC = () => {
             </button>
           </div>
 
+          {/* Projects Search Filter */}
+          {projects.length > 3 && (
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search chapters..."
+                value={projectSearch}
+                onChange={(e) => setProjectSearch(e.target.value)}
+                className={`w-full text-xs pl-8 pr-2.5 py-1.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
+                  isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
+                }`}
+              />
+            </div>
+          )}
+
           {/* Projects List */}
           <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-            {projects.map((p) => {
+            {filteredProjects.map((p) => {
               const isSelected = selectedProject?.project_id === p.project_id;
               return (
                 <div
