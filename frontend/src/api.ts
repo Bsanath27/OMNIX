@@ -126,4 +126,33 @@ export async function updateProjectSlides(
   return res.json();
 }
 
+export interface SuggestEditsResponse {
+  original_slide: Record<string, any>;
+  suggested_slide: Record<string, any>;
+  explanation: string;
+}
+
+export async function suggestSlideEdits(
+  projectId: string,
+  slide: Record<string, any>,
+  instruction: string,
+  customPrompt?: string
+): Promise<SuggestEditsResponse> {
+  const res = await fetch(`/api/projects/${projectId}/slides/suggest-edits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      slide,
+      instruction,
+      custom_prompt: customPrompt,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to generate slide edit suggestion' }));
+    throw new Error(err.detail || 'Failed to generate slide edit suggestion');
+  }
+  return res.json();
+}
+
+
 

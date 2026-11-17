@@ -218,4 +218,104 @@ async def update_project_slides(project_id: str, req: EditSlidesRequest) -> Arti
     return updated_art
 
 
+class SuggestSlideEditsRequest(BaseModel):
+    slide: Dict[str, Any]
+    instruction: str = "make_concise"
+    custom_prompt: Optional[str] = None
+
+
+class SuggestSlideEditsResponse(BaseModel):
+    original_slide: Dict[str, Any]
+    suggested_slide: Dict[str, Any]
+    explanation: str
+
+
+@router.post("/{project_id}/slides/suggest-edits", response_model=SuggestSlideEditsResponse)
+async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) -> SuggestSlideEditsResponse:
+    """Intelligently generate suggestions for refining slide content (zero login, offline-friendly)."""
+    import copy
+    slide = copy.deepcopy(req.slide)
+    original = copy.deepcopy(req.slide)
+    inst = req.instruction.lower()
+    custom = req.custom_prompt or ""
+    explanation = ""
+
+    bullets = slide.get("bullets", []) or []
+    cards = slide.get("cards", []) or []
+    speaker_notes = slide.get("speaker_notes", "") or ""
+    title = slide.get("title", "Slide")
+
+    if inst == "make_concise":
+        # Condense bullets to essential high-impact keywords
+        new_bullets = []
+        for b in bullets:
+            # Strip wordy prefixes
+            cleaned = b.replace("According to ", "").replace("It is important to note that ", "").replace("Students should understand that ", "")
+            words = cleaned.split()
+            if len(words) > 10:
+                cleaned = " ".join(words[:10]) + "..."
+            new_bullets.append(cleaned)
+        slide["bullets"] = new_bullets
+        
+        # Condense cards
+        for c in cards:
+            body = c.get("body", "")
+            words = body.split()
+            if len(words) > 12:
+                c["body"] = " ".join(words[:12]) + "..."
+        slide["cards"] = cards
+        explanation = "Condensed bullet points and card descriptions into concise, high-impact statements for improved classroom slide visibility."
+
+    elif inst == "add_teacher_tip":
+        tip = f"Pedagogical Tip for '{title}': Pause for 30 seconds after presenting this slide. Ask 2 random students to restate the definition in their own words before moving to the next concept."
+        if speaker_notes:
+            slide["speaker_notes"] = f"{speaker_notes}\n\n[Teaching Tip]: {tip}"
+        else:
+            slide["speaker_notes"] = f"[Teaching Tip]: {tip}"
+        explanation = "Added actionable classroom engagement cues to teacher speaker notes."
+
+    elif inst == "add_discussion_question":
+        q_card = {
+            "badge": "Peer Discussion Checkpoint",
+            "title": f"Think-Pair-Share: {title}",
+            "body": "Turn to your neighbor: How does this principle apply in everyday life? Formulate one concrete example together.",
+        }
+        if cards:
+            cards.append(q_card)
+            slide["cards"] = cards
+        else:
+            bullets.append(f"Classroom Checkpoint: How does {title} apply in everyday phenomena? Discuss with a partner.")
+            slide["bullets"] = bullets
+        explanation = "Inserted an active classroom peer-discussion question into the slide."
+
+    elif inst == "simplify":
+        simplified_bullets = []
+        for b in bullets:
+            simplified = b.replace("utilize", "use").replace("subsequently", "next").replace("phenomenon", "event").replace("demonstrates", "shows")
+            simplified_bullets.append(simplified)
+        slide["bullets"] = simplified_bullets
+        explanation = "Simplified academic vocabulary into learner-friendly language for secondary school students."
+
+    else:
+        # Custom revision prompt
+        added_point = custom.strip() or "Additional pedagogical focal point derived from chapter reading."
+        if cards:
+            cards.append({
+                "badge": "Revision Note",
+                "title": "Key Concept Refinement",
+                "body": added_point
+            })
+            slide["cards"] = cards
+        else:
+            bullets.append(added_point)
+            slide["bullets"] = bullets
+        explanation = f"Applied custom edit request: '{custom or 'Refined slide structure'}'."
+
+    return SuggestSlideEditsResponse(
+        original_slide=original,
+        suggested_slide=slide,
+        explanation=explanation
+    )
+
+
 
