@@ -154,5 +154,56 @@ export async function suggestSlideEdits(
   return res.json();
 }
 
+export interface SlideOutlineItem {
+  id: string;
+  slide_number: number;
+  title: string;
+  content: string;
+  bullets: string[];
+}
+
+export interface GenerateSlideOutlineResponse {
+  project_id: string;
+  prompt: string;
+  outlines: SlideOutlineItem[];
+}
+
+export async function generateSlideOutline(
+  projectId: string,
+  prompt?: string,
+  numSlides: number = 6,
+  language: string = 'en'
+): Promise<GenerateSlideOutlineResponse> {
+  const res = await fetch(`/api/projects/${projectId}/slides/generate-outline`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, num_slides: numSlides, language }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to generate slide outline' }));
+    throw new Error(err.detail || 'Failed to generate slide outline');
+  }
+  return res.json();
+}
+
+export async function compileSlideFromOutline(
+  projectId: string,
+  outlines: SlideOutlineItem[],
+  theme: string = 'solar',
+  artifactId?: string
+): Promise<Artifact> {
+  const res = await fetch(`/api/projects/${projectId}/slides/compile-from-outline`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ outlines, theme, artifact_id: artifactId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to compile slides from outline' }));
+    throw new Error(err.detail || 'Failed to compile slides from outline');
+  }
+  return res.json();
+}
+
+
 
 

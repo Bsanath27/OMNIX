@@ -41,7 +41,7 @@ import {
   Check,
   ArrowRight,
 } from 'lucide-react';
-import { SlideStudioView } from './SlideStudioView';
+import { PresentonSlidePipeline } from './PresentonSlidePipeline';
 
 type NavView = 'home' | 'tools' | 'library' | 'settings' | 'studio';
 type CapabilityType = 'all' | 'slides' | 'video' | 'quizzes' | 'diagrams';
@@ -247,13 +247,9 @@ export const ChapterDashboard: React.FC = () => {
       };
 
       if (targetTool === 'slides') {
-        brief = {
-          ...brief,
-          num_slides: 6,
-          theme: 'academic_clean',
-          include_speaker_notes: true,
-          include_passage_citations: true,
-        };
+        // Direct transition into Presenton 4-step presentation pipeline (Prompt -> Outline Review -> Theme -> Studio)
+        setActiveView('studio');
+        return;
       } else if (targetTool === 'quizzes') {
         brief = {
           ...brief,
@@ -266,12 +262,6 @@ export const ChapterDashboard: React.FC = () => {
       const newArtifact = await runTool(targetTool, currentProj.project_id, brief);
       setArtifacts((prev) => [newArtifact, ...prev]);
       setPromptText('');
-
-      // When generating slides, navigate directly to the dedicated full-page Presenton studio
-      if (targetTool === 'slides') {
-        setSelectedSlideArtifact(newArtifact);
-        setActiveView('studio');
-      }
     } catch (err: any) {
       alert(`Generation failed: ${err.message}`);
     } finally {
@@ -1345,12 +1335,13 @@ export const ChapterDashboard: React.FC = () => {
     </div>
   );
 
-  // Dedicated Full-Page Presentation Studio Workspace (Identical to reference spec)
+  // Dedicated Full-Page Presenton 4-Step Presentation Pipeline (Prompt -> Outline -> Theme -> Studio)
   if (activeView === 'studio') {
     return (
-      <SlideStudioView
+      <PresentonSlidePipeline
         project={selectedProject}
-        artifact={selectedSlideArtifact || artifacts.find((a) => a.tool_name === 'slides') || null}
+        initialPrompt={promptText}
+        initialArtifact={selectedSlideArtifact || artifacts.find((a) => a.tool_name === 'slides') || null}
         passages={passages}
         isDarkMode={isDarkMode}
         onBack={() => setActiveView('home')}

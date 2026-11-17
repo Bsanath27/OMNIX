@@ -48,6 +48,26 @@ THEME_PALETTES = {
         "highlight": RGBColor(255, 92, 0),        # Solar Orange
         "text": RGBColor(24, 24, 27),             # Charcoal
         "muted": RGBColor(113, 109, 100),         # Muted Sand
+    },
+    "solar_obsidian": {
+        "bg": RGBColor(21, 20, 19),                # #151413 Deep Obsidian
+        "card_bg": RGBColor(28, 27, 25),           # #1C1B19 Bento Card
+        "card_border": RGBColor(43, 41, 38),       # #2B2926 Border
+        "primary": RGBColor(255, 92, 0),           # Solar Orange #FF5C00
+        "accent": RGBColor(255, 138, 76),          # Light Solar
+        "highlight": RGBColor(255, 92, 0),         # Solar Orange
+        "text": RGBColor(245, 242, 235),           # #F5F2EB Off-white
+        "muted": RGBColor(156, 163, 175),          # Slate 400
+    },
+    "solar": {
+        "bg": RGBColor(21, 20, 19),
+        "card_bg": RGBColor(28, 27, 25),
+        "card_border": RGBColor(43, 41, 38),
+        "primary": RGBColor(255, 92, 0),
+        "accent": RGBColor(255, 138, 76),
+        "highlight": RGBColor(255, 92, 0),
+        "text": RGBColor(245, 242, 235),
+        "muted": RGBColor(156, 163, 175),
     }
 }
 
