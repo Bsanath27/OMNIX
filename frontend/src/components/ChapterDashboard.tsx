@@ -47,8 +47,18 @@ type NavView = 'home' | 'tools' | 'library' | 'settings' | 'studio';
 type CapabilityType = 'all' | 'slides' | 'video' | 'quizzes' | 'diagrams';
 
 export const ChapterDashboard: React.FC = () => {
-  // Theme state: defaults to light (Warm Creme #FAF7F2), can toggle to dark (Warm Charcoal #151413)
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Theme state: defaults to dark (#151413) like user reference, can toggle to light
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('dark') === '1' || p.get('dark') === 'true') return true;
+      if (p.get('light') === '1') return false;
+      const saved = localStorage.getItem('omnix_theme');
+      if (saved) return saved === 'dark';
+      return true;
+    }
+    return true;
+  });
 
   // Global Navigation & View state
   const [activeView, setActiveView] = useState<NavView>('home');
@@ -357,7 +367,9 @@ export const ChapterDashboard: React.FC = () => {
       <main className="max-w-3xl w-full mx-auto px-6 py-12 sm:py-20 text-center space-y-7 my-auto">
         {/* Hero Headings */}
         <div className="space-y-3">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
+          <h1 className={`text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight ${
+            isDarkMode ? 'text-[#F5F2EB]' : 'text-[#18181B]'
+          }`}>
             Build something <span className="text-[#FF5C00]">Immersive</span>
           </h1>
           <p
@@ -668,21 +680,127 @@ export const ChapterDashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Generated Artifacts Stream */}
-        {artifacts.length > 0 && (
-          <div className="pt-8 text-left space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-                Generated Deliverables ({artifacts.length})
-              </h3>
+        {/* Teacher-ready templates */}
+        <div className="pt-6 sm:pt-8 text-left space-y-4 w-full">
+          <div>
+            <h3 className={`text-sm sm:text-base font-bold ${isDarkMode ? 'text-[#F5F2EB]' : 'text-[#18181B]'}`}>
+              Teacher-ready templates
+            </h3>
+            <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+              Click any template to load its prompt into the creator box above.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* SLIDES */}
+            <div
+              onClick={() => {
+                setSelectedCapability('slides');
+                setPromptText('Create a 6-slide classroom presentation with clear learning objectives, core concepts, and teacher speaker notes for each slide.');
+              }}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
+                isDarkMode
+                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
+                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
+                <span>Slides</span>
+                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
+              </div>
+              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
+                Classroom Lecture Presentation
+              </h4>
+              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                6 slides with speaker notes, every point linked to the textbook page
+              </p>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
+                Load prompt →
+              </span>
             </div>
-            <div className="space-y-4">
-              {artifacts.map((art) => (
-                <ArtifactCard key={art.id} artifact={art} />
-              ))}
+
+            {/* VIDEO */}
+            <div
+              onClick={() => {
+                setSelectedCapability('video');
+                setPromptText('Draft an animated explainer video script illustrating the core scientific mechanisms step-by-step with narration.');
+              }}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
+                isDarkMode
+                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
+                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
+                <span>Video</span>
+                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
+              </div>
+              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
+                STEM Animation & Voiceover
+              </h4>
+              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                Animated maths and science illustrations with voiceover
+              </p>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
+                Load prompt →
+              </span>
+            </div>
+
+            {/* QUIZZES */}
+            <div
+              onClick={() => {
+                setSelectedCapability('quizzes');
+                setPromptText('Generate an interactive assessment with multiple choice questions and review flashcards for classroom practice.');
+              }}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
+                isDarkMode
+                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
+                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
+                <span>Quizzes</span>
+                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
+              </div>
+              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
+                Interactive Quiz & Study Cards
+              </h4>
+              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                Works offline in class, no internet needed for students
+              </p>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
+                Load prompt →
+              </span>
+            </div>
+
+            {/* DIAGRAMS */}
+            <div
+              onClick={() => {
+                setSelectedCapability('diagrams');
+                setPromptText('Build a structured concept flowchart organizing the main topics and subordinate definitions.');
+              }}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
+                isDarkMode
+                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
+                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
+                <span>Diagrams</span>
+                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
+              </div>
+              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
+                Concept Mind Map
+              </h4>
+              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                Visual flowchart showing relationships between key terms
+              </p>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
+                Load prompt →
+              </span>
             </div>
           </div>
-        )}
+        </div>
       </main>
 
       {/* Footer */}
