@@ -5,8 +5,8 @@
 \usepackage{hyperref}
 \usepackage[
 headheight=85pt,
-headsep=10pt,
-top=1.5in,
+headsep=12pt,
+top=1.55in,
 bottom=0.55in,
 left=0.65in,
 right=0.65in
@@ -19,10 +19,11 @@ right=0.65in
 \usepackage{amsmath,amssymb}
 \usepackage{xcolor}
 \usepackage{subcaption}
+\usepackage{float}
 
 \renewcommand{\headrulewidth}{1pt}
 \setlength{\headheight}{85pt}
-\setlength{\headsep}{10pt}
+\setlength{\headsep}{12pt}
 
 \fancyhead[L]{%
 \begin{tabularx}{\linewidth}{@{}p{1.8cm}Xp{1.8cm}@{}}
@@ -51,95 +52,92 @@ right=0.65in
 \begin{document}
 
 % ═════════════════════════════════════════════════════════════════════════════
-% PAGE 1: RESEARCHING REPOSITORIES, WORKFLOWS & ZERO-KEY IMAGE PIPELINES
+% PAGE 1: RESEARCHING REPOSITORIES, WORKFLOWS & VISUAL PIPELINES (GENERIC)
 % ═════════════════════════════════════════════════════════════════════════════
-\section*{Researching Presentation Repositories, Workflows \& Visual Architectures}
+\section*{Researching Presentation Frameworks, Workflows \& Visual Architectures}
 
 \subsection*{1. Researching Presentation Frameworks \& Decoupled Agentic Pipelines}
 
-This week, we researched open-source presentation engines, headless export runners, and layout compilation frameworks, including \textbf{Presenton}, \textbf{python-pptx}, and headless Chromium runtimes. Monolithic presentation tools that generate slides in a single prompt produce ungrounded, visually flat decks without teacher control. 
+This week, we surveyed open-source presentation engines, document generation pipelines, and automated slide compilation frameworks. Standard end-to-end presentation tools generate an entire slide deck from a single prompt in a monolithic step. In classroom environments, this produces rigid, generic outputs where educators have no control over pedagogical progression or intermediate structure.
 
-To solve this, we decoupled slide generation into a sequential 5-stage architecture (Figure~\ref{fig:architecture}):
-\begin{itemize}[leftmargin=1.5em, itemsep=0.15em]
-    \item \textbf{Input \& Scope:} Defines target topic, grade level, and curriculum passages.
-    \item \textbf{Agentic Outline:} LLM extracts an editable sequence of concepts and formative checkpoints before rendering.
-    \item \textbf{Layout \& Template Engine:} Maps outlines into validated Pydantic schema unions and design tokens.
-    \item \textbf{Zero-Key Image Bridge:} Dynamically retrieves authentic schematics without external paid API keys.
-    \item \textbf{Slide Studio \& Export:} Renders an interactive 16:9 canvas with AI co-pilot prompts and native PPTX/PDF export.
+To create a flexible instructional tool, we researched decoupled, agentic workflows that separate content planning from visual rendering:
+\begin{itemize}[leftmargin=1.5em, itemsep=0.25em]
+    \item \textbf{Curriculum Input \& Context Setting:} Ingesting chapter topics, grade-level requirements, and reference reading material.
+    \item \textbf{Structured Outline Generation:} Extracting an editable sequence of pedagogical concepts, learning objectives, and formative questions before rendering visual layouts.
+    \item \textbf{Template \& Token Compilation:} Mapping structured outline units to validated visual design palettes and responsive layout schemas.
+    \item \textbf{Visual Asset Resolution:} Dynamically retrieving topic-accurate educational diagrams without manual file curation.
+    \item \textbf{Interactive Studio \& Export Engine:} Providing an in-browser canvas for live adjustments, speaker notes, and multi-format export.
 \end{itemize}
 
-\vspace{0.1cm}
+\vspace{0.15cm}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=3.4cm,keepaspectratio]{fig_architecture.png}
-\caption{\textbf{Decoupled Presentation Architecture:} End-to-end dataflow separating pedagogical outline extraction, layout compilation, zero-key image retrieval, and interactive studio rendering.}
+\includegraphics[width=\textwidth,height=3.8cm,keepaspectratio]{fig_architecture.png}
+\caption{\textbf{Decoupled Presentation Architecture:} End-to-end framework separating curriculum input, structured outline extraction, layout compilation, automated diagram resolution, and interactive studio editing.}
 \label{fig:architecture}
 \end{figure}
 
-\vspace{-0.3cm}
-\subsection*{2. Researching Visual Pipelines, Diagram Sourcing \& Rate Limits}
+\vspace{-0.25cm}
+\subsection*{2. Researching Visual Asset Pipelines, Diagram Sourcing \& System Stability}
 
-A primary bottleneck in AI presentation tools is visual quality. Most engines rely on stock photo APIs (Pexels, Pixabay) with paused registrations, or free image endpoints with 45-second IP cooldowns that cause parallel requests to fail, leaving blank grey placeholder boxes. We developed a \textbf{zero-key multi-tier visual resolution bridge} to solve this:
-\begin{itemize}[leftmargin=1.5em, itemsep=0.15em]
-    \item \textbf{Domain Whitelisting:} Queries are routed to \textbf{DuckDuckGo Scientific Index} and \textbf{Wikimedia Commons Educational Repository}, strictly blacklisting commercial stock photo sites.
-    \item \textbf{Local Normalization:} Diagrams are standardized to $1024\times768$ JPEGs via PIL, cached locally by prompt hash, and embedded into the PowerPoint binary package to guarantee 100\% offline-playable slides.
-    \item \textbf{Concurrency Pacing:} Slides are generated with batch-size throttling ($\text{batch\_size} = 2$) to operate reliably within Google Gemini's 15 RPM free-tier limit without triggering HTTP 429 errors.
+A core area of research this week was resolving visual inconsistency and retrieval failures in automated content generators. Standard pipelines frequently rely on stock photography APIs or general image generators, which introduce significant visual degradation into scientific presentations:
+\begin{itemize}[leftmargin=1.5em, itemsep=0.25em]
+    \item \textbf{Visual Inaccuracy \& Watermarks:} Web image searches often retrieve generic commercial stock photos or watermarked vector previews rather than authentic, labeled scientific schematics.
+    \item \textbf{Rate Limits \& Missing Assets:} Public endpoints and developer APIs enforce strict per-IP request cooldowns, causing concurrent multi-slide generations to drop images and render blank placeholder boxes.
+    \item \textbf{Resolution \& Caching Architecture:} We researched a multi-tier visual resolution pipeline that prioritizes open educational diagram repositories and scientific indexers, standardizes image formats locally, and caches verified visual assets to guarantee offline-playable presentation decks.
+    \item \textbf{API Concurrency Pacing:} We evaluated request throttling strategies to manage burst concurrency, ensuring stable structured JSON generation across different language model providers without rate-limit interruptions.
 \end{itemize}
-
-\vspace{0.1cm}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth,height=4.6cm,keepaspectratio]{fig_presenton_editor.png}
-\caption{\textbf{Active Slide Studio Interface:} Live Presenton-OMNIX editing workspace showing direct in-canvas text manipulation, slide filmstrip navigation, and pedagogical configuration panel.}
-\label{fig:presenton_editor}
-\end{figure}
 
 \clearpage
 
 % ═════════════════════════════════════════════════════════════════════════════
-% PAGE 2: MULTI-THEME 2x2 SLIDE PREVIEW MATRICES & VISUAL EVALUATION
+% PAGE 2: IN-BROWSER STUDIO & GENERATED MULTI-THEME SLIDE OUTPUTS
 % ═════════════════════════════════════════════════════════════════════════════
-\subsection*{3. Multi-Theme Generated Slide Deck Outputs \& Visual Evaluation}
+\subsection*{3. Interactive Slide Studio Workspace \& In-Browser Editing}
 
-We validated our pipeline by generating complete 7-slide decks for Grade 9 Biology (\textit{"The Fundamental Unit of Life: Cell Structure and Functions"}) across three distinct design themes. Our visual engine eliminated blank boxes and watermarks, embedding authentic scientific diagrams across every slide with full typography and structured cards.
+Building on our workflow research, we implemented an in-browser slide editing studio (Figure~\ref{fig:presenton_editor}). Teachers can review the extracted outline, make direct text modifications on the 16:9 canvas, reorder slides via the filmstrip, and use pedagogical co-pilot prompts (\textit{Condense bullets}, \textit{Add peer discussion question}, \textit{Simplify language}).
 
-\vspace{0.15cm}
+\vspace{0.1cm}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=5.2cm,keepaspectratio]{fig_matrix_general.png}
-\caption{\textbf{Theme 1: General (Visual Hero Panels):} 2$\times$2 matrix of rendered 16:9 slides featuring large rounded visual hero cards, fluid mosaic plasma membrane diagrams, and chloroplast plastid schematics.}
-\label{fig:matrix_general}
+\includegraphics[width=\textwidth,height=4.6cm,keepaspectratio]{fig_presenton_editor.png}
+\caption{\textbf{Active Slide Studio Interface:} Live editing workspace showing in-canvas text manipulation, slide filmstrip navigation, and pedagogical prompt configuration.}
+\label{fig:presenton_editor}
 \end{figure}
 
-\vspace{-0.25cm}
+\vspace{-0.3cm}
+\subsection*{4. Multi-Theme Generated Slide Deck Outputs \& Visual Evaluation}
 
-\begin{figure}[htbp]
+We validated our pipeline by generating complete 7-slide decks for Grade 9 Biology (\textit{"The Fundamental Unit of Life: Cell Structure and Functions"}) across multiple themes. The system produced fully rendered 16:9 slides with structured cards, clean typography, and embedded scientific diagrams with zero blank placeholders.
+
+\vspace{0.1cm}
+
+\begin{figure}[H]
 \centering
 \begin{subfigure}[b]{0.485\textwidth}
     \centering
-    \includegraphics[width=\textwidth,height=5.0cm,keepaspectratio]{fig_matrix_standard.png}
-    \caption{\textbf{Theme 2: Standard (Technical Layout):} Structured side-by-side cards with mitochondria and cytology microscopy.}
+    \includegraphics[width=\textwidth,height=4.8cm,keepaspectratio]{fig_matrix_general.png}
+    \caption{\textbf{Theme 1: General (Visual Hero):} Rounded visual cards, fluid mosaic membrane, and plastid schematics.}
 \end{subfigure}
 \hfill
 \begin{subfigure}[b]{0.485\textwidth}
     \centering
-    \includegraphics[width=\textwidth,height=5.0cm,keepaspectratio]{fig_matrix_modern.png}
-    \caption{\textbf{Theme 3: Modern (Card Grid System):} Clean multi-card layout with vector iconography and concept descriptions.}
+    \includegraphics[width=\textwidth,height=4.8cm,keepaspectratio]{fig_matrix_standard.png}
+    \caption{\textbf{Theme 2: Standard (Technical Layout):} Structured side-by-side cards with mitochondria and cytology diagrams.}
 \end{subfigure}
-\caption{\textbf{Cross-Theme Comparison:} 2$\times$2 slide preview matrices comparing the Standard technical theme against the Modern card grid theme on the same biology curriculum units.}
+\caption{\textbf{Cross-Theme Slide Outputs:} 2$\times$2 slide preview matrices rendered from our biology presentation showing complete layouts, typography, and embedded scientific diagrams across different themes.}
 \label{fig:multi_theme_matrices}
 \end{figure}
 
-\vspace{-0.25cm}
+\vspace{-0.3cm}
 \subsection*{Summary \& Immediate Next Steps}
 
 \begin{itemize}[leftmargin=1.5em, itemsep=0.2em]
-    \item Pre-bundle a curated library of standardized NCERT and OpenStax textbook diagrams for guaranteed label accuracy.
-    \item Implement an in-canvas 1-click diagram swapper modal allowing teachers to replace visuals directly in the studio.
-    \item Expose native OMNIX FastAPI proxy endpoints for direct slide generation and PPTX/PDF downloads.
+    \item Pre-bundle a curated index of standardized NCERT and OpenStax textbook diagrams for guaranteed label accuracy.
+    \item Deploy an in-canvas 1-click diagram swapper modal allowing teachers to replace visuals directly in the studio.
+    \item Finalize native backend proxy endpoints for direct presentation generation and PPTX/PDF downloads.
 \end{itemize}
 
 \end{document}
