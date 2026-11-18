@@ -1,0 +1,119 @@
+\documentclass[10pt]{article}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage[
+headheight=85pt,
+headsep=15pt,
+top=1.6in,
+bottom=0.65in,
+left=0.65in,
+right=0.65in
+]{geometry}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{subcaption}
+
+\renewcommand{\headrulewidth}{1pt}
+\setlength{\headheight}{85pt}
+\setlength{\headsep}{15pt}
+
+\fancyhead[L]{%
+\begin{tabularx}{\linewidth}{@{}p{1.8cm}Xp{1.8cm}@{}}
+\parbox[c][1.8cm][c]{1.8cm}{%
+  \centering
+  \includegraphics[width=1.8cm,height=1.6cm,keepaspectratio]{iit-madras-logo.png}%
+}%
+&
+\parbox[c][1.8cm][c]{\linewidth}{%
+  \centering
+  {\Large\bfseries Touchlab: Weekly Research Report}\\[0.08cm]
+  Applied Mechanics \& Biomedical Engineering, IIT Madras\\
+  apm.iitm.ac.in/biomedical/touchlab\\[0.12cm]
+  \textbf{From:} Sanath B S \quad\textbar\quad \textbf{Period:} $12^{\mathrm{th}}$ Nov 2026 -- $18^{\mathrm{th}}$ Nov 2026%
+}%
+&
+\parbox[c][1.8cm][c]{1.8cm}{%
+  \raggedleft
+  \includegraphics[width=1.8cm,height=1.6cm,keepaspectratio]{tchlabLogo.PNG}%
+}%
+\end{tabularx}%
+}
+
+\pagestyle{fancy}
+
+\begin{document}
+
+% ═════════════════════════════════════════════════════════════════════════════
+% PAGE 1: RESEARCHING REPOSITORIES, WORKFLOW PIPELINES & VISUAL ARCHITECTURES
+% ═════════════════════════════════════════════════════════════════════════════
+\section*{Researching Presentation Repositories, Workflow Pipelines \& OMNIX Architecture}
+
+\subsection*{1. Researching Presentation Frameworks, Repositories \& Agentic Pipelines}
+
+Following last week's exploration into 3D interactive cytology and PhET simulation mechanics, this week focused on designing and constructing the core \textbf{OMNIX presentation and instructional authoring engine}. Traditional classroom slide generation tools frequently suffer from rigid monolithic outputs, where an AI model outputs an entire slide deck in one single prompt, giving teachers zero intermediate agency and producing visually flat slides.
+
+To address this, we researched open-source presentation engines, headless export runners, and layout compilation frameworks, including \textbf{Presenton}, \textbf{python-pptx}, and headless Chromium print runtimes. We analyzed how state-of-the-art presentation tools decouple presentation generation into distinct, verifiable stages. Rather than generating a finalized binary slide deck directly, we structured an agentic 4-step pipeline:
+\begin{enumerate}[leftmargin=1.8em, itemsep=0.3em]
+    \item \textbf{Curriculum Brief \& Scope Definition:} Teachers define the target topic, grade level, language, and slide count.
+    \item \textbf{Pedagogical Outline Extraction \& Review:} The LLM generates an editable pedagogical sequence of concepts, definitions, and takeaways before any slide graphics are rendered.
+    \item \textbf{Template \& Layout Design Token Matching:} Slide structures are paired with validated design token palettes (Solar Obsidian, Academic Clean, COL Blue) and responsive layout archetypes.
+    \item \textbf{Interactive Slide Studio:} Rendered slides are loaded into an interactive 16:9 canvas with thumbnail filmstrip navigation, teacher speaker notes, and an AI co-pilot for real-time pedagogical adjustments.
+\end{enumerate}
+
+\subsection*{2. Researching Visual Asset Pipelines, Diagram Sourcing \& Zero-Key Infrastructure}
+
+A major challenge identified during our repository analysis was the visual quality of automated slide decks. Most existing tools rely on external stock photography APIs (e.g., Pexels, Pixabay, DALL-E). However, stock photo services frequently suffer from paused API registrations, watermarked preview images, and irrelevant results (e.g., photos of people looking into microscopes rather than actual scientific schematics). Furthermore, free-tier image generation endpoints often enforce unannounced per-IP cooldowns (such as 1 image per 45 seconds), causing concurrent slide generation requests to fail and leaving slides with blank grey placeholder boxes.
+
+To resolve this, we researched and prototyped a \textbf{zero-key multi-tier visual resolution bridge}. For STEM topics (such as 9th-grade cell biology), diagram accuracy is critical. We established an automated routing engine that queries the \textbf{DuckDuckGo Scientific Index} and \textbf{Wikimedia Commons Educational Diagram Repository}, filtering out watermarked commercial stock sites while pulling high-contrast, label-accurate biological diagrams. By integrating a local image normalization layer using PIL, downloaded diagrams are standardized to high-quality 1024$\times$768 JPEGs, cached locally via MD5 prompt hashes, and directly embedded into PowerPoint OpenXML media packages.
+
+Additionally, we investigated LLM free-tier concurrency limits. While Google Gemini provides advanced structured output capabilities, parallel execution of slide content generation easily triggered 15-requests-per-minute (RPM) rate limits. By implementing batch-size concurrency pacing ($\text{batch\_size} = 2$) and selecting compact layout schemas, we established a robust, zero-cost pipeline operable with both Google Gemini and OpenRouter free-tier models.
+
+\clearpage
+
+% ═════════════════════════════════════════════════════════════════════════════
+% PAGE 2: PIPELINE IMPLEMENTATION, GENERATED PPTX OUTPUTS & SNAPSHOTS
+% ═════════════════════════════════════════════════════════════════════════════
+\subsection*{3. Presenton-OMNIX 4-Step Workflow Pipeline \& In-Browser Slide Studio}
+
+We implemented the complete 4-step generation workflow and an in-browser slide editing studio within the OMNIX platform. Teachers can inspect the extracted outline, reorder concepts, modify bullet points, and select visual themes before triggering slide compilation. Once compiled, the presentation opens in a dedicated 16:9 studio interface featuring live in-place text editing, drag-and-drop filmstrip slide management, teacher speaker notes, and AI co-pilot prompts (\textit{Condense bullets}, \textit{Add peer discussion prompt}, \textit{Simplify language}).
+
+\vspace{0.2cm}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth,height=5.2cm,keepaspectratio]{fig_presenton_workflow.png}
+\caption{\textbf{Presenton-OMNIX Workflow Architecture \& Studio Workspace:} 4-step generation pipeline (Input $\rightarrow$ Outline Review $\rightarrow$ Template Selection $\rightarrow$ Studio) and the interactive 16:9 editing canvas with filmstrip and pedagogical AI co-pilot.}
+\label{fig:presenton_workflow}
+\end{figure}
+
+\vspace{-0.3cm}
+\subsection*{4. Generated Slide Deck Outputs \& Visual Evaluation}
+
+We validated our pipeline by generating complete 7-slide presentations for 9th-grade biology on \textit{"The Fundamental Unit of Life: Cell Structure, Organelles, and Functions"}. As shown in Figure~\ref{fig:generated_slides}, our multi-tier visual engine eliminated blank image boxes and watermarks, embedding authentic, high-resolution scientific diagrams across every slide (e.g., mitochondria double-membrane cristae folds, nucleus chromatin scans, and fluid mosaic membrane models up to 820\,KB per diagram). The pipeline was benchmarked across both Google Gemini and OpenRouter, producing publication-ready, offline-playable .pptx files in under 70 seconds.
+
+\vspace{0.2cm}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth,height=6.2cm,keepaspectratio]{fig_generated_slides.png}
+\caption{\textbf{Generated Slide Outputs:} Sample slides from our 7-slide biology presentation showing authentic embedded diagrams (cell hero, fluid mosaic plasma membrane, nucleus chromatin, and mitochondria cristae) with zero blank placeholders.}
+\label{fig:generated_slides}
+\end{figure}
+
+\vspace{-0.2cm}
+\subsection*{Summary \& Immediate Next Steps}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0.3em]
+    \item Pre-bundle a curated index of standardized NCERT and OpenStax textbook diagrams for guaranteed label accuracy.
+    \item Deploy an in-studio 1-click diagram swapper modal allowing teachers to browse and swap alternative diagrams on the live canvas.
+    \item Integrate native OMNIX backend proxy routes for seamless generation and PPTX/PDF export downloads.
+\end{itemize}
+
+\end{document}
