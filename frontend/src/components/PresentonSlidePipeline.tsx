@@ -23,8 +23,6 @@ import {
   Sparkles,
   GripVertical,
   Palette,
-  Sun,
-  Moon,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -105,7 +103,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   onBack,
   onArtifactUpdated,
 }) => {
-  const [isDarkMode, setIsDarkMode] = useState(initialDarkMode);
+  const [isDarkMode] = useState(initialDarkMode);
 
   // Determine starting step:
   // If an artifact already exists and no new prompt was passed, start in 'studio'
@@ -411,18 +409,11 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FF5C00]/15 border border-[#FF5C00]/30 text-white font-bold text-xs tracking-tight">
-              <span className="w-2 h-2 rounded-full bg-[#FF5C00]" />
-              <span className="text-white font-black">OMNIX</span>
-              <span className="text-[#FF5C00] font-mono text-[10px] px-1 rounded bg-[#FF5C00]/20">PIPELINE</span>
-            </div>
-            <h1 className="text-sm font-bold truncate max-w-xs sm:max-w-md ml-1">
-              {currentStep === 'input' && '1. Presentation Input & Brief'}
-              {currentStep === 'outline' && '2. Outline Review & Agenda'}
-              {currentStep === 'theme' && '3. Template & Visual Palette'}
-            </h1>
-          </div>
+          <h1 className="text-sm font-bold truncate max-w-xs sm:max-w-md ml-1">
+            {currentStep === 'input' && '1. Presentation Input & Brief'}
+            {currentStep === 'outline' && '2. Outline Review & Agenda'}
+            {currentStep === 'theme' && '3. Template & Visual Palette'}
+          </h1>
         </div>
 
         {/* Pipeline Step Breadcrumb Indicator */}
@@ -453,18 +444,6 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
 
         {/* Right Header Controls */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2 rounded-xl border transition-colors ${
-              isDarkMode
-                ? 'bg-[#23211F] border-[#32302C] text-amber-400 hover:bg-[#2F2C28]'
-                : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-            }`}
-            title="Toggle Light/Dark Theme"
-          >
-            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
           {currentArtifact && (
             <button
               onClick={() => setCurrentStep('studio')}
@@ -631,11 +610,6 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             </div>
 
             <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-400 text-xs font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Gemini 3.5 Flash-Lite Active</span>
-              </div>
-
               <div className="flex items-center gap-1 bg-[#23211F] px-2.5 py-1.5 rounded-xl border border-[#32302C] text-xs font-mono text-slate-300">
                 <span>{outlines.length} slides</span>
               </div>
@@ -790,30 +764,36 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             </div>
           )}
 
-          {/* Floating Bottom Action Bar: Back & Next */}
-          <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none gap-3">
-            <button
-              onClick={() => setCurrentStep('input')}
-              className={`pointer-events-auto px-5 py-3.5 rounded-full font-bold text-xs tracking-tight border flex items-center gap-1.5 shadow-xl transition-transform active:scale-95 ${
-                isDarkMode
-                  ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
-                  : 'bg-white border-slate-200 text-slate-700 hover:text-black'
-              }`}
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Brief</span>
-            </button>
-            <button
-              onClick={() => setCurrentStep('theme')}
-              disabled={outlines.length === 0}
-              className="pointer-events-auto px-8 py-3.5 rounded-full font-bold text-sm tracking-tight text-white flex items-center gap-2 shadow-2xl transition-transform active:scale-95 disabled:opacity-50"
-              style={{
-                background: 'linear-gradient(270deg, #FF5C00 0%, #FF8A4C 100%)',
-              }}
-            >
-              <span>Next: Choose Template ({outlines.length} Slides)</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
+          {/* Floating Bottom Action Dock: Back & Next */}
+          <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
+            <div className={`pointer-events-auto flex items-center gap-2 p-1.5 pl-3 rounded-full border shadow-2xl backdrop-blur-xl transition-all ${
+              isDarkMode
+                ? 'bg-[#181715]/90 border-white/10 text-white shadow-black/50'
+                : 'bg-white/95 border-slate-200/90 text-slate-800 shadow-slate-900/10'
+            }`}>
+              <button
+                onClick={() => setCurrentStep('input')}
+                className={`px-3.5 py-2 rounded-full font-semibold text-xs tracking-tight flex items-center gap-1.5 transition-colors ${
+                  isDarkMode
+                    ? 'text-slate-300 hover:text-white hover:bg-white/5'
+                    : 'text-slate-600 hover:text-black hover:bg-slate-100'
+                }`}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Brief</span>
+              </button>
+
+              <div className={`h-4 w-px ${isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`} />
+
+              <button
+                onClick={() => setCurrentStep('theme')}
+                disabled={outlines.length === 0}
+                className="px-6 py-2.5 rounded-full font-bold text-xs sm:text-sm tracking-tight text-white flex items-center gap-2 bg-[#FF5C00] hover:bg-[#e05200] active:scale-95 shadow-md shadow-orange-500/25 transition-all disabled:opacity-50"
+              >
+                <span>Next: Choose Template ({outlines.length} Slides)</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </main>
       )}
@@ -937,28 +917,45 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             })}
           </div>
 
-          {/* Floating Bottom Action: Generate Presentation */}
+          {/* Floating Bottom Action Dock: Back & Generate */}
           <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
-            <button
-              onClick={handleCompilePresentation}
-              disabled={isCompiling}
-              className="pointer-events-auto px-10 py-4 rounded-full font-bold text-sm tracking-tight text-white flex items-center gap-2.5 shadow-2xl transition-transform active:scale-95 disabled:opacity-50"
-              style={{
-                background: 'linear-gradient(270deg, #FF5C00 0%, #FF8A4C 100%)',
-              }}
-            >
-              {isCompiling ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  <span>Compiling 16:9 Presentation Deck...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Generate Presentation ({outlines.length} Slides) 🚀</span>
-                </>
-              )}
-            </button>
+            <div className={`pointer-events-auto flex items-center gap-2 p-1.5 pl-3 rounded-full border shadow-2xl backdrop-blur-xl transition-all ${
+              isDarkMode
+                ? 'bg-[#181715]/90 border-white/10 text-white shadow-black/50'
+                : 'bg-white/95 border-slate-200/90 text-slate-800 shadow-slate-900/10'
+            }`}>
+              <button
+                onClick={() => setCurrentStep('outline')}
+                className={`px-3.5 py-2 rounded-full font-semibold text-xs tracking-tight flex items-center gap-1.5 transition-colors ${
+                  isDarkMode
+                    ? 'text-slate-300 hover:text-white hover:bg-white/5'
+                    : 'text-slate-600 hover:text-black hover:bg-slate-100'
+                }`}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Outline</span>
+              </button>
+
+              <div className={`h-4 w-px ${isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`} />
+
+              <button
+                onClick={handleCompilePresentation}
+                disabled={isCompiling}
+                className="px-6 py-2.5 rounded-full font-bold text-xs sm:text-sm tracking-tight text-white flex items-center gap-2 bg-[#FF5C00] hover:bg-[#e05200] active:scale-95 shadow-md shadow-orange-500/25 transition-all disabled:opacity-50"
+              >
+                {isCompiling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Compiling 16:9 Presentation...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Generate Presentation ({outlines.length} Slides)</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </main>
       )}
