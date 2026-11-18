@@ -40,6 +40,12 @@ import {
   Sun,
   Moon,
   ArrowLeft,
+  Columns,
+  LayoutGrid,
+  FileText,
+  AlignLeft,
+  SlidersHorizontal,
+  ChevronDown as ChevronDownIcon,
 } from 'lucide-react';
 
 interface SlideStudioViewProps {
@@ -231,6 +237,194 @@ function buildDynamicSlidesFromProject(proj: ProjectManifest | null, passages: R
   return slides;
 }
 
+
+// ── Presenton Slide Studio Dynamic Design System Tokens ─────────────────────
+export interface SlideThemeTokens {
+  canvasBg: string;
+  canvasBorder: string;
+  titleColor: string;
+  subtitleColor: string;
+  cardBg: string;
+  cardBorder: string;
+  cardTitleColor: string;
+  cardBodyColor: string;
+  accentColor: string;
+  badgeBg: string;
+  badgeText: string;
+  isDark: boolean;
+}
+
+export const PRESENTON_STUDIO_THEMES: Record<string, SlideThemeTokens> = {
+  verdant: {
+    canvasBg: '#F6FAF7',
+    canvasBorder: '#D1E7D6',
+    titleColor: '#15803D',
+    subtitleColor: '#6B7D70',
+    cardBg: '#FFFFFF',
+    cardBorder: '#D1E7D6',
+    cardTitleColor: '#142319',
+    cardBodyColor: '#2D3A30',
+    accentColor: '#15803D',
+    badgeBg: '#15803D18',
+    badgeText: '#15803D',
+    isDark: false,
+  },
+  nova: {
+    canvasBg: '#0B132B',
+    canvasBorder: '#1C2541',
+    titleColor: '#48CAE4',
+    subtitleColor: '#8D99AE',
+    cardBg: '#1C2541',
+    cardBorder: '#3A506B',
+    cardTitleColor: '#F0F8FF',
+    cardBodyColor: '#CAD2C5',
+    accentColor: '#00B4D8',
+    badgeBg: '#00B4D825',
+    badgeText: '#48CAE4',
+    isDark: true,
+  },
+  pulse: {
+    canvasBg: '#F8FAFC',
+    canvasBorder: '#E2E8F0',
+    titleColor: '#0284C7',
+    subtitleColor: '#64748B',
+    cardBg: '#FFFFFF',
+    cardBorder: '#E2E8F0',
+    cardTitleColor: '#0F172A',
+    cardBodyColor: '#334155',
+    accentColor: '#0284C7',
+    badgeBg: '#0284C718',
+    badgeText: '#0284C7',
+    isDark: false,
+  },
+  signal: {
+    canvasBg: '#181715',
+    canvasBorder: '#383531',
+    titleColor: '#FF5C00',
+    subtitleColor: '#A09B91',
+    cardBg: '#23211F',
+    cardBorder: '#383531',
+    cardTitleColor: '#FAF8F5',
+    cardBodyColor: '#D6D3D1',
+    accentColor: '#FF5C00',
+    badgeBg: '#FF5C0020',
+    badgeText: '#FF5C00',
+    isDark: true,
+  },
+  solar_obsidian: {
+    canvasBg: '#151413',
+    canvasBorder: '#332F2B',
+    titleColor: '#FF5C00',
+    subtitleColor: '#9CA3AF',
+    cardBg: '#201E1C',
+    cardBorder: '#332F2B',
+    cardTitleColor: '#F5F2EB',
+    cardBodyColor: '#D1D5DB',
+    accentColor: '#FF5C00',
+    badgeBg: '#FF5C0020',
+    badgeText: '#FF5C00',
+    isDark: true,
+  },
+  academic_clean: {
+    canvasBg: '#FFFFFF',
+    canvasBorder: '#E2E8F0',
+    titleColor: '#1E3A8A',
+    subtitleColor: '#64748B',
+    cardBg: '#F8FAFC',
+    cardBorder: '#E2E8F0',
+    cardTitleColor: '#1E293B',
+    cardBodyColor: '#475569',
+    accentColor: '#1E3A8A',
+    badgeBg: '#1E3A8A18',
+    badgeText: '#1E3A8A',
+    isDark: false,
+  },
+  standard: {
+    canvasBg: '#FFFFFF',
+    canvasBorder: '#E2E8F0',
+    titleColor: '#0F172A',
+    subtitleColor: '#64748B',
+    cardBg: '#F8FAFC',
+    cardBorder: '#E2E8F0',
+    cardTitleColor: '#0F172A',
+    cardBodyColor: '#334155',
+    accentColor: '#0EA5E9',
+    badgeBg: '#0EA5E918',
+    badgeText: '#0284C7',
+    isDark: false,
+  },
+  dynamic: {
+    canvasBg: '#111318',
+    canvasBorder: '#2D323E',
+    titleColor: '#F97316',
+    subtitleColor: '#9CA3AF',
+    cardBg: '#1C1F26',
+    cardBorder: '#2D323E',
+    cardTitleColor: '#F8FAFC',
+    cardBodyColor: '#CBD5E1',
+    accentColor: '#F97316',
+    badgeBg: '#F9731620',
+    badgeText: '#F97316',
+    isDark: true,
+  },
+  col_blue: {
+    canvasBg: '#FAF7F2',
+    canvasBorder: '#E8E2D8',
+    titleColor: '#0369A1',
+    subtitleColor: '#716D64',
+    cardBg: '#FFFFFF',
+    cardBorder: '#E8E2D8',
+    cardTitleColor: '#18181B',
+    cardBodyColor: '#3F3F46',
+    accentColor: '#0369A1',
+    badgeBg: '#0369A118',
+    badgeText: '#0369A1',
+    isDark: false,
+  },
+  executive: {
+    canvasBg: '#0F0E17',
+    canvasBorder: '#2E2A4A',
+    titleColor: '#A78BFA',
+    subtitleColor: '#938BAA',
+    cardBg: '#1E1B2E',
+    cardBorder: '#2E2A4A',
+    cardTitleColor: '#F5F3FF',
+    cardBodyColor: '#DDD6FE',
+    accentColor: '#A78BFA',
+    badgeBg: '#A78BFA20',
+    badgeText: '#C084FC',
+    isDark: true,
+  },
+  modern: {
+    canvasBg: '#FFFFFF',
+    canvasBorder: '#E5E7EB',
+    titleColor: '#2563EB',
+    subtitleColor: '#6B7280',
+    cardBg: '#F9FAFB',
+    cardBorder: '#E5E7EB',
+    cardTitleColor: '#111827',
+    cardBodyColor: '#374151',
+    accentColor: '#2563EB',
+    badgeBg: '#2563EB18',
+    badgeText: '#2563EB',
+    isDark: false,
+  },
+  mosaic: {
+    canvasBg: '#FAFAFA',
+    canvasBorder: '#E4E4E7',
+    titleColor: '#D97706',
+    subtitleColor: '#71717A',
+    cardBg: '#FFFFFF',
+    cardBorder: '#E4E4E7',
+    cardTitleColor: '#18181B',
+    cardBodyColor: '#3F3F46',
+    accentColor: '#D97706',
+    badgeBg: '#D9770618',
+    badgeText: '#D97706',
+    isDark: false,
+  },
+};
+
 export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   project,
   artifact: initialArtifact,
@@ -240,9 +434,18 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   onArtifactUpdated,
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(initialDarkMode);
-  const [themeStyle, setThemeStyle] = useState<'solar' | 'midnight'>('solar');
+  // Resolve active theme from artifact source data or URL param with graceful fallback
+  const [activeThemeKey, setActiveThemeKey] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('theme') || initialArtifact?.source_data?.theme || 'verdant';
+  });
+  const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false);
   const [activeRailTab, setActiveRailTab] = useState<'outline' | 'source' | 'prompt' | 'assets' | 'assessments'>('outline');
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const s = parseInt(params.get('slide') || '0', 10);
+    return isNaN(s) ? 0 : Math.max(0, s);
+  });
 
   // Slides data
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(initialArtifact);
@@ -267,14 +470,54 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     if (initialArtifact?.source_data?.slides?.length) {
       setCurrentArtifact(initialArtifact);
       setEditableSlides(JSON.parse(JSON.stringify(initialArtifact.source_data.slides)));
+      if (initialArtifact.source_data.theme && !new URLSearchParams(window.location.search).get('theme')) {
+        setActiveThemeKey(initialArtifact.source_data.theme);
+      }
     } else if (project) {
       setEditableSlides(buildDynamicSlidesFromProject(project, _passages));
     }
   }, [initialArtifact, project]);
 
+  const activeTheme: SlideThemeTokens = PRESENTON_STUDIO_THEMES[activeThemeKey] || PRESENTON_STUDIO_THEMES['solar_obsidian'];
+
   const activeSlide = editableSlides[currentSlideIndex] || editableSlides[0];
 
   // Slide modification handlers
+  // Switch slide layout archetype on the fly (Presenton style)
+  const handleSwitchLayout = (newArchetype: string) => {
+    setEditableSlides((prev) => {
+      const updated = [...prev];
+      const target = { ...updated[currentSlideIndex] };
+      target.archetype = newArchetype;
+
+      // Adapt cards structure if switching to comparison or list
+      if (newArchetype === 'split_comparison' && (!target.cards || target.cards.length < 2)) {
+        target.cards = [
+          { badge: 'Column 1', title: 'Primary Principle', body: target.bullets?.[0] || 'Foundational mechanism.' },
+          { badge: 'Column 2', title: 'Comparative Outcome', body: target.bullets?.[1] || 'Observable effect.' },
+        ];
+      } else if (newArchetype === 'card_grid_3' && (!target.cards || target.cards.length < 3)) {
+        target.cards = [
+          { badge: 'Part 1', title: 'Concept 1', body: target.bullets?.[0] || 'Core principle definition.' },
+          { badge: 'Part 2', title: 'Concept 2', body: target.bullets?.[1] || 'Experimental observation.' },
+          { badge: 'Part 3', title: 'Concept 3', body: target.bullets?.[2] || 'Theoretical application.' },
+        ];
+      }
+
+      updated[currentSlideIndex] = target;
+      return updated;
+    });
+    setIsLayoutMenuOpen(false);
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const layout = params.get('layout');
+    if (layout) {
+      handleSwitchLayout(layout);
+    }
+  }, []);
+
   const handleUpdateSlideField = (field: string, value: any) => {
     setEditableSlides((prev) => {
       const updated = [...prev];
@@ -350,7 +593,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     try {
       const updatedArt = await updateProjectSlides(project.project_id, {
         artifact_id: currentArtifact?.id,
-        theme: themeStyle === 'solar' ? 'col_blue' : 'midnight_tech',
+        theme: activeThemeKey,
         slides: editableSlides,
       });
       setCurrentArtifact(updatedArt);
@@ -462,24 +705,26 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-300" />}
           </button>
 
-          {/* Theme Palette Toggle */}
-          <div className="p-0.5 rounded-lg bg-[#23211F] border border-[#32302C] flex items-center text-[11px]">
-            <button
-              onClick={() => setThemeStyle('solar')}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                themeStyle === 'solar' ? 'bg-[#FF5C00] text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+          {/* Presenton Theme Selector */}
+          <div className="flex items-center gap-1.5 bg-[#23211F] px-2.5 py-1 rounded-xl border border-[#32302C] text-xs">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeTheme.accentColor }} />
+            <span className="text-slate-400 text-[11px] font-mono">Theme:</span>
+            <select
+              value={activeThemeKey}
+              onChange={(e) => setActiveThemeKey(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
             >
-              Solar Obsidian
-            </button>
-            <button
-              onClick={() => setThemeStyle('midnight')}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                themeStyle === 'midnight' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Midnight Minimal
-            </button>
+              <option value="verdant" className="bg-[#1C1B19]">Verdant (Life Sciences)</option>
+              <option value="nova" className="bg-[#1C1B19]">Nova (Tech/Physics)</option>
+              <option value="pulse" className="bg-[#1C1B19]">Pulse (Clinical Blue)</option>
+              <option value="signal" className="bg-[#1C1B19]">Signal (Solar Amber)</option>
+              <option value="solar_obsidian" className="bg-[#1C1B19]">Solar Obsidian (Dark)</option>
+              <option value="academic_clean" className="bg-[#1C1B19]">Academic Clean (Light)</option>
+              <option value="standard" className="bg-[#1C1B19]">Standard (Classroom)</option>
+              <option value="dynamic" className="bg-[#1C1B19]">Dynamic (High Contrast)</option>
+              <option value="executive" className="bg-[#1C1B19]">Executive (Violet)</option>
+              <option value="col_blue" className="bg-[#1C1B19]">COL Sky Blue (Creme)</option>
+            </select>
           </div>
 
           {/* Projector Fullscreen Mode */}
@@ -629,17 +874,27 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                       <span className="w-2 h-2 rounded-full bg-[#FF5C00] opacity-90" />
                     </div>
 
-                    {/* Miniature visual wireframe preview */}
-                    <div className="h-16 w-full rounded-xl bg-[#11100F] border border-white/5 p-2 flex flex-col justify-between overflow-hidden">
-                      <div className="flex items-center justify-between text-[8px] text-slate-500 font-mono">
-                        <span>{(project?.outline?.subject || 'UNIT').slice(0, 7).toUpperCase()} · SL{idx + 1}</span>
-                        <span className="text-emerald-500">VERIFIED</span>
+                    {/* Miniature visual wireframe preview reflecting theme */}
+                    <div
+                      className="h-16 w-full rounded-xl p-2 flex flex-col justify-between overflow-hidden border shadow-inner"
+                      style={{
+                        backgroundColor: activeTheme.canvasBg,
+                        borderColor: activeTheme.cardBorder,
+                      }}
+                    >
+                      <div className="flex items-center justify-between text-[8px] font-mono">
+                        <span style={{ color: activeTheme.subtitleColor }}>
+                          {(project?.outline?.subject || 'UNIT').slice(0, 7).toUpperCase()} · SL{idx + 1}
+                        </span>
+                        <span className="text-[8px] px-1 rounded font-bold" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}>
+                          {slide.archetype === 'split_comparison' ? 'SPLIT' : slide.archetype === 'hero_title' || slide.archetype === 'hero_stat' ? 'HERO' : 'CARDS'}
+                        </span>
                       </div>
-                      <div className="w-3/4 h-1 rounded bg-[#FF5C00] opacity-80" />
+                      <div className="w-3/4 h-1.5 rounded" style={{ backgroundColor: activeTheme.accentColor }} />
                       <div className="grid grid-cols-3 gap-1">
-                        <div className="h-4 rounded bg-white/10" />
-                        <div className="h-4 rounded bg-white/10" />
-                        <div className="h-4 rounded bg-white/10" />
+                        <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                        <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                        <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
                       </div>
                     </div>
 
@@ -727,83 +982,316 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             </div>
           </div>
 
-          {/* 16:9 Center Slide Canvas (Rendered with high typography fidelity) */}
-          <div className="my-auto max-w-4xl w-full mx-auto aspect-video bg-[#18181B] border border-white/10 rounded-3xl p-8 sm:p-12 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300">
-            {/* Atmospheric Lighting in Corners */}
-            <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-sky-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+          {/* Presenton-Style Slide Action Bar (Ticket T-000034) */}
+          <div className="max-w-4xl w-full mx-auto mb-3 flex items-center justify-between px-2 py-1.5 rounded-2xl bg-[#1C1B19] border border-[#2B2926] text-xs">
+            {/* Left: Layout Switcher Button & Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsLayoutMenuOpen(!isLayoutMenuOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#262421] hover:bg-[#322F2A] border border-[#3A3835] font-semibold text-slate-200 transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF5C00]" />
+                <span className="capitalize">
+                  Layout: {activeSlide?.archetype === 'split_comparison' ? '2-Column Split' : activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' ? 'Title Slide' : activeSlide?.archetype === 'bullet_list' ? 'Concept List' : '3-Card Grid'}
+                </span>
+                <ChevronDownIcon className="w-3 h-3 text-slate-400" />
+              </button>
 
-            <div className="relative z-10 space-y-4">
-              {/* Metadata tags */}
+              {isLayoutMenuOpen && (
+                <div className="absolute left-0 top-full mt-2 w-56 rounded-2xl bg-[#1C1B19] border border-[#383531] shadow-2xl p-1.5 z-50 space-y-1">
+                  {[
+                    { id: 'hero_title', label: 'Title / Hero Slide', icon: FileText, desc: 'Large headline & curriculum thesis' },
+                    { id: 'card_grid_3', label: '3-Card Bento Grid', icon: LayoutGrid, desc: 'Balanced 3 concept cards' },
+                    { id: 'split_comparison', label: '2-Column Comparison', icon: Columns, desc: 'Side-by-side contrast' },
+                    { id: 'bullet_list', label: 'Structured Concept List', icon: AlignLeft, desc: 'Sequential points & definitions' },
+                  ].map((archetype) => {
+                    const ArchIcon = archetype.icon;
+                    const isCurrent = (activeSlide?.archetype || 'card_grid_3') === archetype.id;
+                    return (
+                      <button
+                        key={archetype.id}
+                        onClick={() => handleSwitchLayout(archetype.id)}
+                        className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-colors ${
+                          isCurrent
+                            ? 'bg-[#FF5C00]/20 text-white border border-[#FF5C00]/40'
+                            : 'hover:bg-white/5 text-slate-300'
+                        }`}
+                      >
+                        <ArchIcon className="w-4 h-4 text-[#FF5C00] mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-bold text-xs">{archetype.label}</div>
+                          <div className="text-[10px] text-slate-400">{archetype.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Slide Controls */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleDuplicateSlide(currentSlideIndex)}
+                className="px-2.5 py-1.5 rounded-xl bg-[#262421] hover:bg-[#322F2A] border border-[#3A3835] text-slate-300 hover:text-white flex items-center gap-1.5"
+                title="Duplicate Current Slide"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Duplicate</span>
+              </button>
+              <button
+                onClick={() => handleDeleteSlide(currentSlideIndex)}
+                disabled={editableSlides.length <= 1}
+                className="px-2.5 py-1.5 rounded-xl bg-[#262421] hover:bg-red-950/40 border border-[#3A3835] text-red-400 hover:text-red-300 disabled:opacity-20 flex items-center gap-1.5"
+                title="Delete Current Slide"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
+              <button
+                onClick={handleAddNewSlide}
+                className="px-3 py-1.5 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-bold flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Slide</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 16:9 Center Slide Canvas (Dynamic Presenton Theme-Driven Renderer - Ticket T-000033) */}
+          <div
+            className="my-auto max-w-4xl w-full mx-auto aspect-video rounded-3xl p-8 sm:p-12 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300 border"
+            style={{
+              backgroundColor: activeTheme.canvasBg,
+              borderColor: activeTheme.canvasBorder,
+            }}
+          >
+            {/* Corner Ambient Glow */}
+            <div
+              className="absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20 opacity-30"
+              style={{ backgroundColor: activeTheme.accentColor }}
+            />
+
+            <div className="relative z-10 space-y-3">
+              {/* Slide Header: Metadata & Subject Standard */}
               <div className="flex items-center justify-between text-xs font-mono">
                 <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-semibold">
+                  <span
+                    className="font-bold uppercase tracking-wider text-[11px]"
+                    style={{ color: activeTheme.accentColor }}
+                  >
                     {activeSlide?.subtitle || `${(project?.outline?.subject || 'Curriculum').toUpperCase()} · ${(project?.outline?.grade_level || 'Grade 10').toUpperCase()}`}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-bold">
+                  <span style={{ color: activeTheme.subtitleColor }} className="font-bold text-[11px]">
                     SLIDE {String(currentSlideIndex + 1).padStart(2, '0')} / {String(editableSlides.length).padStart(2, '0')}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span
+                    className="px-2 py-0.5 rounded-full flex items-center gap-1 font-medium text-[10px] border"
+                    style={{
+                      backgroundColor: activeTheme.badgeBg,
+                      color: activeTheme.badgeText,
+                      borderColor: activeTheme.accentColor + '40',
+                    }}
+                  >
+                    <ShieldCheck className="w-3 h-3" />
                     <span>{activeSlide?.standard || `${project?.outline?.subject || 'Curriculum'} Standard`}</span>
                   </span>
                 </div>
               </div>
 
-              {/* Law Badge */}
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-[#FF5C00] text-white font-bold text-[10px] tracking-wider uppercase">
-                  {activeSlide?.badge || `CARD 0${currentSlideIndex + 1}`}
-                </span>
-                <span className="text-[10px] font-mono text-slate-400 tracking-wider uppercase">
-                  {activeSlide?.postulate || "GROUNDED CURRICULUM TOPIC"}
-                </span>
-              </div>
-
-              {/* Large Bold Slide Title (Click to Edit) */}
-              <input
-                type="text"
+              {/* Large Bold Slide Title (Word-Wrapped, Non-Truncated - Fixes SL-01) */}
+              <textarea
+                rows={2}
                 value={activeSlide?.title || ''}
                 onChange={(e) => handleUpdateSlideField('title', e.target.value)}
-                className="w-full text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight bg-transparent border-b border-transparent hover:border-white/20 focus:border-[#FF5C00] focus:outline-none transition-colors"
+                className="w-full text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight bg-transparent border-b border-transparent hover:border-black/20 dark:hover:border-white/20 focus:border-[#FF5C00] focus:outline-none transition-colors resize-none leading-tight"
+                style={{ color: activeTheme.titleColor }}
               />
 
-              {/* Bento Cards Layout Archetype */}
-              {activeSlide?.cards && (
-                <div className={`grid gap-4 pt-3 ${
-                  activeSlide.cards.length === 1 ? 'grid-cols-1' : activeSlide.cards.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
-                }`}>
-                  {activeSlide.cards.map((card: any, cIdx: number) => (
+              {/* ── DYNAMIC ARCHETYPE 1: HERO TITLE / STAT SLIDE ── */}
+              {(activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' || currentSlideIndex === 0) && (
+                <div className="space-y-3 pt-1">
+                  <div
+                    className="p-4 rounded-2xl border"
+                    style={{
+                      backgroundColor: activeTheme.cardBg,
+                      borderColor: activeTheme.cardBorder,
+                    }}
+                  >
+                    <span
+                      className="text-[10px] font-bold font-mono uppercase tracking-wider block mb-1"
+                      style={{ color: activeTheme.accentColor }}
+                    >
+                      Core Instructional Focus
+                    </span>
+                    <p
+                      className="text-xs sm:text-sm leading-relaxed"
+                      style={{ color: activeTheme.cardBodyColor }}
+                    >
+                      {activeSlide?.cards?.[0]?.body || activeSlide?.bullets?.[0] || 'Synthesized deterministically from primary textbook chapter passages.'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div
+                      className="p-3.5 rounded-xl border"
+                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
+                        Pedagogical Objective
+                      </span>
+                      <p className="text-xs mt-0.5 line-clamp-2" style={{ color: activeTheme.cardBodyColor }}>
+                        {activeSlide?.cards?.[1]?.body || activeSlide?.bullets?.[1] || 'Foundational conceptual inquiry.'}
+                      </p>
+                    </div>
+                    <div
+                      className="p-3.5 rounded-xl border"
+                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
+                        Curriculum Standard
+                      </span>
+                      <p className="text-xs mt-0.5 line-clamp-2" style={{ color: activeTheme.cardBodyColor }}>
+                        {activeSlide?.cards?.[2]?.body || activeSlide?.bullets?.[2] || 'Aligned with state curriculum guidelines.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── DYNAMIC ARCHETYPE 2: 2-COLUMN SPLIT COMPARISON ── */}
+              {activeSlide?.archetype === 'split_comparison' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  {(activeSlide.cards?.slice(0, 2) || []).map((card: any, cIdx: number) => (
                     <div
                       key={cIdx}
-                      className="bg-slate-900/90 border border-slate-700/80 hover:border-[#FF5C00]/50 rounded-2xl p-4 flex flex-col justify-between transition-colors shadow-sm"
+                      className="p-5 rounded-2xl border flex flex-col justify-between transition-colors shadow-sm"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                      }}
+                    >
+                      <div>
+                        <span
+                          className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mb-2 font-mono"
+                          style={{
+                            backgroundColor: activeTheme.badgeBg,
+                            color: activeTheme.badgeText,
+                          }}
+                        >
+                          {card.badge || `Column 0${cIdx + 1}`}
+                        </span>
+                        <input
+                          type="text"
+                          value={card.title || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                          className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1.5"
+                          style={{ color: activeTheme.cardTitleColor }}
+                        />
+                        <textarea
+                          rows={4}
+                          value={card.body || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                          className="w-full text-xs leading-relaxed bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none resize-none"
+                          style={{ color: activeTheme.cardBodyColor }}
+                        />
+                      </div>
+                      {card.citation && (
+                        <span className="text-[9px] font-mono mt-2" style={{ color: activeTheme.accentColor }}>
+                          [{card.citation}]
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── DYNAMIC ARCHETYPE 3: STRUCTURED CONCEPT LIST ── */}
+              {activeSlide?.archetype === 'bullet_list' && (
+                <div className="space-y-2 pt-1">
+                  {(activeSlide.cards || []).slice(0, 4).map((card: any, cIdx: number) => (
+                    <div
+                      key={cIdx}
+                      className="p-3.5 rounded-xl border flex items-start gap-3 transition-colors shadow-sm"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                      }}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5"
+                        style={{
+                          backgroundColor: activeTheme.badgeBg,
+                          color: activeTheme.badgeText,
+                        }}
+                      >
+                        {cIdx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={card.title || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                          className="w-full text-xs font-bold bg-transparent border-b border-transparent focus:outline-none mb-0.5"
+                          style={{ color: activeTheme.cardTitleColor }}
+                        />
+                        <textarea
+                          rows={2}
+                          value={card.body || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                          className="w-full text-[11px] leading-relaxed bg-transparent border-b border-transparent focus:outline-none resize-none"
+                          style={{ color: activeTheme.cardBodyColor }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── DYNAMIC ARCHETYPE 4: 3-CARD BENTO GRID (Default) ── */}
+              {activeSlide?.archetype !== 'hero_title' && activeSlide?.archetype !== 'hero_stat' && currentSlideIndex !== 0 && activeSlide?.archetype !== 'split_comparison' && activeSlide?.archetype !== 'bullet_list' && (
+                <div className={`grid gap-3.5 pt-1 ${
+                  (activeSlide?.cards?.length || 3) === 1 ? 'grid-cols-1' : (activeSlide?.cards?.length || 3) === 2 ? 'grid-cols-2' : 'grid-cols-3'
+                }`}>
+                  {(activeSlide?.cards || []).slice(0, 3).map((card: any, cIdx: number) => (
+                    <div
+                      key={cIdx}
+                      className="p-4 rounded-2xl border flex flex-col justify-between transition-colors shadow-sm"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                      }}
                     >
                       <div>
                         {card.badge && (
-                          <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-sky-400 bg-sky-950/80 px-2 py-0.5 rounded mb-2 font-mono">
+                          <span
+                            className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mb-1.5 font-mono"
+                            style={{
+                              backgroundColor: activeTheme.badgeBg,
+                              color: activeTheme.badgeText,
+                            }}
+                          >
                             {card.badge}
                           </span>
-                        )}
-                        {card.stat && (
-                          <div className="text-3xl font-black text-[#FF5C00] font-mono my-1">{card.stat}</div>
                         )}
                         <input
                           type="text"
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-sm font-bold text-slate-100 bg-transparent border-b border-transparent hover:border-slate-600 focus:outline-none mb-1"
+                          className="w-full text-sm font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1 leading-snug"
+                          style={{ color: activeTheme.cardTitleColor }}
                         />
                         <textarea
                           rows={3}
                           value={card.body || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
-                          className="w-full text-xs text-slate-300 leading-relaxed bg-transparent border-b border-transparent hover:border-slate-600 focus:outline-none resize-none"
+                          className="w-full text-xs leading-relaxed bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none resize-none"
+                          style={{ color: activeTheme.cardBodyColor }}
                         />
                       </div>
                       {card.citation && (
-                        <span className="text-[9px] font-mono text-emerald-400 mt-2">
+                        <span className="text-[9px] font-mono mt-1" style={{ color: activeTheme.accentColor }}>
                           [{card.citation}]
                         </span>
                       )}
@@ -814,11 +1302,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             </div>
 
             {/* Bottom Slide Paging Dots */}
-            <div className="relative z-10 pt-4 flex items-center justify-between text-xs text-slate-500">
+            <div className="relative z-10 pt-3 flex items-center justify-between text-xs" style={{ color: activeTheme.subtitleColor }}>
               <button
                 disabled={currentSlideIndex === 0}
                 onClick={() => setCurrentSlideIndex(currentSlideIndex - 1)}
-                className="hover:text-white disabled:opacity-20 flex items-center gap-1"
+                className="hover:opacity-100 opacity-70 disabled:opacity-20 flex items-center gap-1 font-semibold"
               >
                 <ChevronLeft className="w-4 h-4" /> Prev
               </button>
@@ -828,15 +1316,16 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                     key={i}
                     onClick={() => setCurrentSlideIndex(i)}
                     className={`w-2 h-2 rounded-full cursor-pointer transition-all ${
-                      i === currentSlideIndex ? 'bg-[#FF5C00] scale-125' : 'bg-white/20 hover:bg-white/40'
+                      i === currentSlideIndex ? 'scale-125' : 'opacity-30 hover:opacity-60'
                     }`}
+                    style={{ backgroundColor: activeTheme.accentColor }}
                   />
                 ))}
               </div>
               <button
                 disabled={currentSlideIndex === editableSlides.length - 1}
                 onClick={() => setCurrentSlideIndex(currentSlideIndex + 1)}
-                className="hover:text-white disabled:opacity-20 flex items-center gap-1"
+                className="hover:opacity-100 opacity-70 disabled:opacity-20 flex items-center gap-1 font-semibold"
               >
                 Next <ChevronRight className="w-4 h-4" />
               </button>
