@@ -3,8 +3,10 @@ import {
   Artifact,
   ProjectManifest,
   SlideOutlineItem,
+  SlideTemplateItem,
   generateSlideOutline,
   compileSlideFromOutline,
+  fetchSlideTemplates,
 } from '../api';
 import { SlideStudioView } from './SlideStudioView';
 import {
@@ -16,6 +18,7 @@ import {
   Trash2,
   RotateCcw,
   Loader2,
+  X,
   Check,
   Sparkles,
   GripVertical,
@@ -122,7 +125,18 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   });
 
   // Step 1: Input & Configuration states
-  const [promptText, setPromptText] = useState(initialPrompt || project?.name || '');
+  const [promptText, setPromptText] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      const urlPrompt = p.get('prompt');
+      if (urlPrompt && urlPrompt.trim()) return urlPrompt.trim();
+    }
+    const raw = (initialPrompt || '').trim();
+    if (raw && !['slides', 'slide', 'presentation', 'deck', 'ppt'].includes(raw.toLowerCase())) {
+      return raw;
+    }
+    return project?.outline?.title || project?.name || '';
+  });
   const [slideCount, setSlideCount] = useState<number>(6);
   const [language, setLanguage] = useState<string>('en');
 
@@ -130,8 +144,27 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   const [outlines, setOutlines] = useState<SlideOutlineItem[]>([]);
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
 
-  // Step 3: Theme selection
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('tpl-solar');
+  // Step 3: Theme selection with 16 Presenton templates
+  const [templates, setTemplates] = useState<SlideTemplateItem[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('verdant');
+  const [failedThumbnails, setFailedThumbnails] = useState<Record<string, boolean>>({});
+
+  // Fetch dynamic templates from Presenton service
+  useEffect(() => {
+    let mounted = true;
+    fetchSlideTemplates().then((tpls) => {
+      if (mounted && tpls && tpls.length > 0) {
+        setTemplates(tpls);
+        // Default to verdant, or fallback
+        if (!selectedTemplateId || selectedTemplateId === 'tpl-solar') {
+          setSelectedTemplateId(tpls[0].id);
+        }
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Step 4: Compiled Slide Artifact & Compilation loading
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(initialArtifact);
@@ -144,13 +177,22 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
     }
   }, [currentStep, project?.project_id]);
 
-  // Generate Outline API call
+  // Generate Outline API call with active LLM synthesis
   const handleGenerateOutline = async () => {
     if (!project) return;
+    const cleanRaw = promptText.trim();
+    const effectivePrompt =
+      cleanRaw && !['slides', 'slide', 'presentation', 'deck', 'ppt'].includes(cleanRaw.toLowerCase())
+        ? cleanRaw
+        : project.outline?.title || project.name || 'Lesson Presentation';
+
     setIsGeneratingOutline(true);
     try {
-      const res = await generateSlideOutline(project.project_id, promptText, slideCount, language);
+      const res = await generateSlideOutline(project.project_id, effectivePrompt, slideCount, language);
       setOutlines(res.outlines);
+      if (res.prompt && !['slides', 'slide'].includes(res.prompt.toLowerCase())) {
+        setPromptText(res.prompt);
+      }
     } catch (err) {
       console.error('Failed to generate outline:', err);
     } finally {
@@ -163,11 +205,12 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
     if (!project || outlines.length === 0) return;
     setIsCompiling(true);
     try {
-      const chosenTemplate = TEMPLATE_OPTIONS.find((t) => t.id === selectedTemplateId) || TEMPLATE_OPTIONS[0];
+      const chosenTemplate = templates.find((t) => t.id === selectedTemplateId) || TEMPLATE_OPTIONS.find((t) => t.id === selectedTemplateId);
+      const themeKey = chosenTemplate ? (chosenTemplate.themeKey || chosenTemplate.id) : selectedTemplateId;
       const compiled = await compileSlideFromOutline(
         project.project_id,
         outlines,
-        chosenTemplate.themeKey,
+        themeKey,
         currentArtifact?.id
       );
       setCurrentArtifact(compiled);
@@ -187,6 +230,37 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
       const next = [...prev];
       if (next[index]) {
         next[index] = { ...next[index], title: newTitle };
+      }
+      return next;
+    });
+  };
+
+  // Bullet item controls: Add and Delete
+  const handleAddOutlineBullet = (slideIdx: number) => {
+    setOutlines((prev) => {
+      const next = [...prev];
+      if (next[slideIdx]) {
+        const bullets = [...next[slideIdx].bullets, 'New key concept checkpoint'];
+        next[slideIdx] = {
+          ...next[slideIdx],
+          bullets,
+          content: `### ${next[slideIdx].title}\n` + bullets.map((b) => `- ${b}`).join('\n'),
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteOutlineBullet = (slideIdx: number, bulletIdx: number) => {
+    setOutlines((prev) => {
+      const next = [...prev];
+      if (next[slideIdx] && next[slideIdx].bullets.length > 1) {
+        const bullets = next[slideIdx].bullets.filter((_, i) => i !== bulletIdx);
+        next[slideIdx] = {
+          ...next[slideIdx],
+          bullets,
+          content: `### ${next[slideIdx].title}\n` + bullets.map((b) => `- ${b}`).join('\n'),
+        };
       }
       return next;
     });
@@ -557,6 +631,11 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             </div>
 
             <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-400 text-xs font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Gemini 3.5 Flash-Lite Active</span>
+              </div>
+
               <div className="flex items-center gap-1 bg-[#23211F] px-2.5 py-1.5 rounded-xl border border-[#32302C] text-xs font-mono text-slate-300">
                 <span>{outlines.length} slides</span>
               </div>
@@ -659,12 +738,22 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
 
                     {/* Bullet Points List */}
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500 block">
-                        Core Key Points & Grounding
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                          Core Key Points & Grounding
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => handleAddOutlineBullet(idx)}
+                          className="text-[10px] font-bold text-[#FF5C00] hover:underline flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Add Key Point</span>
+                        </button>
+                      </div>
                       {item.bullets.map((bullet, bIdx) => (
-                        <div key={bIdx} className="flex items-start gap-2.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF5C00] mt-2 shrink-0" />
+                        <div key={bIdx} className="flex items-center gap-2 group/bullet">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF5C00] shrink-0" />
                           <input
                             type="text"
                             value={bullet}
@@ -673,6 +762,16 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                               isDarkMode ? 'text-slate-300' : 'text-slate-700'
                             }`}
                           />
+                          {item.bullets.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOutlineBullet(idx, bIdx)}
+                              className="opacity-0 group-hover/bullet:opacity-100 text-slate-400 hover:text-red-400 p-0.5 transition-opacity"
+                              title="Delete this point"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -691,8 +790,19 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             </div>
           )}
 
-          {/* Floating Bottom Action: Proceed to Step 3 Template */}
-          <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
+          {/* Floating Bottom Action Bar: Back & Next */}
+          <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none gap-3">
+            <button
+              onClick={() => setCurrentStep('input')}
+              className={`pointer-events-auto px-5 py-3.5 rounded-full font-bold text-xs tracking-tight border flex items-center gap-1.5 shadow-xl transition-transform active:scale-95 ${
+                isDarkMode
+                  ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                  : 'bg-white border-slate-200 text-slate-700 hover:text-black'
+              }`}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Brief</span>
+            </button>
             <button
               onClick={() => setCurrentStep('theme')}
               disabled={outlines.length === 0}
@@ -726,9 +836,9 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             </p>
           </div>
 
-          {/* Template Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {TEMPLATE_OPTIONS.map((tpl) => {
+          {/* Template Cards Grid: All 16 Official Presenton Templates */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(templates.length > 0 ? templates : TEMPLATE_OPTIONS).map((tpl: any) => {
               const isSelected = selectedTemplateId === tpl.id;
               return (
                 <div
@@ -745,66 +855,41 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                     backgroundColor: isDarkMode ? '#181715' : '#FFFFFF',
                   }}
                 >
-                  {/* Miniature visual canvas representation */}
-                  <div
-                    className="h-36 w-full rounded-2xl p-4 flex flex-col justify-between mb-4 border border-black/10 overflow-hidden shadow-inner"
-                    style={{ backgroundColor: tpl.previewBg }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: tpl.accentColor }}
-                        />
-                        <span
-                          className="text-[9px] font-mono font-bold uppercase tracking-wider"
-                          style={{ color: tpl.accentColor }}
-                        >
-                          {(project?.outline?.subject || 'CURRICULUM').toUpperCase()} · {(project?.outline?.grade_level || 'GRADE 10').toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono opacity-60" style={{ color: tpl.textColor }}>
-                        16:9 Widescreen
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
+                  {/* Real Presenton Thumbnail Image or Styled Preview */}
+                  <div className="h-40 w-full rounded-2xl mb-3 border border-black/10 overflow-hidden shadow-inner bg-slate-900 relative">
+                    {tpl.thumbnail && !failedThumbnails[tpl.id] ? (
+                      <img
+                        src={tpl.thumbnail}
+                        alt={tpl.name}
+                        onError={() => setFailedThumbnails(prev => ({ ...prev, [tpl.id]: true }))}
+                        className="w-full h-full object-cover object-top transition-transform group-hover:scale-105"
+                      />
+                    ) : (
                       <div
-                        className="text-sm font-extrabold truncate max-w-[220px]"
-                        style={{ color: tpl.textColor }}
+                        className="w-full h-full p-4 flex flex-col justify-between"
+                        style={{ backgroundColor: tpl.previewBg || (isDarkMode ? '#1F1E1C' : '#F3F4F6') }}
                       >
-                        {outlines[0]?.title || project?.name || 'Classroom Learning Module'}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono font-bold text-[#FF5C00] uppercase">
+                            {tpl.name}
+                          </span>
+                          <span className="text-[9px] font-mono text-slate-400">16:9</span>
+                        </div>
+                        <div className="text-sm font-bold truncate text-slate-200">
+                          {outlines[0]?.title || project?.name || 'Classroom Module'}
+                        </div>
+                        <div className="grid grid-cols-3 gap-1">
+                          <div className="h-4 rounded bg-[#FF5C00]/20" />
+                          <div className="h-4 rounded bg-[#FF5C00]/20" />
+                          <div className="h-4 rounded bg-[#FF5C00]/20" />
+                        </div>
                       </div>
-                      <div
-                        className="h-1 rounded-full w-20"
-                        style={{ backgroundColor: tpl.accentColor }}
-                      />
-                    </div>
-
-                    {/* Miniature Bento Cards */}
-                    <div className="grid grid-cols-3 gap-1.5 pt-1">
-                      <div
-                        className="h-6 rounded-lg opacity-80 border"
-                        style={{
-                          backgroundColor: isDarkMode ? '#242220' : '#F1F5F9',
-                          borderColor: tpl.accentColor + '40',
-                        }}
-                      />
-                      <div
-                        className="h-6 rounded-lg opacity-80 border"
-                        style={{
-                          backgroundColor: isDarkMode ? '#242220' : '#F1F5F9',
-                          borderColor: tpl.accentColor + '40',
-                        }}
-                      />
-                      <div
-                        className="h-6 rounded-lg opacity-80 border"
-                        style={{
-                          backgroundColor: isDarkMode ? '#242220' : '#F1F5F9',
-                          borderColor: tpl.accentColor + '40',
-                        }}
-                      />
-                    </div>
+                    )}
+                    {tpl.layout_count && (
+                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-mono font-bold text-white border border-white/20">
+                        {tpl.layout_count} layouts
+                      </div>
+                    )}
                   </div>
 
                   {/* Template Meta Info */}
@@ -836,7 +921,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/5">
-                    {tpl.tags.map((tag) => (
+                    {(tpl.tags || []).map((tag: string) => (
                       <span
                         key={tag}
                         className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${

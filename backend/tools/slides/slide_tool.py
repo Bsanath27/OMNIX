@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -51,24 +50,174 @@ THEME_PALETTES = {
         "muted": RGBColor(113, 109, 100),         # Muted Sand
     },
     "solar_obsidian": {
-        "bg": RGBColor(21, 20, 19),                # #151413 Deep Obsidian
-        "card_bg": RGBColor(28, 27, 25),           # #1C1B19 Bento Card
-        "card_border": RGBColor(43, 41, 38),       # #2B2926 Border
-        "primary": RGBColor(255, 92, 0),           # Solar Orange #FF5C00
-        "accent": RGBColor(255, 138, 76),          # Light Solar
-        "highlight": RGBColor(255, 92, 0),         # Solar Orange
-        "text": RGBColor(245, 242, 235),           # #F5F2EB Off-white
-        "muted": RGBColor(156, 163, 175),          # Slate 400
+        "bg": RGBColor(21, 20, 19),               # Deep Obsidian (#151413)
+        "card_bg": RGBColor(35, 33, 31),          # Card Surface (#23211F)
+        "card_border": RGBColor(56, 53, 49),      # Subtle Border
+        "primary": RGBColor(255, 92, 0),          # Solar Orange
+        "accent": RGBColor(249, 115, 22),         # Amber Orange
+        "highlight": RGBColor(251, 146, 60),      # Bright Amber
+        "text": RGBColor(245, 242, 235),          # Warm White
+        "muted": RGBColor(156, 163, 175),         # Slate 400
     },
-    "solar": {
-        "bg": RGBColor(21, 20, 19),
-        "card_bg": RGBColor(28, 27, 25),
-        "card_border": RGBColor(43, 41, 38),
-        "primary": RGBColor(255, 92, 0),
-        "accent": RGBColor(255, 138, 76),
+    "verdant": {
+        "bg": RGBColor(246, 250, 247),            # Crisp Light Green tint
+        "card_bg": RGBColor(255, 255, 255),       # Pure White Surface
+        "card_border": RGBColor(209, 231, 214),   # Soft Sage Border
+        "primary": RGBColor(21, 128, 61),         # Forest Green (#15803D)
+        "accent": RGBColor(16, 185, 129),         # Emerald
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange Accent
+        "text": RGBColor(20, 35, 25),             # Dark Spruce
+        "muted": RGBColor(107, 125, 112),         # Muted Sage
+    },
+    "nova": {
+        "bg": RGBColor(11, 19, 43),               # Deep Navy Void
+        "card_bg": RGBColor(28, 37, 65),          # Luminous Blue Card
+        "card_border": RGBColor(58, 80, 107),     # Electric Indigo Border
+        "primary": RGBColor(72, 202, 228),        # Cyan Glow
+        "accent": RGBColor(0, 180, 216),          # Bright Cyan
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange
+        "text": RGBColor(240, 248, 255),          # Crisp White
+        "muted": RGBColor(141, 153, 174),         # Slate
+    },
+    "pulse": {
+        "bg": RGBColor(248, 250, 252),            # Clinical Light
+        "card_bg": RGBColor(255, 255, 255),       # Pure White
+        "card_border": RGBColor(226, 232, 240),   # Light Border
+        "primary": RGBColor(2, 132, 199),         # Sky 600
+        "accent": RGBColor(14, 165, 233),         # Sky 500
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange
+        "text": RGBColor(15, 23, 42),             # Slate 900
+        "muted": RGBColor(100, 116, 139),         # Slate 500
+    },
+    "signal": {
+        "bg": RGBColor(24, 23, 21),               # Warm Carbon
+        "card_bg": RGBColor(38, 35, 32),          # Surface
+        "card_border": RGBColor(60, 56, 50),      # Border
+        "primary": RGBColor(255, 92, 0),          # Solar Orange
+        "accent": RGBColor(245, 158, 11),         # Amber 500
+        "highlight": RGBColor(251, 191, 36),      # Amber 400
+        "text": RGBColor(250, 248, 245),          # White
+        "muted": RGBColor(160, 155, 145),         # Muted Sand
+    },
+    "dynamic": {
+        "bg": RGBColor(17, 19, 24),               # Dark Slate Matrix
+        "card_bg": RGBColor(28, 31, 38),          # Card Surface
+        "card_border": RGBColor(45, 50, 62),      # Card Border
+        "primary": RGBColor(249, 115, 22),        # Orange 500
+        "accent": RGBColor(234, 88, 12),          # Deep Orange
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange
+        "text": RGBColor(248, 250, 252),          # Slate 50
+        "muted": RGBColor(148, 163, 184),         # Slate 400
+    },
+    "executive": {
+        "bg": RGBColor(15, 14, 23),               # Deep Violet Black
+        "card_bg": RGBColor(30, 27, 46),          # Violet Card
+        "card_border": RGBColor(46, 42, 74),      # Violet Border
+        "primary": RGBColor(167, 139, 250),       # Lavender Purple
+        "accent": RGBColor(192, 132, 252),        # Light Violet
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange
+        "text": RGBColor(245, 243, 255),          # Pale Lavender
+        "muted": RGBColor(147, 139, 170),         # Muted Violet
+    },
+    "general": {
+        "bg": RGBColor(255, 255, 255),
+        "card_bg": RGBColor(249, 250, 251),       # Gray 50
+        "card_border": RGBColor(229, 231, 235),   # Gray 200
+        "primary": RGBColor(37, 99, 235),         # Blue 600
+        "accent": RGBColor(79, 70, 229),          # Indigo 600
+        "highlight": RGBColor(255, 92, 0),        # Solar Orange
+        "text": RGBColor(17, 24, 39),             # Gray 900
+        "muted": RGBColor(107, 114, 128),         # Gray 500
+    },
+    "standard": {
+        "bg": RGBColor(255, 255, 255),
+        "card_bg": RGBColor(248, 250, 252),       # Slate 50
+        "card_border": RGBColor(226, 232, 240),   # Slate 200
+        "primary": RGBColor(15, 23, 42),          # Slate 900
+        "accent": RGBColor(71, 85, 105),          # Slate 600
+        "highlight": RGBColor(14, 165, 233),      # Sky 500
+        "text": RGBColor(30, 41, 59),             # Slate 800
+        "muted": RGBColor(100, 116, 139),         # Slate 500
+    },
+    "momentum": {
+        "bg": RGBColor(19, 20, 22),                # Deep Carbon #131416
+        "card_bg": RGBColor(30, 32, 37),           # Carbon Card #1E2025
+        "card_border": RGBColor(39, 42, 48),       # Border #272A30
+        "primary": RGBColor(56, 189, 248),         # Sky Blue #38BDF8
+        "accent": RGBColor(14, 165, 233),          # Sky 500
+        "highlight": RGBColor(255, 92, 0),         # Solar Orange
+        "text": RGBColor(241, 245, 249),           # Slate 100
+        "muted": RGBColor(148, 163, 184),          # Slate 400
+    },
+    "swift": {
+        "bg": RGBColor(248, 250, 252),
+        "card_bg": RGBColor(255, 255, 255),
+        "card_border": RGBColor(226, 232, 240),
+        "primary": RGBColor(37, 99, 235),          # Electric Blue
+        "accent": RGBColor(59, 130, 246),
         "highlight": RGBColor(255, 92, 0),
-        "text": RGBColor(245, 242, 235),
-        "muted": RGBColor(156, 163, 175),
+        "text": RGBColor(15, 23, 42),
+        "muted": RGBColor(100, 116, 139),
+    },
+    "mosaic": {
+        "bg": RGBColor(250, 248, 245),             # Warm Sand
+        "card_bg": RGBColor(255, 255, 255),
+        "card_border": RGBColor(229, 223, 213),
+        "primary": RGBColor(154, 52, 18),          # Terracotta
+        "accent": RGBColor(234, 88, 12),
+        "highlight": RGBColor(255, 92, 0),
+        "text": RGBColor(28, 25, 23),
+        "muted": RGBColor(120, 113, 108),
+    },
+    "editorial": {
+        "bg": RGBColor(253, 251, 247),             # Warm Ivory
+        "card_bg": RGBColor(255, 255, 255),
+        "card_border": RGBColor(231, 225, 215),
+        "primary": RGBColor(28, 25, 23),           # Deep Warm Charcoal
+        "accent": RGBColor(68, 64, 60),
+        "highlight": RGBColor(255, 92, 0),
+        "text": RGBColor(28, 25, 23),
+        "muted": RGBColor(120, 113, 108),
+    },
+    "civic": {
+        "bg": RGBColor(240, 244, 248),             # Steel Blue Tint
+        "card_bg": RGBColor(255, 255, 255),
+        "card_border": RGBColor(214, 224, 234),
+        "primary": RGBColor(30, 64, 175),          # Civic Blue
+        "accent": RGBColor(59, 130, 246),
+        "highlight": RGBColor(255, 92, 0),
+        "text": RGBColor(30, 41, 59),
+        "muted": RGBColor(100, 116, 139),
+    },
+    "landmark": {
+        "bg": RGBColor(20, 24, 30),                # Architectural Dark Slate
+        "card_bg": RGBColor(28, 34, 43),
+        "card_border": RGBColor(35, 43, 53),
+        "primary": RGBColor(226, 232, 240),
+        "accent": RGBColor(148, 163, 184),
+        "highlight": RGBColor(255, 92, 0),
+        "text": RGBColor(248, 250, 252),
+        "muted": RGBColor(100, 116, 139),
+    },
+    "modern": {
+        "bg": RGBColor(255, 255, 255),
+        "card_bg": RGBColor(248, 250, 252),
+        "card_border": RGBColor(226, 232, 240),
+        "primary": RGBColor(15, 23, 42),
+        "accent": RGBColor(59, 130, 246),
+        "highlight": RGBColor(255, 92, 0),
+        "text": RGBColor(15, 23, 42),
+        "muted": RGBColor(100, 116, 139),
+    },
+    "horizon": {
+        "bg": RGBColor(14, 21, 37),                # Dusk Navy
+        "card_bg": RGBColor(23, 33, 54),
+        "card_border": RGBColor(30, 41, 59),
+        "primary": RGBColor(96, 165, 250),         # Horizon Blue
+        "accent": RGBColor(56, 189, 248),
+        "highlight": RGBColor(255, 92, 0),
+        "text": RGBColor(248, 250, 252),
+        "muted": RGBColor(148, 163, 184),
     }
 }
 
@@ -304,59 +453,25 @@ class SlideTool(BaseTool):
         outline: Optional[Dict[str, Any]]
     ) -> List[SlideContent]:
         slides: List[SlideContent] = []
-        raw_topic = brief.topic or (outline.get("title") if outline else "Lesson Presentation")
-        # Clean up command prompts like "create a 6 slide on force" -> "Force"
-        cleaned_topic = re.sub(
-            r'^(?:please\s+)?(?:create|make|generate|build|give\s+me)?\s*(?:a|an)?\s*(?:\d+)?\s*(?:slides?|presentation|deck)?\s*(?:on|about|for)?\s*',
-            '',
-            raw_topic,
-            flags=re.IGNORECASE
-        ).strip()
-        cleaned_topic = re.sub(
-            r'\s*(?:with|for)\s+(?:speaker\s+notes|class\s+\d+|grade\s+\d+|students).*$',
-            '',
-            cleaned_topic,
-            flags=re.IGNORECASE
-        ).strip()
-        
-        topic = cleaned_topic.title() if len(cleaned_topic) >= 2 else (outline.get("title") if outline else raw_topic)
+        topic = brief.topic or (outline.get("title") if outline else "Lesson Presentation")
 
-        # 1. Hero / Title Slide with real chapter data
-        summary_text = (outline.get("summary") if outline else "") or f"Instructional unit tailored for {brief.grade_level} learners in {brief.subject}."
-        concepts = outline.get("concepts", []) if outline else []
-        concepts_highlight = ", ".join([c.get("concept", "") for c in concepts[:3]])
-
-        slide_1_cards = [
-            SlideCard(
-                badge="Curriculum Focus",
-                stat=brief.grade_level if len(brief.grade_level) <= 8 else brief.grade_level[:8],
-                title=f"{brief.subject} Overview",
-                body=summary_text[:140] + ("..." if len(summary_text) > 140 else "")
-            ),
-            SlideCard(
-                badge="Core Concepts",
-                title=f"{len(concepts)} Key Topics" if concepts else "Pedagogical Structure",
-                body=f"Topics covered: {concepts_highlight}" if concepts_highlight else "Structured lesson module for direct classroom delivery."
-            ),
-            SlideCard(
-                badge="Grounding",
-                title="Textbook Aligned",
-                body=f"Synthesized deterministically from chapter passages with verified references."
-            )
-        ]
-
+        # 1. Hero / Title Slide
         slides.append(SlideContent(
             slide_number=1,
             title=topic,
             subtitle=f"{brief.subject} • Level: {brief.grade_level}",
             archetype="hero_stat",
-            cards=slide_1_cards,
+            cards=[
+                SlideCard(badge="Domain", stat=brief.subject[:3].upper(), title="Pedagogical Field", body=f"Instructional unit tailored for {brief.grade_level} learners."),
+                SlideCard(badge="Framework", title="Classroom Ready", body="Structured lesson module for direct projector delivery or self-paced review."),
+                SlideCard(badge="Grounding", title="Textbook Aligned", body="Synthesized deterministically from chapter passages with verified references.")
+            ],
             bullets=[
                 f"Curriculum Level: {brief.grade_level}",
                 f"Pedagogical Domain: {brief.subject}",
                 "Source-Grounded Classroom Learning Module"
             ],
-            speaker_notes=f"Welcome students to today's session on {topic}. Introduce the overarching chapter goal and connect it to foundational concepts.",
+            speaker_notes="Welcome students to today's session. Introduce the overarching chapter goal and connect it to prior knowledge.",
             grounding=None
         ))
 

@@ -7,6 +7,7 @@ import {
   updateProjectSlides,
   suggestSlideEdits,
   SuggestEditsResponse,
+  generateSlideScript,
 } from '../api';
 import {
   Maximize2,
@@ -43,6 +44,7 @@ import {
   Columns,
   LayoutGrid,
   FileText,
+  Layers,
   AlignLeft,
   SlidersHorizontal,
   ChevronDown as ChevronDownIcon,
@@ -423,6 +425,90 @@ export const PRESENTON_STUDIO_THEMES: Record<string, SlideThemeTokens> = {
     badgeText: '#D97706',
     isDark: false,
   },
+  momentum: {
+    canvasBg: '#131416',
+    canvasBorder: '#272A30',
+    titleColor: '#38BDF8',
+    subtitleColor: '#94A3B8',
+    cardBg: '#1E2025',
+    cardBorder: '#272A30',
+    cardTitleColor: '#F1F5F9',
+    cardBodyColor: '#CBD5E1',
+    accentColor: '#38BDF8',
+    badgeBg: '#38BDF820',
+    badgeText: '#38BDF8',
+    isDark: true,
+  },
+  swift: {
+    canvasBg: '#F8FAFC',
+    canvasBorder: '#E2E8F0',
+    titleColor: '#2563EB',
+    subtitleColor: '#64748B',
+    cardBg: '#FFFFFF',
+    cardBorder: '#E2E8F0',
+    cardTitleColor: '#0F172A',
+    cardBodyColor: '#334155',
+    accentColor: '#2563EB',
+    badgeBg: '#2563EB18',
+    badgeText: '#2563EB',
+    isDark: false,
+  },
+  editorial: {
+    canvasBg: '#FDFBF7',
+    canvasBorder: '#E7E1D7',
+    titleColor: '#1C1917',
+    subtitleColor: '#78716C',
+    cardBg: '#FFFFFF',
+    cardBorder: '#E7E1D7',
+    cardTitleColor: '#1C1917',
+    cardBodyColor: '#44403C',
+    accentColor: '#1C1917',
+    badgeBg: '#1C191715',
+    badgeText: '#1C1917',
+    isDark: false,
+  },
+  civic: {
+    canvasBg: '#F0F4F8',
+    canvasBorder: '#D6E0EA',
+    titleColor: '#1E40AF',
+    subtitleColor: '#64748B',
+    cardBg: '#FFFFFF',
+    cardBorder: '#D6E0EA',
+    cardTitleColor: '#1E293B',
+    cardBodyColor: '#334155',
+    accentColor: '#1E40AF',
+    badgeBg: '#1E40AF18',
+    badgeText: '#1E40AF',
+    isDark: false,
+  },
+  landmark: {
+    canvasBg: '#14181E',
+    canvasBorder: '#232B35',
+    titleColor: '#E2E8F0',
+    subtitleColor: '#94A3B8',
+    cardBg: '#1C222B',
+    cardBorder: '#232B35',
+    cardTitleColor: '#F8FAFC',
+    cardBodyColor: '#CBD5E1',
+    accentColor: '#94A3B8',
+    badgeBg: '#94A3B820',
+    badgeText: '#E2E8F0',
+    isDark: true,
+  },
+  horizon: {
+    canvasBg: '#0E1525',
+    canvasBorder: '#1E293B',
+    titleColor: '#60A5FA',
+    subtitleColor: '#94A3B8',
+    cardBg: '#172136',
+    cardBorder: '#1E293B',
+    cardTitleColor: '#F8FAFC',
+    cardBodyColor: '#CBD5E1',
+    accentColor: '#60A5FA',
+    badgeBg: '#60A5FA20',
+    badgeText: '#60A5FA',
+    isDark: true,
+  },
 };
 
 export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
@@ -635,6 +721,44 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     setActiveSuggestion(null);
   };
 
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+
+  // Live LLM Teacher Lecture Script Synthesis
+  const handleGenerateLiveScript = async () => {
+    if (!project || !activeSlide) return;
+    setIsGeneratingScript(true);
+    try {
+      const res = await generateSlideScript(project.project_id, {
+        slide_number: activeSlide.slide_number || currentSlideIndex + 1,
+        title: activeSlide.title,
+        subtitle: activeSlide.subtitle,
+        archetype: activeSlide.archetype,
+        cards: activeSlide.cards,
+        bullets: activeSlide.bullets,
+        grade_level: project.outline?.grade_level || 'Grade 10',
+        subject: project.outline?.subject || 'Science',
+      });
+      if (res && res.speaker_notes) {
+        setEditableSlides((prev) => {
+          const updated = [...prev];
+          if (updated[currentSlideIndex]) {
+            updated[currentSlideIndex] = {
+              ...updated[currentSlideIndex],
+              speaker_notes: res.speaker_notes,
+              est_delivery: res.est_delivery || updated[currentSlideIndex].est_delivery,
+            };
+          }
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to generate script:', err);
+      alert('Failed to generate teacher script with LLM. Please check connectivity.');
+    } finally {
+      setIsGeneratingScript(false);
+    }
+  };
+
   const pptxFile = currentArtifact?.files?.find((f) => f.endsWith('.pptx')) || 'slides/slides.pptx';
 
   return (
@@ -718,6 +842,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <option value="nova" className="bg-[#1C1B19]">Nova (Tech/Physics)</option>
               <option value="pulse" className="bg-[#1C1B19]">Pulse (Clinical Blue)</option>
               <option value="signal" className="bg-[#1C1B19]">Signal (Solar Amber)</option>
+              <option value="momentum" className="bg-[#1C1B19]">Momentum (Deep Carbon)</option>
+              <option value="swift" className="bg-[#1C1B19]">Swift (Electric Blue)</option>
+              <option value="mosaic" className="bg-[#1C1B19]">Mosaic (Warm Terracotta)</option>
+              <option value="editorial" className="bg-[#1C1B19]">Editorial (Warm Ivory)</option>
+              <option value="civic" className="bg-[#1C1B19]">Civic (Steel Blue)</option>
+              <option value="landmark" className="bg-[#1C1B19]">Landmark (Dark Slate)</option>
+              <option value="modern" className="bg-[#1C1B19]">Modern (Clean Blue)</option>
+              <option value="horizon" className="bg-[#1C1B19]">Horizon (Dusk Navy)</option>
               <option value="solar_obsidian" className="bg-[#1C1B19]">Solar Obsidian (Dark)</option>
               <option value="academic_clean" className="bg-[#1C1B19]">Academic Clean (Light)</option>
               <option value="standard" className="bg-[#1C1B19]">Standard (Classroom)</option>
@@ -1182,11 +1314,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         >
                           {card.badge || `Column 0${cIdx + 1}`}
                         </span>
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1.5"
+                          className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1.5 resize-none leading-snug break-words"
                           style={{ color: activeTheme.cardTitleColor }}
                         />
                         <textarea
@@ -1229,11 +1361,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         {cIdx + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <input
-                          type="text"
+                        <textarea
+                          rows={1}
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-xs font-bold bg-transparent border-b border-transparent focus:outline-none mb-0.5"
+                          className="w-full text-xs font-bold bg-transparent border-b border-transparent focus:outline-none mb-0.5 resize-none leading-snug break-words"
                           style={{ color: activeTheme.cardTitleColor }}
                         />
                         <textarea
@@ -1275,15 +1407,15 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                             {card.badge}
                           </span>
                         )}
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-sm font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1 leading-snug"
+                          className="w-full text-sm font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1 leading-snug resize-none break-words"
                           style={{ color: activeTheme.cardTitleColor }}
                         />
                         <textarea
-                          rows={3}
+                          rows={4}
                           value={card.body || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
                           className="w-full text-xs leading-relaxed bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none resize-none"
@@ -1348,10 +1480,22 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 </span>
               </div>
               <button
-                onClick={() => handleTriggerRefinement('add_teacher_tip')}
-                className="text-[11px] font-semibold text-[#FF5C00] hover:underline flex items-center gap-1"
+                disabled={isGeneratingScript}
+                onClick={handleGenerateLiveScript}
+                className="text-[11px] font-semibold text-[#FF5C00] hover:text-orange-400 disabled:opacity-50 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 transition-all cursor-pointer"
+                title="Use LLM to generate an authentic classroom teacher lecture script"
               >
-                <RotateCw className="w-3 h-3" /> Regenerate Notes
+                {isGeneratingScript ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin text-[#FF5C00]" />
+                    <span>Synthesizing Script...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 text-[#FF5C00]" />
+                    <span>AI Generate Script</span>
+                  </>
+                )}
               </button>
             </div>
 
@@ -1378,8 +1522,8 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   </div>
                   <h3 className="font-bold text-sm text-slate-100">Slide Co-Pilot</h3>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                  Llama-3-70B
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-orange-950/60 text-orange-400 border border-orange-900/40">
+                  Gemini LLM Active
                 </span>
               </div>
               <div className="flex items-center justify-between text-[10px] text-slate-500">
@@ -1448,27 +1592,29 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               </div>
             </div>
 
-            {/* Generation Rationale */}
+            {/* Slide Architecture & Live Inspection */}
             <div className="p-3 rounded-2xl bg-[#1C1B19] border border-[#2B2926] space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF5C00]">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Slide Synthesizer v2.4</span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Synthesized {activeSlide?.cards?.length || 3} cards covering "{activeSlide?.title || 'core concepts'}" tailored for {project?.outline?.grade_level || 'Grade 10'} learners.
-              </p>
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-[#2B2926]">
-                <span>Tokens: 342</span>
-                <span>Latency: 420ms</span>
-              </div>
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[10px] text-slate-400 font-mono">Bloom's Taxonomy:</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">
-                  {currentSlideIndex === 0 ? "Level 1: Remember" : currentSlideIndex === 1 ? "Level 2: Understand" : "Level 3: Apply"}
+              <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+                <div className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-[#FF5C00]" />
+                  <span>Slide Architecture</span>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#23211F] text-[#FF5C00] uppercase font-bold border border-[#32302C]">
+                  {activeSlide?.archetype?.replace('_', ' ') || '3-Card Grid'}
                 </span>
               </div>
-              <div className="text-[10px] text-slate-400 font-mono">
-                Conceptual clarity score: <span className="text-emerald-400 font-bold">94/100</span>
+              <p className="text-xs text-slate-400 leading-snug">
+                Topic: <strong className="text-slate-200">{activeSlide?.title || 'Slide Title'}</strong>
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-slate-400 pt-1.5 border-t border-[#2B2926]">
+                <div className="flex items-center justify-between bg-[#151413] px-2 py-1 rounded">
+                  <span>Cards:</span>
+                  <span className="text-slate-200 font-bold">{activeSlide?.cards?.length || 0}</span>
+                </div>
+                <div className="flex items-center justify-between bg-[#151413] px-2 py-1 rounded">
+                  <span>Est. Delivery:</span>
+                  <span className="text-slate-200 font-bold">{activeSlide?.est_delivery || '3m 30s'}</span>
+                </div>
               </div>
             </div>
 
