@@ -16,6 +16,7 @@ import {
   List,
   Quote,
   SlidersHorizontal,
+  GripVertical,
 } from 'lucide-react';
 
 export interface SlideElementFloatingToolbarProps {
@@ -32,6 +33,7 @@ export interface SlideElementFloatingToolbarProps {
   onDuplicateCard: (cardIdx: number) => void;
   onDeleteCard: (cardIdx: number) => void;
   onAIPromptRefine: (prompt: string, cardIdx?: number) => void;
+  onStartDrag?: (e: React.PointerEvent) => void;
   onClose?: () => void;
   isDarkMode?: boolean;
 }
@@ -64,6 +66,7 @@ export const SlideElementFloatingToolbar: React.FC<SlideElementFloatingToolbarPr
   onDuplicateCard,
   onDeleteCard,
   onAIPromptRefine,
+  onStartDrag,
   onClose,
   isDarkMode = true,
 }) => {
@@ -109,6 +112,20 @@ export const SlideElementFloatingToolbar: React.FC<SlideElementFloatingToolbarPr
       }`}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* Drag & Move Handle */}
+      {onStartDrag && (
+        <>
+          <div
+            onPointerDown={onStartDrag}
+            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-[#FF5C00] cursor-grab active:cursor-grabbing transition-colors"
+            title="Drag to reposition card freely on canvas"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </div>
+          <div className={`h-4 w-px ${isDarkMode ? 'bg-white/10' : 'bg-black/10'}`} />
+        </>
+      )}
+
       {/* ── 1. Archetype / Layout Switcher Dropdown ── */}
       <div className="relative">
         <button

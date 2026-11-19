@@ -51,6 +51,7 @@ import {
   Triangle,
   Quote,
   Mic,
+  GripVertical,
 } from 'lucide-react';
 import { BarChart, Bar, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { RightEditPanel, ActiveRightPanel } from './RightEditPanel';
@@ -413,6 +414,80 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   const [isProjectorMode, setIsProjectorMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(85);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  // Free-form Drag and Drop positioning state
+  const [draggingCardIndex, setDraggingCardIndex] = useState<number | null>(null);
+  const [cardOffsets, setCardOffsets] = useState<Record<string, { x: number; y: number }>>({});
+
+  const handleStartCardDrag = (cIdx: number, e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDraggingCardIndex(cIdx);
+    const key = `${currentSlideIndex}_${cIdx}`;
+    const initialOffset = cardOffsets[key] || { x: 0, y: 0 };
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const onPointerMove = (moveEvt: PointerEvent) => {
+      const dx = moveEvt.clientX - startX;
+      const dy = moveEvt.clientY - startY;
+      setCardOffsets((prev) => ({
+        ...prev,
+        [key]: {
+          x: Math.round(initialOffset.x + dx),
+          y: Math.round(initialOffset.y + dy),
+        },
+      }));
+    };
+
+    const onPointerUp = () => {
+      setDraggingCardIndex(null);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  const handleResetCardOffsets = () => {
+    setCardOffsets((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((k) => {
+        if (k.startsWith(`${currentSlideIndex}_`)) {
+          delete next[k];
+        }
+      });
+      return next;
+    });
+  };
+
+  const hasCurrentSlideOffsets = Object.keys(cardOffsets).some(
+    (k) => k.startsWith(`${currentSlideIndex}_`) && (cardOffsets[k].x !== 0 || cardOffsets[k].y !== 0)
+  );
+
+  const getCardDragProps = (cIdx: number) => {
+    const key = `${currentSlideIndex}_${cIdx}`;
+    const offset = cardOffsets[key] || { x: 0, y: 0 };
+    const isDragging = draggingCardIndex === cIdx;
+    return {
+      style: {
+        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        zIndex: isDragging ? 50 : selectedCardIndex === cIdx ? 25 : 1,
+        transition: isDragging ? 'none' : 'transform 0.15s ease-out, box-shadow 0.15s ease-out',
+      },
+      isMoved: offset.x !== 0 || offset.y !== 0,
+      dragHandle: (
+        <div
+          onPointerDown={(e) => handleStartCardDrag(cIdx, e)}
+          className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-black/15 dark:hover:bg-white/15 text-slate-400 hover:text-[#FF5C00] transition-colors"
+          title="Drag to freely reposition on canvas"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+      ),
+    };
+  };
 
   useEffect(() => {
     if (initialArtifact?.source_data?.slides?.length) {
@@ -887,6 +962,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             handleTriggerRefinement('custom', prompt);
           }
         }}
+        onStartDrag={(e) => handleStartCardDrag(cIdx, e)}
         onClose={() => setSelectedCardIndex(null)}
         isDarkMode={isDarkMode}
       />
@@ -1338,6 +1414,20 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   </div>
                 )}
               </div>
+
+              {hasCurrentSlideOffsets && (
+                <>
+                  <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
+                  <button
+                    onClick={handleResetCardOffsets}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FF5C00]/15 text-[#FF5C00] hover:bg-[#FF5C00]/25 border border-[#FF5C00]/30 text-xs font-mono font-bold transition-all shadow-xs"
+                    title="Reset moved cards back to original layout grid"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset Grid</span>
+                  </button>
+                </>
+              )}
 
               <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
 
@@ -2694,28 +2784,33 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                       className={`relative p-4 rounded-2xl border flex flex-col justify-between shadow-xs transition-all hover:shadow-md cursor-pointer ${
                         selectedCardIndex === cIdx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
                       }`}
-                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                        ...getCardDragProps(cIdx).style,
+                      }}
                     >
                       {renderFloatingToolbar(cIdx, card)}
-                      <div>
-                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded inline-block mb-1.5" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded inline-block" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
                           {card.badge || `Concept 0${cIdx + 1}`}
                         </span>
-                        <textarea
-                          rows={1}
-                          value={card.title || ''}
-                          onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none"
-                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
-                        />
-                        <textarea
-                          rows={2}
-                          value={card.body || ''}
-                          onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
-                          className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
-                          style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
-                        />
+                        {getCardDragProps(cIdx).dragHandle}
                       </div>
+                      <textarea
+                        rows={1}
+                        value={card.title || ''}
+                        onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                        className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={2}
+                        value={card.body || ''}
+                        onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                        className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -2857,11 +2952,13 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         style={{
                           backgroundColor: activeTheme.cardBg,
                           borderColor: activeTheme.cardBorder,
+                          ...getCardDragProps(cIdx).style,
                         }}
                       >
                         {renderFloatingToolbar(cIdx, card)}
                         {/* Hover Quick Action Capsule */}
                         <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/60 backdrop-blur-md rounded-lg p-0.5 border border-white/10 z-10">
+                          {getCardDragProps(cIdx).dragHandle}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
