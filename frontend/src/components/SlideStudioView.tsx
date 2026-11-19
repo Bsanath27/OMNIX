@@ -17,24 +17,14 @@ import {
   ChevronRight,
   Plus,
   Play,
-  BookOpen,
-  Zap,
-  FolderOpen,
-  FileQuestion,
-  Grid,
-  List,
   Sparkles,
-  Scissors,
   Lightbulb,
   MessageSquare,
-  Sigma,
   ShieldCheck,
   Check,
   Loader2,
   RotateCcw,
   RotateCw,
-  Hash,
-  Mic,
   Save,
   Trash2,
   Copy,
@@ -44,11 +34,14 @@ import {
   Columns,
   LayoutGrid,
   FileText,
-  Layers,
   AlignLeft,
   SlidersHorizontal,
   ChevronDown as ChevronDownIcon,
+  ChevronUp,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
+import { RightEditDock, RightToolDrawer, ActiveToolPanel } from './SlideEditPanels';
 
 interface SlideStudioViewProps {
   project: ProjectManifest | null;
@@ -96,7 +89,7 @@ function buildDynamicSlidesFromProject(proj: ProjectManifest | null, passages: R
       {
         badge: 'Grounding',
         title: 'Textbook Verified',
-        body: `Synthesized deterministically from ${proj?.source_filename || 'chapter text'} with passage grounding.`,
+        body: `Synthesized deterministically from verified textbook passages with rigorous grounding.`,
       },
     ],
     speaker_notes: `Welcome students to ${title}. Introduce the overarching chapter goal and connect it to foundational ${subject} concepts.`,
@@ -526,7 +519,21 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     return params.get('theme') || initialArtifact?.source_data?.theme || 'verdant';
   });
   const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false);
-  const [activeRailTab, setActiveRailTab] = useState<'outline' | 'source' | 'prompt' | 'assets' | 'assessments'>('outline');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('sidebar') === '0' || p.get('sidebar') === 'false') return false;
+    }
+    return true;
+  });
+  const [activeToolPanel, setActiveToolPanel] = useState<ActiveToolPanel>(() => {
+    const p = new URLSearchParams(window.location.search).get('tool');
+    if (p && ['text', 'elements', 'charts', 'diagrams', 'theme', 'copilot'].includes(p)) {
+      return p as ActiveToolPanel;
+    }
+    return 'copilot';
+  });
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const s = parseInt(params.get('slide') || '0', 10);
@@ -548,7 +555,6 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState<SuggestEditsResponse | null>(null);
   const [copilotPrompt, setCopilotPrompt] = useState('');
-  const [strictMatch, setStrictMatch] = useState(true);
   const [isProjectorMode, setIsProjectorMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(85);
 
@@ -622,6 +628,43 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
       if (cards[cardIdx]) {
         cards[cardIdx] = { ...cards[cardIdx], [field]: value };
       }
+      slide.cards = cards;
+      updated[currentSlideIndex] = slide;
+      return updated;
+    });
+  };
+
+  const handleAddCardToActiveSlide = (newCard: any) => {
+    setEditableSlides((prev) => {
+      const updated = [...prev];
+      const slide = { ...updated[currentSlideIndex] };
+      const cards = [...(slide.cards || []), newCard];
+      slide.cards = cards;
+      updated[currentSlideIndex] = slide;
+      return updated;
+    });
+  };
+
+  const handleDuplicateCard = (cIdx: number) => {
+    setEditableSlides((prev) => {
+      const updated = [...prev];
+      const slide = { ...updated[currentSlideIndex] };
+      if (!Array.isArray(slide.cards) || !slide.cards[cIdx]) return prev;
+      const cardToDupe = { ...slide.cards[cIdx] };
+      const cards = [...slide.cards];
+      cards.splice(cIdx + 1, 0, cardToDupe);
+      slide.cards = cards;
+      updated[currentSlideIndex] = slide;
+      return updated;
+    });
+  };
+
+  const handleDeleteCard = (cIdx: number) => {
+    setEditableSlides((prev) => {
+      const updated = [...prev];
+      const slide = { ...updated[currentSlideIndex] };
+      if (!Array.isArray(slide.cards)) return prev;
+      const cards = slide.cards.filter((_: any, i: number) => i !== cIdx);
       slide.cards = cards;
       updated[currentSlideIndex] = slide;
       return updated;
@@ -777,6 +820,13 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1.5 rounded-lg bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] text-slate-400 hover:text-white transition-colors"
+              title={isSidebarOpen ? "Collapse Filmstrip (⌘B)" : "Show Filmstrip"}
+            >
+              {isSidebarOpen ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5 text-[#FF5C00]" />}
+            </button>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FF5C00]/15 border border-[#FF5C00]/30 text-white font-bold text-xs tracking-tight">
               <span className="w-2 h-2 rounded-full bg-[#FF5C00]" />
               <span className="text-white font-black">OMNIX</span>
@@ -789,8 +839,8 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             <span>›</span>
             <span>{project?.outline?.subject || 'Curriculum'} · {project?.outline?.grade_level || 'Grade 10'}</span>
             <span>›</span>
-            <span className="text-slate-200 font-semibold truncate max-w-xs">
-              {project?.outline?.title || project?.name || "Curriculum Chapter"}
+            <span className="text-[#FF5C00] font-semibold truncate max-w-sm">
+              {activeSlide?.title || "Classroom Presentation"}
             </span>
           </div>
         </div>
@@ -859,13 +909,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             </select>
           </div>
 
-          {/* Projector Fullscreen Mode */}
+          {/* Presenton-Style Fullscreen Present Mode */}
           <button
             onClick={() => setIsProjectorMode(true)}
-            className="p-2 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] text-slate-300 hover:text-white transition-colors"
-            title="Full-Screen Projector Mode"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] text-xs font-semibold text-slate-200 hover:text-white transition-colors"
+            title="Present Presentation (Fullscreen)"
           >
-            <Maximize2 className="w-4 h-4 text-[#FF5C00]" />
+            <Play className="w-3.5 h-3.5 text-[#FF5C00] fill-current" />
+            <span className="hidden sm:inline">Present</span>
           </button>
 
           {/* Primary Action: Download .pptx */}
@@ -885,98 +936,39 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
         </div>
       </header>
 
-      {/* 2. MAIN 4-COLUMN WORKSPACE BODY */}
+      {/* 2. MAIN WORKSPACE BODY (Presenton 3-Pane Architecture: Filmstrip + Stage + Floating Tool Dock) */}
       <div className="flex-1 flex overflow-hidden">
         {/* ========================================================
-            COLUMN 1: SLIDE NAVIGATOR (Far Left Rail, ~180px)
+            PANE 1: SLIDES FILMSTRIP SIDEBAR (Presenton Parity)
         ======================================================== */}
-        <nav className="w-48 bg-[#181715] border-r border-[#2B2926] flex flex-col justify-between shrink-0 p-3 select-none">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              <span>SLIDE NAVIGATOR</span>
-              <button
-                onClick={handleAddNewSlide}
-                className="hover:text-white text-slate-400"
-                title="Add New Slide"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              {[
-                { id: 'outline', label: 'Slides Outline', icon: Play },
-                { id: 'source', label: 'Curriculum Source', icon: BookOpen },
-                { id: 'prompt', label: 'Prompt Engine', icon: Zap },
-                { id: 'assets', label: 'Asset Library', icon: FolderOpen },
-                { id: 'assessments', label: 'Assessments', icon: FileQuestion },
-              ].map((item) => {
-                const Icon = item.icon;
-                const isActive = activeRailTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveRailTab(item.id as any)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      isActive
-                        ? 'bg-[#FF5C00]/15 text-[#FF5C00] border border-[#FF5C00]/30'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Navigator Footer */}
-          <div className="pt-3 border-t border-[#2B2926] flex items-center justify-between text-[10px] font-mono text-slate-500">
-            <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>AI Copilot Ready</span>
-            </div>
-            <span>v2.4</span>
-          </div>
-        </nav>
-
-        {/* ========================================================
-            COLUMN 2: SLIDES THUMBNAILS (Filmstrip Rail, ~240px)
-        ======================================================== */}
-        <div className="w-64 bg-[#1C1B19] border-r border-[#2B2926] flex flex-col justify-between shrink-0 p-3 select-none">
-          <div className="space-y-3 flex-1 flex flex-col overflow-hidden">
+        {isSidebarOpen ? (
+          <div className="w-44 bg-white/70 dark:bg-[#181715]/90 backdrop-blur-md border-r border-black/5 dark:border-[#2B2926] flex flex-col justify-between shrink-0 p-2 select-none transition-all duration-300">
+          <div className="space-y-1.5 flex-1 flex flex-col overflow-hidden">
             {/* Filmstrip Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-[#2B2926]">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-200">
-                  Slides <span className="text-slate-500 font-mono">({editableSlides.length})</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-1 text-slate-400">
-                <button className="p-1 rounded hover:text-white" title="Grid View">
-                  <Grid className="w-3.5 h-3.5" />
+            <div className="flex items-center justify-between pb-1 px-1 border-b border-black/5 dark:border-[#2B2926]">
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                Slides <span className="text-slate-400 font-mono">({editableSlides.length})</span>
+              </span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={handleAddNewSlide}
+                  className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-[#FF5C00] transition-colors"
+                  title="Add New Slide"
+                >
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
-                <button className="p-1 rounded hover:text-white" title="List View">
-                  <List className="w-3.5 h-3.5" />
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                  title="Collapse Filmstrip"
+                >
+                  <PanelLeftClose className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
-
-            {/* New Slide Button */}
-            <button
-              onClick={handleAddNewSlide}
-              className="w-full py-2 px-3 rounded-xl border border-dashed border-[#FF5C00]/50 hover:border-[#FF5C00] bg-[#FF5C00]/10 text-[#FF5C00] text-xs font-bold flex items-center justify-between transition-colors"
-            >
-              <div className="flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" />
-                <span>New Slide</span>
-              </div>
-              <span className="text-[10px] font-mono text-[#FF5C00]/70">⌘N</span>
-            </button>
 
             {/* Ordered Slide Thumbnails List */}
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
               {editableSlides.map((slide, idx) => {
                 const isSelected = idx === currentSlideIndex;
                 const formattedNumber = String(idx + 1).padStart(2, '0');
@@ -984,73 +976,87 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   <div
                     key={idx}
                     onClick={() => setCurrentSlideIndex(idx)}
-                    className={`group relative p-3 rounded-2xl border text-left cursor-pointer transition-all ${
+                    className={`group relative p-2 rounded-xl text-left cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-[#262421] border-[#FF5C00] shadow-md shadow-orange-950/40 ring-1 ring-[#FF5C00]'
-                        : 'bg-[#181715] border-[#2B2926] hover:border-slate-500'
+                        ? 'bg-black/5 dark:bg-[#262421] ring-2 ring-[#FF5C00] shadow-sm'
+                        : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                          isSelected ? 'bg-[#FF5C00] text-white' : 'bg-[#2A2825] text-slate-400'
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <span className={`text-[10px] font-mono font-bold px-1 rounded shrink-0 ${
+                          isSelected ? 'bg-[#FF5C00] text-white' : 'bg-black/10 dark:bg-white/10 text-slate-500'
                         }`}>
                           {formattedNumber}
                         </span>
-                        <h5 className={`text-xs font-bold truncate max-w-[120px] ${
-                          isSelected ? 'text-[#FF5C00]' : 'text-slate-200'
-                        }`}>
+                        <h5 className="text-[11px] font-semibold truncate leading-tight flex-1 min-w-0 text-slate-800 dark:text-slate-200">
                           {slide.title || `Slide ${idx + 1}`}
                         </h5>
                       </div>
-                      <span className="w-2 h-2 rounded-full bg-[#FF5C00] opacity-90" />
                     </div>
 
-                    {/* Miniature visual wireframe preview reflecting theme */}
+                    {/* Miniature visual thumbnail preview reflecting theme */}
                     <div
-                      className="h-16 w-full rounded-xl p-2 flex flex-col justify-between overflow-hidden border shadow-inner"
+                      className="h-16 w-full rounded-lg p-1.5 flex flex-col justify-between overflow-hidden border shadow-inner relative"
                       style={{
                         backgroundColor: activeTheme.canvasBg,
-                        borderColor: activeTheme.cardBorder,
+                        borderColor: isSelected ? activeTheme.accentColor : activeTheme.cardBorder,
                       }}
                     >
-                      <div className="flex items-center justify-between text-[8px] font-mono">
-                        <span style={{ color: activeTheme.subtitleColor }}>
-                          {(project?.outline?.subject || 'UNIT').slice(0, 7).toUpperCase()} · SL{idx + 1}
+                      <div className="flex items-center justify-between text-[7px] font-mono">
+                        <span style={{ color: activeTheme.subtitleColor }} className="truncate max-w-[70px]">
+                          SL{idx + 1}
                         </span>
-                        <span className="text-[8px] px-1 rounded font-bold" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}>
-                          {slide.archetype === 'split_comparison' ? 'SPLIT' : slide.archetype === 'hero_title' || slide.archetype === 'hero_stat' ? 'HERO' : 'CARDS'}
+                        <span className="text-[6px] px-1 rounded font-bold" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}>
+                          16:9
                         </span>
                       </div>
-                      <div className="w-3/4 h-1.5 rounded" style={{ backgroundColor: activeTheme.accentColor }} />
-                      <div className="grid grid-cols-3 gap-1">
-                        <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
-                        <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
-                        <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
-                      </div>
+                      <div className="w-3/4 h-1 rounded" style={{ backgroundColor: activeTheme.accentColor }} />
+                      
+                      {/* Dynamic Miniature Layout snippet */}
+                      {slide.archetype === 'split_comparison' ? (
+                        <div className="grid grid-cols-2 gap-1">
+                          <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                          <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                        </div>
+                      ) : slide.archetype === 'hero_title' || idx === 0 ? (
+                        <div className="grid grid-cols-12 gap-1">
+                          <div className="col-span-7 h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                          <div className="col-span-5 flex flex-col gap-0.5">
+                            <div className="h-1.5 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                            <div className="h-1.5 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-0.5">
+                          <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                          <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                          <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                        </div>
+                      )}
                     </div>
 
-                    {/* Hover Slide Actions (Duplicate / Delete) */}
-                    <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#262421] p-1 rounded-lg border border-[#3A3835]">
+                    {/* Hover Actions */}
+                    <div className="absolute right-1.5 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-black/70 p-0.5 rounded border border-white/20">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDuplicateSlide(idx);
                         }}
-                        className="text-slate-400 hover:text-white p-0.5 transition-colors"
-                        title="Duplicate Slide"
+                        className="text-white hover:text-[#FF5C00] p-0.5"
+                        title="Duplicate"
                       >
-                        <Copy className="w-3 h-3" />
+                        <Copy className="w-2.5 h-2.5" />
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteSlide(idx);
                         }}
-                        className="text-red-400 hover:text-red-300 p-0.5 transition-colors"
-                        title="Delete Slide"
+                        className="text-white hover:text-red-400 p-0.5"
+                        title="Delete"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   </div>
@@ -1077,122 +1083,140 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             />
           </div>
         </div>
+        ) : (
+          /* Slim Collapsed Filmstrip Tab Bar */
+          <div className="w-9 bg-[#181715] border-r border-[#2B2926] flex flex-col items-center justify-between py-3 shrink-0 select-none z-10">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              title="Expand Slides Filmstrip"
+            >
+              <PanelLeftOpen className="w-4 h-4 text-[#FF5C00]" />
+            </button>
+            <span className="text-[10px] font-mono text-slate-500 [writing-mode:vertical-lr] rotate-180 tracking-wider uppercase font-semibold">
+              Slides ({editableSlides.length})
+            </span>
+            <div className="w-1.5 h-1.5 rounded-full bg-[#FF5C00]/40" />
+          </div>
+        )}
 
         {/* ========================================================
-            COLUMN 3: 16:9 PRESENTATION STAGE & SPEAKER NOTES
+            PANE 2: 16:9 PRESENTATION STAGE & SPEAKER NOTES
         ======================================================== */}
-        <div className="flex-1 bg-[#131211] flex flex-col justify-between overflow-y-auto p-4 sm:p-6 select-text">
+        <div className={`flex-1 min-w-0 flex flex-col justify-between overflow-y-auto overflow-x-auto p-3 sm:p-5 select-text transition-colors duration-200 ${
+          isDarkMode ? 'bg-[#121214]' : 'bg-[#EDEEEF]'
+        }`}>
           {/* Canvas Subheader Strip */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-2 border-b border-[#23211F] text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2 mb-2 text-xs border-b border-black/5 dark:border-white/10">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse" />
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#FF5C00]">
-                CURRICULUM MODE · {(project?.outline?.subject || 'Curriculum').toUpperCase()} {(project?.outline?.grade_level || '').toUpperCase()}
+                CURRICULUM MODE: ACTIVE
               </span>
-              <span className="text-slate-600">|</span>
-              <span className="text-slate-400 text-[11px] font-mono">
-                {project?.outline?.subject || 'Curriculum'} Grounding Sync: Stable
+              <span className="text-slate-400 dark:text-slate-600">|</span>
+              <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
+                Grounding Sync: Verified Stable
               </span>
             </div>
 
-            <div className="flex items-center gap-3 text-slate-400 text-[11px] font-mono">
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#1C1B19] border border-[#2B2926]">
+            <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 text-[11px] font-mono">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/70 dark:bg-[#1C1B19] border border-black/10 dark:border-[#2B2926] shadow-xs">
                 <Maximize2 className="w-3 h-3 text-[#FF5C00]" />
-                <span>16:9 Widescreen 1920×1080</span>
+                <span>16:9 Widescreen</span>
               </div>
               <div className="flex items-center gap-1">
-                <button className="p-1 hover:text-white"><RotateCcw className="w-3 h-3" /></button>
-                <button className="p-1 hover:text-white"><RotateCw className="w-3 h-3" /></button>
+                <button onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))} className="p-1 hover:text-[#FF5C00] transition-colors"><RotateCcw className="w-3 h-3" /></button>
+                <button onClick={() => setZoomLevel(prev => Math.min(150, prev + 10))} className="p-1 hover:text-[#FF5C00] transition-colors"><RotateCw className="w-3 h-3" /></button>
               </div>
               <div className="flex items-center gap-1">
-                <span>- {zoomLevel}% +</span>
-              </div>
-              <div className="flex items-center gap-1 hover:text-white cursor-pointer">
-                <Hash className="w-3 h-3 text-[#FF5C00]" />
-                <span>Snap Grid</span>
+                <span>{zoomLevel}%</span>
               </div>
             </div>
           </div>
 
-          {/* Presenton-Style Slide Action Bar (Ticket T-000034) */}
-          <div className="max-w-4xl w-full mx-auto mb-3 flex items-center justify-between px-2 py-1.5 rounded-2xl bg-[#1C1B19] border border-[#2B2926] text-xs">
-            {/* Left: Layout Switcher Button & Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsLayoutMenuOpen(!isLayoutMenuOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#262421] hover:bg-[#322F2A] border border-[#3A3835] font-semibold text-slate-200 transition-colors"
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF5C00]" />
-                <span className="capitalize">
-                  Layout: {activeSlide?.archetype === 'split_comparison' ? '2-Column Split' : activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' ? 'Title Slide' : activeSlide?.archetype === 'bullet_list' ? 'Concept List' : '3-Card Grid'}
-                </span>
-                <ChevronDownIcon className="w-3 h-3 text-slate-400" />
-              </button>
+          {/* Presenton Centered Floating Action Pill */}
+          <div className="flex items-center justify-center mb-3">
+            <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/90 dark:bg-[#1C1B19]/90 backdrop-blur-md border border-black/10 dark:border-white/10 shadow-lg text-xs">
+              {/* Left: Layout Switcher Button & Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsLayoutMenuOpen(!isLayoutMenuOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 font-semibold text-slate-800 dark:text-slate-200 transition-colors"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF5C00]" />
+                  <span>
+                    {activeSlide?.archetype === 'split_comparison' ? '2-Column Split' : activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' ? 'Title Slide' : activeSlide?.archetype === 'bullet_list' ? 'Concept List' : '3-Card Grid'}
+                  </span>
+                  <ChevronDownIcon className="w-3 h-3 text-slate-400" />
+                </button>
 
-              {isLayoutMenuOpen && (
-                <div className="absolute left-0 top-full mt-2 w-56 rounded-2xl bg-[#1C1B19] border border-[#383531] shadow-2xl p-1.5 z-50 space-y-1">
-                  {[
-                    { id: 'hero_title', label: 'Title / Hero Slide', icon: FileText, desc: 'Large headline & curriculum thesis' },
-                    { id: 'card_grid_3', label: '3-Card Bento Grid', icon: LayoutGrid, desc: 'Balanced 3 concept cards' },
-                    { id: 'split_comparison', label: '2-Column Comparison', icon: Columns, desc: 'Side-by-side contrast' },
-                    { id: 'bullet_list', label: 'Structured Concept List', icon: AlignLeft, desc: 'Sequential points & definitions' },
-                  ].map((archetype) => {
-                    const ArchIcon = archetype.icon;
-                    const isCurrent = (activeSlide?.archetype || 'card_grid_3') === archetype.id;
-                    return (
-                      <button
-                        key={archetype.id}
-                        onClick={() => handleSwitchLayout(archetype.id)}
-                        className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-colors ${
-                          isCurrent
-                            ? 'bg-[#FF5C00]/20 text-white border border-[#FF5C00]/40'
-                            : 'hover:bg-white/5 text-slate-300'
-                        }`}
-                      >
-                        <ArchIcon className="w-4 h-4 text-[#FF5C00] mt-0.5 shrink-0" />
-                        <div>
-                          <div className="font-bold text-xs">{archetype.label}</div>
-                          <div className="text-[10px] text-slate-400">{archetype.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                {isLayoutMenuOpen && (
+                  <div className="absolute left-0 top-full mt-2 w-56 rounded-2xl bg-white dark:bg-[#1C1B19] border border-black/10 dark:border-[#383531] shadow-2xl p-1.5 z-50 space-y-1">
+                    {[
+                      { id: 'hero_title', label: 'Title / Hero Slide', icon: FileText, desc: 'Large headline & curriculum thesis' },
+                      { id: 'card_grid_3', label: '3-Card Bento Grid', icon: LayoutGrid, desc: 'Balanced 3 concept cards' },
+                      { id: 'split_comparison', label: '2-Column Comparison', icon: Columns, desc: 'Side-by-side contrast' },
+                      { id: 'bullet_list', label: 'Structured Concept List', icon: AlignLeft, desc: 'Sequential points & definitions' },
+                    ].map((archetype) => {
+                      const ArchIcon = archetype.icon;
+                      const isCurrent = (activeSlide?.archetype || 'card_grid_3') === archetype.id;
+                      return (
+                        <button
+                          key={archetype.id}
+                          onClick={() => handleSwitchLayout(archetype.id)}
+                          className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-colors ${
+                            isCurrent
+                              ? 'bg-[#FF5C00]/15 text-[#FF5C00] font-bold'
+                              : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <ArchIcon className="w-4 h-4 text-[#FF5C00] mt-0.5 shrink-0" />
+                          <div>
+                            <div className="font-bold text-xs">{archetype.label}</div>
+                            <div className="text-[10px] text-slate-400">{archetype.desc}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-            {/* Right: Slide Controls */}
-            <div className="flex items-center gap-1.5">
+              <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
+
               <button
                 onClick={() => handleDuplicateSlide(currentSlideIndex)}
-                className="px-2.5 py-1.5 rounded-xl bg-[#262421] hover:bg-[#322F2A] border border-[#3A3835] text-slate-300 hover:text-white flex items-center gap-1.5"
+                className="p-1.5 hover:text-[#FF5C00] text-slate-500 dark:text-slate-400 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                 title="Duplicate Current Slide"
               >
                 <Copy className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Duplicate</span>
               </button>
+
               <button
                 onClick={() => handleDeleteSlide(currentSlideIndex)}
                 disabled={editableSlides.length <= 1}
-                className="px-2.5 py-1.5 rounded-xl bg-[#262421] hover:bg-red-950/40 border border-[#3A3835] text-red-400 hover:text-red-300 disabled:opacity-20 flex items-center gap-1.5"
+                className="p-1.5 hover:text-red-500 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-20 transition-colors"
                 title="Delete Current Slide"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Delete</span>
               </button>
+
+              <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
+
               <button
                 onClick={handleAddNewSlide}
-                className="px-3 py-1.5 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-bold flex items-center gap-1.5 shadow-sm"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FF5C00] hover:bg-[#e05200] text-white font-bold text-xs shadow-sm transition-all"
+                title="Add New Slide"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Slide</span>
+                <span>Add</span>
               </button>
             </div>
           </div>
 
-          {/* 16:9 Center Slide Canvas (Dynamic Presenton Theme-Driven Renderer - Ticket T-000033) */}
+          {/* 16:9 Center Slide Canvas (Presenton-Style Floating Card on Neutral Backdrop) */}
           <div
-            className="my-auto max-w-4xl w-full mx-auto aspect-video rounded-3xl p-8 sm:p-12 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300 border"
+            className="my-auto w-full max-w-4xl xl:max-w-5xl min-w-[560px] md:min-w-[640px] aspect-video min-h-[360px] md:min-h-[400px] mx-auto rounded-2xl p-5 sm:p-7 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300 border border-black/5 dark:border-white/10"
             style={{
               backgroundColor: activeTheme.canvasBg,
               borderColor: activeTheme.canvasBorder,
@@ -1200,17 +1224,20 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
           >
             {/* Corner Ambient Glow */}
             <div
-              className="absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20 opacity-30"
+              className="absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20 opacity-25"
               style={{ backgroundColor: activeTheme.accentColor }}
             />
 
-            <div className="relative z-10 space-y-3">
+            <div className="relative z-10 space-y-2.5">
               {/* Slide Header: Metadata & Subject Standard */}
               <div className="flex items-center justify-between text-xs font-mono">
                 <div className="flex items-center gap-2">
                   <span
-                    className="font-bold uppercase tracking-wider text-[11px]"
-                    style={{ color: activeTheme.accentColor }}
+                    className="font-bold uppercase tracking-wider text-[11px] px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: activeTheme.badgeBg,
+                      color: activeTheme.accentColor,
+                    }}
                   >
                     {activeSlide?.subtitle || `${(project?.outline?.subject || 'Curriculum').toUpperCase()} · ${(project?.outline?.grade_level || 'Grade 10').toUpperCase()}`}
                   </span>
@@ -1224,7 +1251,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                     style={{
                       backgroundColor: activeTheme.badgeBg,
                       color: activeTheme.badgeText,
-                      borderColor: activeTheme.accentColor + '40',
+                      borderColor: activeTheme.accentColor + '30',
                     }}
                   >
                     <ShieldCheck className="w-3 h-3" />
@@ -1233,60 +1260,77 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 </div>
               </div>
 
-              {/* Large Bold Slide Title (Word-Wrapped, Non-Truncated - Fixes SL-01) */}
+              {/* Large Bold Slide Title (Clean Editorial Typography, No Form Borders) */}
               <textarea
-                rows={2}
+                rows={activeSlide?.title && activeSlide.title.length > 40 ? 2 : 1}
                 value={activeSlide?.title || ''}
                 onChange={(e) => handleUpdateSlideField('title', e.target.value)}
-                className="w-full text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight bg-transparent border-b border-transparent hover:border-black/20 dark:hover:border-white/20 focus:border-[#FF5C00] focus:outline-none transition-colors resize-none leading-tight"
+                className="w-full text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight bg-transparent border-none focus:outline-none resize-none leading-tight"
                 style={{ color: activeTheme.titleColor }}
               />
 
-              {/* ── DYNAMIC ARCHETYPE 1: HERO TITLE / STAT SLIDE ── */}
+              {/* ── DYNAMIC ARCHETYPE 1: HERO TITLE / STAT SLIDE (Presenton 12-Column Split) ── */}
               {(activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' || currentSlideIndex === 0) && (
-                <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-stretch">
                   <div
-                    className="p-4 rounded-2xl border"
+                    className="md:col-span-7 p-4 sm:p-5 rounded-2xl border flex flex-col justify-between shadow-xs transition-colors"
                     style={{
                       backgroundColor: activeTheme.cardBg,
                       borderColor: activeTheme.cardBorder,
                     }}
                   >
-                    <span
-                      className="text-[10px] font-bold font-mono uppercase tracking-wider block mb-1"
-                      style={{ color: activeTheme.accentColor }}
-                    >
-                      Core Instructional Focus
-                    </span>
-                    <p
-                      className="text-xs sm:text-sm leading-relaxed"
-                      style={{ color: activeTheme.cardBodyColor }}
-                    >
-                      {activeSlide?.cards?.[0]?.body || activeSlide?.bullets?.[0] || 'Synthesized deterministically from primary textbook chapter passages.'}
-                    </p>
+                    <div>
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono inline-block mb-1.5"
+                        style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}
+                      >
+                        Core Conceptual Thesis
+                      </span>
+                      <textarea
+                        rows={2}
+                        value={activeSlide?.cards?.[0]?.body || activeSlide?.bullets?.[0] || 'Synthesized deterministically from primary textbook chapter passages.'}
+                        onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
+                        className="w-full text-xs sm:text-sm leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor }}
+                      />
+                    </div>
+                    {activeSlide?.cards?.[0]?.citation && (
+                      <span className="text-[9px] font-mono mt-1 opacity-70" style={{ color: activeTheme.accentColor }}>
+                        [{activeSlide.cards[0].citation}]
+                      </span>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+
+                  <div className="md:col-span-5 flex flex-col gap-2 justify-between">
                     <div
-                      className="p-3.5 rounded-xl border"
+                      className="p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs"
                       style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
                     >
-                      <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
-                        Pedagogical Objective
+                      <span className="text-[10px] font-bold uppercase tracking-wider font-mono block" style={{ color: activeTheme.accentColor }}>
+                        Learning Competency
                       </span>
-                      <p className="text-xs mt-0.5 line-clamp-2" style={{ color: activeTheme.cardBodyColor }}>
-                        {activeSlide?.cards?.[1]?.body || activeSlide?.bullets?.[1] || 'Foundational conceptual inquiry.'}
-                      </p>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[1]?.body || activeSlide?.bullets?.[1] || 'Foundational conceptual inquiry.'}
+                        onChange={(e) => handleUpdateCardField(1, 'body', e.target.value)}
+                        className="w-full text-xs mt-0.5 bg-transparent border-none focus:outline-none resize-none leading-snug"
+                        style={{ color: activeTheme.cardBodyColor }}
+                      />
                     </div>
                     <div
-                      className="p-3.5 rounded-xl border"
+                      className="p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs"
                       style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
                     >
-                      <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
-                        Curriculum Standard
+                      <span className="text-[10px] font-bold uppercase tracking-wider font-mono block" style={{ color: activeTheme.accentColor }}>
+                        Key Application
                       </span>
-                      <p className="text-xs mt-0.5 line-clamp-2" style={{ color: activeTheme.cardBodyColor }}>
-                        {activeSlide?.cards?.[2]?.body || activeSlide?.bullets?.[2] || 'Aligned with state curriculum guidelines.'}
-                      </p>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[2]?.body || activeSlide?.bullets?.[2] || 'Aligned with state curriculum guidelines.'}
+                        onChange={(e) => handleUpdateCardField(2, 'body', e.target.value)}
+                        className="w-full text-xs mt-0.5 bg-transparent border-none focus:outline-none resize-none leading-snug"
+                        style={{ color: activeTheme.cardBodyColor }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1298,7 +1342,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   {(activeSlide.cards?.slice(0, 2) || []).map((card: any, cIdx: number) => (
                     <div
                       key={cIdx}
-                      className="p-5 rounded-2xl border flex flex-col justify-between transition-colors shadow-sm"
+                      className="p-5 rounded-2xl border flex flex-col justify-between transition-colors shadow-xs"
                       style={{
                         backgroundColor: activeTheme.cardBg,
                         borderColor: activeTheme.cardBorder,
@@ -1315,22 +1359,22 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                           {card.badge || `Column 0${cIdx + 1}`}
                         </span>
                         <textarea
-                          rows={2}
+                          rows={1}
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1.5 resize-none leading-snug break-words"
+                          className="w-full text-base font-bold bg-transparent border-none focus:outline-none mb-1.5 resize-none leading-snug break-words"
                           style={{ color: activeTheme.cardTitleColor }}
                         />
                         <textarea
                           rows={4}
                           value={card.body || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
-                          className="w-full text-xs leading-relaxed bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none resize-none"
+                          className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
                           style={{ color: activeTheme.cardBodyColor }}
                         />
                       </div>
                       {card.citation && (
-                        <span className="text-[9px] font-mono mt-2" style={{ color: activeTheme.accentColor }}>
+                        <span className="text-[9px] font-mono mt-2 opacity-70" style={{ color: activeTheme.accentColor }}>
                           [{card.citation}]
                         </span>
                       )}
@@ -1345,14 +1389,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   {(activeSlide.cards || []).slice(0, 4).map((card: any, cIdx: number) => (
                     <div
                       key={cIdx}
-                      className="p-3.5 rounded-xl border flex items-start gap-3 transition-colors shadow-sm"
+                      className="p-3.5 rounded-xl border flex items-start gap-3 transition-colors shadow-xs"
                       style={{
                         backgroundColor: activeTheme.cardBg,
                         borderColor: activeTheme.cardBorder,
                       }}
                     >
                       <div
-                        className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5"
+                        className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 font-mono"
                         style={{
                           backgroundColor: activeTheme.badgeBg,
                           color: activeTheme.badgeText,
@@ -1365,14 +1409,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                           rows={1}
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-xs font-bold bg-transparent border-b border-transparent focus:outline-none mb-0.5 resize-none leading-snug break-words"
+                          className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-0.5 resize-none leading-snug break-words"
                           style={{ color: activeTheme.cardTitleColor }}
                         />
                         <textarea
                           rows={2}
                           value={card.body || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
-                          className="w-full text-[11px] leading-relaxed bg-transparent border-b border-transparent focus:outline-none resize-none"
+                          className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
                           style={{ color: activeTheme.cardBodyColor }}
                         />
                       </div>
@@ -1381,54 +1425,130 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 </div>
               )}
 
-              {/* ── DYNAMIC ARCHETYPE 4: 3-CARD BENTO GRID (Default) ── */}
+              {/* ── DYNAMIC ARCHETYPE 4: PRESENTON CARDS / BENTO GRID ── */}
               {activeSlide?.archetype !== 'hero_title' && activeSlide?.archetype !== 'hero_stat' && currentSlideIndex !== 0 && activeSlide?.archetype !== 'split_comparison' && activeSlide?.archetype !== 'bullet_list' && (
-                <div className={`grid gap-3.5 pt-1 ${
-                  (activeSlide?.cards?.length || 3) === 1 ? 'grid-cols-1' : (activeSlide?.cards?.length || 3) === 2 ? 'grid-cols-2' : 'grid-cols-3'
-                }`}>
-                  {(activeSlide?.cards || []).slice(0, 3).map((card: any, cIdx: number) => (
-                    <div
-                      key={cIdx}
-                      className="p-4 rounded-2xl border flex flex-col justify-between transition-colors shadow-sm"
-                      style={{
-                        backgroundColor: activeTheme.cardBg,
-                        borderColor: activeTheme.cardBorder,
-                      }}
-                    >
-                      <div>
-                        {card.badge && (
-                          <span
-                            className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mb-1.5 font-mono"
-                            style={{
-                              backgroundColor: activeTheme.badgeBg,
-                              color: activeTheme.badgeText,
+                <div>
+                  <div className={`grid gap-3.5 pt-1 ${
+                    (activeSlide?.cards?.length || 3) === 1
+                      ? 'grid-cols-1'
+                      : (activeSlide?.cards?.length || 3) === 2
+                      ? 'grid-cols-1 sm:grid-cols-2'
+                      : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
+                  }`}>
+                    {(activeSlide?.cards || []).map((card: any, cIdx: number) => (
+                      <div
+                        key={cIdx}
+                        className="group relative p-4 rounded-2xl border flex flex-col justify-between transition-all shadow-xs hover:shadow-md"
+                        style={{
+                          backgroundColor: activeTheme.cardBg,
+                          borderColor: activeTheme.cardBorder,
+                        }}
+                      >
+                        {/* Hover Quick Action Capsule */}
+                        <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/60 backdrop-blur-md rounded-lg p-0.5 border border-white/10 z-10">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDuplicateCard(cIdx);
                             }}
+                            className="p-1 text-slate-300 hover:text-white rounded hover:bg-white/10 transition-colors"
+                            title="Duplicate Card"
                           >
-                            {card.badge}
+                            <Copy className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCard(cIdx);
+                            }}
+                            className="p-1 text-red-400 hover:text-red-300 rounded hover:bg-red-500/10 transition-colors"
+                            title="Delete Card"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div>
+                          {card.badge && (
+                            <span
+                              className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mb-1.5 font-mono"
+                              style={{
+                                backgroundColor: activeTheme.badgeBg,
+                                color: activeTheme.badgeText,
+                              }}
+                            >
+                              {card.badge}
+                            </span>
+                          )}
+
+                          {card.stat && (
+                            <div className="mb-2 py-0.5 px-2 rounded-lg bg-orange-500/10 border border-orange-500/20 max-w-max">
+                              <span className="text-lg font-black font-mono tracking-tight" style={{ color: activeTheme.accentColor }}>
+                                {card.stat}
+                              </span>
+                            </div>
+                          )}
+
+                          <textarea
+                            rows={1}
+                            value={card.title || ''}
+                            onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                            className="w-full text-sm font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none break-words"
+                            style={{ color: activeTheme.cardTitleColor }}
+                          />
+
+                          {card.isFormula ? (
+                            <div className="my-2 p-2.5 rounded-xl bg-black/30 border border-white/10 font-mono text-center text-sm font-bold text-amber-300">
+                              {card.body}
+                            </div>
+                          ) : card.isChart && card.chartData ? (
+                            <div className="my-2 space-y-1.5 p-2 rounded-xl bg-black/20 border border-white/5">
+                              {card.chartData.map((d: any, i: number) => (
+                                <div key={i} className="space-y-0.5">
+                                  <div className="flex justify-between text-[10px] font-mono text-slate-300">
+                                    <span>{d.label}</span>
+                                    <span>{d.value}</span>
+                                  </div>
+                                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all"
+                                      style={{
+                                        width: `${Math.min(100, Math.max(10, (d.value / 1000) * 100))}%`,
+                                        backgroundColor: activeTheme.accentColor,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <textarea
+                              rows={3}
+                              value={card.body || ''}
+                              onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                              className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                              style={{ color: activeTheme.cardBodyColor }}
+                            />
+                          )}
+                        </div>
+
+                        {card.citation && (
+                          <span className="text-[9px] font-mono mt-1 opacity-70" style={{ color: activeTheme.accentColor }}>
+                            [{card.citation}]
                           </span>
                         )}
-                        <textarea
-                          rows={2}
-                          value={card.title || ''}
-                          onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                          className="w-full text-sm font-bold bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none mb-1 leading-snug resize-none break-words"
-                          style={{ color: activeTheme.cardTitleColor }}
-                        />
-                        <textarea
-                          rows={4}
-                          value={card.body || ''}
-                          onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
-                          className="w-full text-xs leading-relaxed bg-transparent border-b border-transparent hover:border-black/20 focus:outline-none resize-none"
-                          style={{ color: activeTheme.cardBodyColor }}
-                        />
                       </div>
-                      {card.citation && (
-                        <span className="text-[9px] font-mono mt-1" style={{ color: activeTheme.accentColor }}>
-                          [{card.citation}]
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* Add Card / Element Action Button */}
+                  <button
+                    onClick={() => setActiveToolPanel('elements')}
+                    className="w-full py-2 rounded-xl border border-dashed border-slate-400/30 hover:border-[#FF5C00]/60 hover:bg-[#FF5C00]/5 text-slate-400 hover:text-[#FF5C00] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all mt-3"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Card / Element</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1438,7 +1558,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <button
                 disabled={currentSlideIndex === 0}
                 onClick={() => setCurrentSlideIndex(currentSlideIndex - 1)}
-                className="hover:opacity-100 opacity-70 disabled:opacity-20 flex items-center gap-1 font-semibold"
+                className="hover:opacity-100 opacity-70 disabled:opacity-20 flex items-center gap-1 font-semibold transition-opacity"
               >
                 <ChevronLeft className="w-4 h-4" /> Prev
               </button>
@@ -1457,38 +1577,41 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <button
                 disabled={currentSlideIndex === editableSlides.length - 1}
                 onClick={() => setCurrentSlideIndex(currentSlideIndex + 1)}
-                className="hover:opacity-100 opacity-70 disabled:opacity-20 flex items-center gap-1 font-semibold"
+                className="hover:opacity-100 opacity-70 disabled:opacity-20 flex items-center gap-1 font-semibold transition-opacity"
               >
                 Next <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Teacher Speaker Notes Tray (Directly underneath canvas) */}
-          <div className="mt-4 max-w-4xl w-full mx-auto bg-[#1C1B19] border border-[#2B2926] rounded-2xl p-4 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-orange-500/10 text-[#FF5C00]">
-                  <Lightbulb className="w-4 h-4" />
-                </div>
-                <span className="font-bold text-slate-200">Teacher Speaker Notes</span>
+          {/* Teacher Speaker Notes Collapsible Drawer Bar (Presenton Uncluttered Stage Parity) */}
+          <div className="mt-3 max-w-4xl lg:max-w-5xl w-full mx-auto">
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/80 dark:bg-[#1C1B19]/80 backdrop-blur-md border border-black/10 dark:border-[#2B2926] shadow-sm text-xs">
+              <button
+                onClick={() => setIsNotesOpen(!isNotesOpen)}
+                className="flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-[#FF5C00]" />
+                <span className="font-semibold text-xs">Speaker Notes</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
-                  AI Grounded from Textbook
+                  Grounded
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">
-                  Est. Delivery: {activeSlide?.est_delivery || "3m 45s"}
+                <span className="text-[10px] font-mono text-slate-500">
+                  {activeSlide?.est_delivery || "3m 45s"}
                 </span>
-              </div>
+                <ChevronUp className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isNotesOpen ? 'rotate-180' : ''}`} />
+              </button>
+
               <button
                 disabled={isGeneratingScript}
                 onClick={handleGenerateLiveScript}
-                className="text-[11px] font-semibold text-[#FF5C00] hover:text-orange-400 disabled:opacity-50 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 transition-all cursor-pointer"
+                className="text-[10px] font-semibold text-[#FF5C00] hover:text-orange-400 disabled:opacity-50 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 transition-all cursor-pointer"
                 title="Use LLM to generate an authentic classroom teacher lecture script"
               >
                 {isGeneratingScript ? (
                   <>
                     <Loader2 className="w-3 h-3 animate-spin text-[#FF5C00]" />
-                    <span>Synthesizing Script...</span>
+                    <span>Synthesizing...</span>
                   </>
                 ) : (
                   <>
@@ -1499,199 +1622,67 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               </button>
             </div>
 
-            <textarea
-              rows={3}
-              value={activeSlide?.speaker_notes || ''}
-              onChange={(e) => handleUpdateSlideField('speaker_notes', e.target.value)}
-              className="w-full text-xs text-slate-300 bg-[#151413] p-3 rounded-xl border border-[#2B2926] focus:border-[#FF5C00] focus:outline-none leading-relaxed"
-            />
+            {/* Expandable Notes Drawer */}
+            {isNotesOpen && (
+              <div className="mt-2 p-3.5 rounded-2xl bg-white dark:bg-[#1C1B19] border border-black/10 dark:border-[#2B2926] shadow-lg space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <textarea
+                  rows={3}
+                  value={activeSlide?.speaker_notes || ''}
+                  onChange={(e) => handleUpdateSlideField('speaker_notes', e.target.value)}
+                  placeholder="Enter teacher lecture notes or click 'AI Generate Script' above..."
+                  className="w-full text-xs text-slate-800 dark:text-slate-200 bg-black/5 dark:bg-[#151413] p-3 rounded-xl border border-black/10 dark:border-[#2B2926] focus:border-[#FF5C00] focus:outline-none leading-relaxed resize-y"
+                />
+                {activeSlide?.discussion_prompt && (
+                  <div className="flex items-start gap-2 p-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-orange-200">
+                    <MessageSquare className="w-3.5 h-3.5 text-[#FF5C00] shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-bold text-[10px] uppercase tracking-wider text-[#FF5C00] block">
+                        Formative Discussion Prompt
+                      </span>
+                      <p className="text-xs text-slate-800 dark:text-slate-200">{activeSlide.discussion_prompt}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* ========================================================
-            COLUMN 4: SLIDE CO-PILOT (Right Rail, ~320px)
+            PANE 3: PRESENTON FLOATING TOOL DOCK & INTERACTIVE DRAWERS
         ======================================================== */}
-        <aside className="w-80 bg-[#181715] border-l border-[#2B2926] flex flex-col justify-between shrink-0 p-4 select-none">
-          <div className="space-y-4 flex-1 overflow-y-auto pr-1">
-            {/* Header: Slide Co-Pilot */}
-            <div className="space-y-1 pb-3 border-b border-[#2B2926]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-lg bg-[#FF5C00] text-white flex items-center justify-center font-bold text-xs">
-                    ✦
-                  </div>
-                  <h3 className="font-bold text-sm text-slate-100">Slide Co-Pilot</h3>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-orange-950/60 text-orange-400 border border-orange-900/40">
-                  Gemini LLM Active
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-500">
-                <span>Autosaved 12s ago</span>
-                <span className="hover:text-slate-300 cursor-pointer">Canvas Settings</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono pt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="truncate">Synced: {project?.source_filename || `${project?.name || 'chapter'}.pdf`}</span>
-              </div>
-            </div>
-
-            {/* Quick Refinements 2x2 Grid */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                QUICK REFINEMENTS
-              </span>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  disabled={isSuggesting}
-                  onClick={() => handleTriggerRefinement('make_concise')}
-                  className="px-2.5 py-2 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] hover:border-[#FF5C00] text-slate-200 text-left flex items-center gap-1.5 transition-colors"
-                >
-                  <Scissors className="w-3.5 h-3.5 text-[#FF5C00]" />
-                  <span>Make Concise</span>
-                </button>
-                <button
-                  disabled={isSuggesting}
-                  onClick={() => handleTriggerRefinement('add_teacher_tip')}
-                  className="px-2.5 py-2 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] hover:border-[#FF5C00] text-slate-200 text-left flex items-center gap-1.5 transition-colors"
-                >
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Teacher Tip</span>
-                </button>
-                <button
-                  disabled={isSuggesting}
-                  onClick={() => handleTriggerRefinement('add_discussion_question')}
-                  className="px-2.5 py-2 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] hover:border-[#FF5C00] text-slate-200 text-left flex items-center gap-1.5 transition-colors"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Discussion Prompt</span>
-                </button>
-                <button
-                  disabled={isSuggesting}
-                  onClick={() => handleTriggerRefinement('simplify')}
-                  className="px-2.5 py-2 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] hover:border-[#FF5C00] text-slate-200 text-left flex items-center gap-1.5 transition-colors"
-                >
-                  <Sigma className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Key Principles</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Grounding Source Info */}
-            <div className="p-3 rounded-2xl bg-[#1C1B19] border border-[#2B2926] space-y-1.5">
-              <div className="flex items-center justify-between text-[10px] font-mono">
-                <span className="text-slate-400 font-bold uppercase">GROUNDING SOURCE</span>
-                <span className="text-emerald-400 font-bold">99.4% confidence</span>
-              </div>
-              <p className="text-xs text-slate-300 leading-snug">
-                Grounded in <strong className="text-white">{project?.outline?.subject || 'Curriculum'} {project?.outline?.grade_level || ''}</strong>: {project?.outline?.title || project?.name || 'Extracted Chapter Text'}.
-              </p>
-              <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                <span>Zero hallucination filter applied.</span>
-              </div>
-            </div>
-
-            {/* Slide Architecture & Live Inspection */}
-            <div className="p-3 rounded-2xl bg-[#1C1B19] border border-[#2B2926] space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-                <div className="flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-[#FF5C00]" />
-                  <span>Slide Architecture</span>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#23211F] text-[#FF5C00] uppercase font-bold border border-[#32302C]">
-                  {activeSlide?.archetype?.replace('_', ' ') || '3-Card Grid'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 leading-snug">
-                Topic: <strong className="text-slate-200">{activeSlide?.title || 'Slide Title'}</strong>
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-slate-400 pt-1.5 border-t border-[#2B2926]">
-                <div className="flex items-center justify-between bg-[#151413] px-2 py-1 rounded">
-                  <span>Cards:</span>
-                  <span className="text-slate-200 font-bold">{activeSlide?.cards?.length || 0}</span>
-                </div>
-                <div className="flex items-center justify-between bg-[#151413] px-2 py-1 rounded">
-                  <span>Est. Delivery:</span>
-                  <span className="text-slate-200 font-bold">{activeSlide?.est_delivery || '3m 30s'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* AI Suggestion Diff / Merge Card */}
-            {activeSuggestion && (
-              <div className="p-3 rounded-2xl bg-orange-950/30 border border-[#FF5C00]/50 space-y-2 animate-in fade-in">
-                <div className="flex items-center justify-between text-xs font-bold text-[#FF5C00]">
-                  <span>AI Recommendation</span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setActiveSuggestion(null)}
-                      className="text-slate-400 hover:text-white text-[11px]"
-                    >
-                      Dismiss
-                    </button>
-                    <button
-                      onClick={handleApplySuggestion}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm"
-                    >
-                      <Check className="w-3 h-3" /> Apply
-                    </button>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-300 leading-snug">
-                  {activeSuggestion.explanation}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Chat Refinement Box */}
-          <div className="pt-3 border-t border-[#2B2926] space-y-2">
-            <div className="relative">
-              <textarea
-                rows={2}
-                placeholder="Ask Co-Pilot to adjust this slide (e.g. 'Add a real-life space exploration example')..."
-                value={copilotPrompt}
-                onChange={(e) => setCopilotPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && copilotPrompt.trim()) {
-                    e.preventDefault();
-                    handleTriggerRefinement('custom', copilotPrompt.trim());
-                  }
-                }}
-                className="w-full text-xs text-slate-200 bg-[#11100F] border border-[#2B2926] rounded-xl p-2.5 pr-8 focus:border-[#FF5C00] focus:outline-none resize-none placeholder:text-slate-600"
-              />
-              <button className="absolute right-2.5 bottom-3 text-slate-500 hover:text-white">
-                <Mic className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={strictMatch}
-                  onChange={(e) => setStrictMatch(e.target.checked)}
-                  className="accent-[#FF5C00] rounded"
-                />
-                <span>Strict Textbook Match</span>
-              </label>
-
-              <button
-                disabled={!copilotPrompt.trim() || isSuggesting}
-                onClick={() => handleTriggerRefinement('custom', copilotPrompt.trim())}
-                className="bg-[#FF5C00] hover:bg-[#e05200] disabled:opacity-40 text-white text-xs font-bold px-4 py-1.5 rounded-xl flex items-center gap-1 shadow-sm transition-transform active:scale-95"
-              >
-                {isSuggesting ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3 h-3" />
-                )}
-                <span>Refine</span>
-              </button>
-            </div>
-          </div>
-        </aside>
+        <div className="flex shrink-0">
+          <RightEditDock
+            activeToolPanel={activeToolPanel}
+            setActiveToolPanel={setActiveToolPanel}
+            zoomLevel={zoomLevel}
+            setZoomLevel={setZoomLevel}
+          />
+          <RightToolDrawer
+            activeToolPanel={activeToolPanel}
+            setActiveToolPanel={setActiveToolPanel}
+            zoomLevel={zoomLevel}
+            setZoomLevel={setZoomLevel}
+            activeThemeKey={activeThemeKey}
+            setActiveThemeKey={setActiveThemeKey}
+            themes={PRESENTON_STUDIO_THEMES}
+            onAddCard={handleAddCardToActiveSlide}
+            onSetArchetype={(arch) => handleUpdateSlideField('archetype', arch)}
+            isSuggesting={isSuggesting}
+            onTriggerRefinement={(type) => handleTriggerRefinement(type)}
+            coPilotPrompt={copilotPrompt}
+            setCoPilotPrompt={setCopilotPrompt}
+            onApplyCustomRefinement={() => {
+              if (copilotPrompt.trim()) {
+                handleTriggerRefinement('custom', copilotPrompt.trim());
+              }
+            }}
+            activeSlide={activeSlide}
+            activeSuggestion={activeSuggestion}
+            onApplySuggestion={handleApplySuggestion}
+            onDismissSuggestion={() => setActiveSuggestion(null)}
+          />
+        </div>
       </div>
 
       {/* ========================================================
