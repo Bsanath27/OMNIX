@@ -51,6 +51,7 @@ import {
   Quote,
   Mic,
 } from 'lucide-react';
+import { BarChart, Bar, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { RightEditPanel, ActiveRightPanel } from './RightEditPanel';
 import { RightPanelRenderer } from './RightPanelRenderer';
 import { SlideElementFloatingToolbar } from './SlideElementFloatingToolbar';
@@ -1263,6 +1264,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
                     {[
                       { id: 'hero_visual_split', label: 'Split Visual Hero', icon: ImageIcon, desc: '60% content + 40% photo visual' },
+                      { id: 'image_hero_full', label: 'Full-Bleed Image', icon: ImageIcon, desc: 'Full photographic hero with insight overlay' },
                       { id: 'chart_data', label: 'Data Chart Hero', icon: BarChart3, desc: 'Interactive visual data chart with metrics' },
                       { id: 'before_after', label: 'Before & After', icon: GitCompare, desc: 'Problem state vs transformed solution' },
                       { id: 'pros_cons', label: 'Pros & Cons', icon: Check, desc: 'Structured evaluation matrix' },
@@ -1271,9 +1273,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                       { id: 'snake_roadmap', label: 'Snake Roadmap', icon: Clock, desc: 'S-curve meandering roadmap' },
                       { id: 'circular_hub', label: 'Circular Hub', icon: Repeat, desc: 'Center core thesis with satellite nodes' },
                       { id: 'stats_grid', label: 'KPI Stats Grid', icon: TrendingUp, desc: 'Oversized metrics & progress bars' },
+                      { id: 'stat_callout', label: 'Stat Hero Callout', icon: TrendingUp, desc: 'Dual giant numeric proof points' },
                       { id: 'bento_4', label: '4-Card Quad Bento', icon: LayoutGrid, desc: 'Balanced 2x2 multi-concept grid' },
                       { id: 'editorial_quote', label: 'Editorial Quote', icon: Quote, desc: 'Large typography pullquote' },
                       { id: 'hero_title', label: 'Title / Hero Slide', icon: FileText, desc: 'Large headline & curriculum thesis' },
+                      { id: 'bullet_list', label: 'Concept List', icon: FileText, desc: 'Vertical sequential checklist items' },
                       { id: 'card_grid_3', label: '3-Card Bento Grid', icon: LayoutGrid, desc: 'Balanced 3 concept cards' },
                       { id: 'split_comparison', label: '2-Column Comparison', icon: Columns, desc: 'Side-by-side contrast' },
                       { id: 'timeline', label: 'Timeline Track', icon: Clock, desc: 'Chronological phases & milestone track' },
@@ -1373,91 +1377,79 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 style={{ color: activeTheme.titleColor, fontFamily: activeTheme.headingFont }}
               />
 
-              {/* ── DYNAMIC ARCHETYPE 1: HERO TITLE / STAT SLIDE (Presenton 12-Column Split) ── */}
+              {/* ── DYNAMIC ARCHETYPE 1: HERO TITLE / STAT SLIDE (Full-Bleed Hero) ── */}
               {(activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' || (currentSlideIndex === 0 && !activeSlide?.archetype)) && (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-stretch">
+                <div className="relative flex flex-col items-center justify-center pt-2 pb-4 overflow-hidden min-h-[260px]">
+                  {/* Full-bleed radial gradient glow */}
                   <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedCardIndex(0);
-                    }}
-                    className={`relative md:col-span-7 p-4 sm:p-5 rounded-2xl border flex flex-col justify-between shadow-xs transition-colors cursor-pointer ${
-                      selectedCardIndex === 0 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
-                    }`}
+                    className="absolute inset-0 pointer-events-none"
                     style={{
-                      backgroundColor: activeTheme.cardBg,
-                      borderColor: activeTheme.cardBorder,
+                      background: `radial-gradient(ellipse 80% 70% at 50% 60%, ${activeTheme.accentColor}22 0%, transparent 70%)`,
                     }}
-                  >
-                    {renderFloatingToolbar(0, activeSlide?.cards?.[0])}
-                    <div>
+                  />
+
+                  {/* Metadata chips row */}
+                  <div className="relative z-10 flex flex-wrap gap-2 justify-center mb-5">
+                    {[
+                      activeSlide?.cards?.[0]?.badge || activeSlide?.subject || 'Subject',
+                      activeSlide?.cards?.[1]?.badge || activeSlide?.grade || 'Grade',
+                      activeSlide?.cards?.[2]?.badge || (activeSlide?.date ? String(activeSlide.date) : new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })),
+                    ].map((chip: string, ci: number) => (
                       <span
-                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono inline-block mb-1.5"
-                        style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}
+                        key={ci}
+                        className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full font-mono border"
+                        style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor, borderColor: activeTheme.cardBorder }}
                       >
-                        Core Conceptual Thesis
+                        {chip}
                       </span>
-                      <textarea
-                        rows={2}
-                        value={activeSlide?.cards?.[0]?.body || activeSlide?.bullets?.[0] || 'Synthesized deterministically from primary textbook chapter passages.'}
-                        onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
-                        className="w-full text-xs sm:text-sm leading-relaxed bg-transparent border-none focus:outline-none resize-none"
-                        style={{ color: activeTheme.cardBodyColor }}
-                      />
-                    </div>
-                    {activeSlide?.cards?.[0]?.citation && (
-                      <span className="text-[9px] font-mono mt-1 opacity-70" style={{ color: activeTheme.accentColor }}>
-                        [{activeSlide.cards[0].citation}]
-                      </span>
-                    )}
+                    ))}
                   </div>
 
-                  <div className="md:col-span-5 flex flex-col gap-2 justify-between">
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedCardIndex(1);
-                      }}
-                      className={`relative p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs cursor-pointer ${
-                        selectedCardIndex === 1 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
-                      }`}
-                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                    >
-                      {renderFloatingToolbar(1, activeSlide?.cards?.[1])}
-                      <span className="text-[10px] font-bold uppercase tracking-wider font-mono block" style={{ color: activeTheme.accentColor }}>
+                  {/* Giant centered title */}
+                  <div className="relative z-10 w-full px-4 text-center">
+                    <textarea
+                      rows={2}
+                      value={activeSlide?.title || ''}
+                      onChange={(e) => handleUpdateSlideField('title', e.target.value)}
+                      className="w-full text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight bg-transparent border-none focus:outline-none resize-none text-center leading-tight"
+                      style={{ color: activeTheme.titleColor, fontFamily: activeTheme.headingFont }}
+                    />
+                  </div>
+
+                  {/* Subtitle */}
+                  <div className="relative z-10 w-full px-4 text-center mt-3">
+                    <textarea
+                      rows={1}
+                      value={activeSlide?.cards?.[0]?.body || activeSlide?.subtitle || 'Synthesized from primary textbook passages'}
+                      onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
+                      className="w-full text-lg bg-transparent border-none focus:outline-none resize-none text-center opacity-80"
+                      style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                    />
+                  </div>
+
+                  {/* Decorative accent bar at bottom */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
+                    style={{ backgroundColor: activeTheme.accentColor }}
+                  />
+
+                  {/* Hidden cards for data wiring */}
+                  <div className="hidden">
+                    <textarea value={activeSlide?.cards?.[1]?.body || ''} onChange={(e) => handleUpdateCardField(1, 'body', e.target.value)} />
+                    <textarea value={activeSlide?.cards?.[2]?.body || ''} onChange={(e) => handleUpdateCardField(2, 'body', e.target.value)} />
+                  </div>
+
+                  {/* Dummy for original card 2 wiring — keep */}
+                  {false && (<div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-mono block" style={{ color: activeTheme.accentColor }}>
                         Learning Competency
                       </span>
-                      <textarea
-                        rows={1}
-                        value={activeSlide?.cards?.[1]?.body || activeSlide?.bullets?.[1] || 'Foundational conceptual inquiry.'}
-                        onChange={(e) => handleUpdateCardField(1, 'body', e.target.value)}
-                        className="w-full text-xs mt-0.5 bg-transparent border-none focus:outline-none resize-none leading-snug"
-                        style={{ color: activeTheme.cardBodyColor }}
-                      />
-                    </div>
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedCardIndex(2);
-                      }}
-                      className={`relative p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs cursor-pointer ${
-                        selectedCardIndex === 2 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
-                      }`}
-                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                    >
-                      {renderFloatingToolbar(2, activeSlide?.cards?.[2])}
+                    </div>)}
+                  {false && (<div>
                       <span className="text-[10px] font-bold uppercase tracking-wider font-mono block" style={{ color: activeTheme.accentColor }}>
                         Key Application
                       </span>
-                      <textarea
-                        rows={1}
-                        value={activeSlide?.cards?.[2]?.body || activeSlide?.bullets?.[2] || 'Aligned with state curriculum guidelines.'}
-                        onChange={(e) => handleUpdateCardField(2, 'body', e.target.value)}
-                        className="w-full text-xs mt-0.5 bg-transparent border-none focus:outline-none resize-none leading-snug"
-                        style={{ color: activeTheme.cardBodyColor }}
-                      />
-                    </div>
-                  </div>
+                    </div>)}
                 </div>
               )}
 
@@ -1747,7 +1739,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Right Column: 6 cols - Interactive Data Chart */}
+                  {/* Right Column: 6 cols - Interactive Recharts Bar Chart */}
                   <div
                     className="lg:col-span-6 p-5 border flex flex-col justify-between transition-all"
                     style={{
@@ -1757,46 +1749,59 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                       boxShadow: activeTheme.cardShadow,
                     }}
                   >
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-mono uppercase font-bold tracking-wider" style={{ color: activeTheme.subtitleColor }}>
-                          Relative Performance (%)
-                        </span>
-                        <span className="text-[10px] font-mono font-bold" style={{ color: activeTheme.accentColor }}>
-                          Target Index: 100
-                        </span>
-                      </div>
-
-                      <div className="space-y-3">
-                        {(activeSlide.chart_data || activeSlide.cards?.[0]?.chartData || [
-                          { label: 'Wavelength 450nm (Blue)', value: 92 },
-                          { label: 'Wavelength 550nm (Green)', value: 18 },
-                          { label: 'Wavelength 680nm (Red)', value: 85 },
-                          { label: 'Dark Respiration Baseline', value: 24 },
-                        ]).map((pt: any, pIdx: number) => (
-                          <div key={pIdx} className="space-y-1">
-                            <div className="flex justify-between text-xs font-mono font-bold" style={{ color: activeTheme.cardTitleColor }}>
-                              <span>{pt.label}</span>
-                              <span style={{ color: activeTheme.accentColor }}>{pt.value}%</span>
-                            </div>
-                            <div className="w-full h-2.5 rounded-full bg-black/20 dark:bg-white/10 overflow-hidden relative">
-                              <div
-                                className="h-full rounded-full transition-all duration-700"
-                                style={{
-                                  width: `${Math.min(100, Math.max(8, pt.value))}%`,
-                                  backgroundColor: activeTheme.accentColor,
-                                }}
-                              />
+                    {(() => {
+                      const chartDataPoints: any[] = activeSlide.chart_data || activeSlide.cards?.[0]?.chartData || [
+                        { label: 'A', value: 92 },
+                        { label: 'B', value: 45 },
+                        { label: 'C', value: 78 },
+                        { label: 'D', value: 60 },
+                      ];
+                      return (
+                        <div className="flex flex-col h-full">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] font-mono uppercase font-bold tracking-wider" style={{ color: activeTheme.subtitleColor }}>
+                              Relative Performance
+                            </span>
+                            <span className="text-[10px] font-mono font-bold" style={{ color: activeTheme.accentColor }}>
+                              Chart View
+                            </span>
+                          </div>
+                          <div className="flex-1 min-h-0">
+                            <ResponsiveContainer width="100%" height={180}>
+                              <BarChart data={chartDataPoints} margin={{ top: 5, right: 10, bottom: 20, left: 0 }}>
+                                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                                  {chartDataPoints.map((_: any, index: number) => (
+                                    <Cell key={index} fill={activeTheme.accentColor} fillOpacity={index === 0 ? 1.0 : 0.7} />
+                                  ))}
+                                </Bar>
+                                <Tooltip
+                                  contentStyle={{
+                                    background: activeTheme.cardBg,
+                                    border: `1px solid ${activeTheme.cardBorder}`,
+                                    borderRadius: '8px',
+                                    fontSize: '11px',
+                                    fontFamily: activeTheme.bodyFont,
+                                    color: activeTheme.cardBodyColor,
+                                  }}
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                            {/* Manual X-axis labels */}
+                            <div className="flex justify-around mt-1 px-2">
+                              {chartDataPoints.map((pt: any, i: number) => (
+                                <span key={i} className="text-[9px] font-mono text-center truncate max-w-[60px]" style={{ color: activeTheme.subtitleColor }}>
+                                  {pt.label}
+                                </span>
+                              ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-[10px] font-mono" style={{ color: activeTheme.subtitleColor }}>
-                      <span>Source: Textbook Empirical Data</span>
-                      <span>Variance: ±1.2%</span>
-                    </div>
+                          <div className="pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-[10px] font-mono" style={{ color: activeTheme.subtitleColor }}>
+                            <span>Source: Textbook Empirical Data</span>
+                            <span>Variance: ±1.2%</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -1995,57 +2000,86 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
               {/* ── PRESENTON SMART LAYOUT: PROCESS CYCLE ── */}
               {activeSlide?.archetype === 'process_cycle' && (
-                <div className="pt-1">
-                  <div className="flex items-center justify-center gap-1.5 mb-2 text-xs font-mono font-bold" style={{ color: activeTheme.accentColor }}>
-                    <Repeat className="w-3.5 h-3.5 animate-spin-slow" />
-                    <span>CONTINUOUS INSTRUCTIONAL LOOP</span>
-                  </div>
+                <div className="pt-1 relative">
+                  {/* Animated outer ring */}
+                  <div
+                    className="absolute inset-0 rounded-3xl pointer-events-none animate-pulse"
+                    style={{ boxShadow: `0 0 0 2px ${activeTheme.accentColor}30, 0 0 40px ${activeTheme.accentColor}10` }}
+                  />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {(activeSlide.cards || []).slice(0, 4).map((card: any, cIdx: number) => (
-                      <div
-                        key={cIdx}
-                        className="relative p-3.5 border flex flex-col justify-between transition-all"
-                        style={{
-                          backgroundColor: activeTheme.cardBg,
-                          borderColor: activeTheme.cardBorder,
-                          borderRadius: activeTheme.cardRadius,
-                          boxShadow: activeTheme.cardShadow,
-                        }}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span
-                              className="w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] font-mono text-white"
+                  <div className="relative grid grid-cols-2 gap-6 p-2">
+                    {(activeSlide.cards || []).slice(0, 4).map((card: any, cIdx: number) => {
+                      /* Arrow directions: → (0→1), ↓ (1→3), ← (3→2), ↑ (2→0) */
+                      const arrowRight = cIdx === 0;
+                      const arrowDown = cIdx === 1;
+                      const arrowLeft = cIdx === 3;
+                      const arrowUp = cIdx === 2;
+                      return (
+                        <div key={cIdx} className="relative">
+                          <div
+                            onClick={(e) => { e.stopPropagation(); setSelectedCardIndex(cIdx); }}
+                            className={`relative p-4 border flex flex-col cursor-pointer transition-all ${selectedCardIndex === cIdx ? 'ring-2' : ''}`}
+                            style={{
+                              backgroundColor: activeTheme.cardBg,
+                              borderColor: selectedCardIndex === cIdx ? activeTheme.accentColor : activeTheme.cardBorder,
+                              borderRadius: activeTheme.cardRadius,
+                              boxShadow: selectedCardIndex === cIdx ? `0 0 20px ${activeTheme.accentColor}30` : activeTheme.cardShadow,
+                            }}
+                          >
+                            {renderFloatingToolbar(cIdx, card)}
+                            {/* Step number circle */}
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm font-mono text-white mb-3 shrink-0"
                               style={{ backgroundColor: activeTheme.accentColor }}
                             >
-                              0{cIdx + 1}
-                            </span>
+                              {String(cIdx + 1).padStart(2, '0')}
+                            </div>
                             <span
-                              className="text-[9px] font-mono font-bold uppercase tracking-wider"
-                              style={{ color: activeTheme.accentColor }}
+                              className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded mb-2 inline-block"
+                              style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}
                             >
                               {card.badge || `Stage ${cIdx + 1}`}
                             </span>
+                            <textarea
+                              rows={1}
+                              value={card.title || ''}
+                              onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                              className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none"
+                              style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                            />
+                            <textarea
+                              rows={2}
+                              value={card.body || ''}
+                              onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                              className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                              style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                            />
                           </div>
 
-                          <textarea
-                            rows={1}
-                            value={card.title || ''}
-                            onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
-                            className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none"
-                            style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
-                          />
-                          <textarea
-                            rows={3}
-                            value={card.body || ''}
-                            onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
-                            className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
-                            style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
-                          />
+                          {/* SVG Arrows between cards */}
+                          {arrowRight && (
+                            <svg className="absolute top-1/2 -right-5 -translate-y-1/2 w-6 h-6 z-10" viewBox="0 0 24 24" fill="none">
+                              <path d="M5 12h14M14 7l5 5-5 5" stroke={activeTheme.accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                          {arrowDown && (
+                            <svg className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-6 h-6 z-10" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 5v14M7 14l5 5 5-5" stroke={activeTheme.accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                          {arrowLeft && (
+                            <svg className="absolute top-1/2 -left-5 -translate-y-1/2 w-6 h-6 z-10" viewBox="0 0 24 24" fill="none">
+                              <path d="M19 12H5M10 17l-5-5 5-5" stroke={activeTheme.accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                          {arrowUp && (
+                            <svg className="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 z-10" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 19V5M7 10l5-5 5 5" stroke={activeTheme.accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -2220,60 +2254,97 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
               {/* ── PRESENTON SMART LAYOUT: PYRAMID HIERARCHY / FUNNEL ── */}
               {activeSlide?.archetype === 'pyramid_hierarchy' && (
-                <div className="flex flex-col items-center justify-center gap-3 pt-2">
-                  {/* Tier 3: Peak (Top) */}
-                  <div
-                    className="w-1/2 p-3 rounded-2xl border text-center transition-all shadow-md relative"
-                    style={{
-                      backgroundColor: activeTheme.cardBg,
-                      borderColor: activeTheme.accentColor,
-                      boxShadow: `0 0 20px ${activeTheme.accentColor}25`,
-                    }}
+                <div className="flex flex-col items-center justify-center gap-0 pt-2 relative select-none">
+                  {/* Full-width SVG triangle background */}
+                  <svg
+                    viewBox="0 0 400 220"
+                    className="absolute inset-0 w-full h-full opacity-5 pointer-events-none"
+                    preserveAspectRatio="none"
                   >
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
-                      {activeSlide?.cards?.[0]?.badge || 'TIER 03 • PEAK MASTERY'}
-                    </span>
-                    <textarea
-                      rows={1}
-                      value={activeSlide?.cards?.[0]?.title || 'System Synthesis & Autonomous Application'}
-                      onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
-                      className="w-full text-sm font-bold bg-transparent border-none focus:outline-none text-center mt-1 resize-none"
-                      style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
-                    />
+                    <polygon points="200,10 10,210 390,210" fill={activeTheme.accentColor} />
+                  </svg>
+
+                  {/* Tier 01 — PEAK (narrowest, top) */}
+                  <div className="relative flex items-center justify-center w-full mb-1">
+                    <div
+                      className="relative flex items-center gap-3 px-5 py-3 transition-all shadow-lg"
+                      style={{
+                        width: '42%',
+                        clipPath: 'polygon(6% 0%, 94% 0%, 100% 100%, 0% 100%)',
+                        backgroundColor: activeTheme.accentColor,
+                        borderRadius: '4px',
+                      }}
+                    >
+                      <span className="text-white/60 font-black text-xs font-mono shrink-0">01</span>
+                      <div className="flex-1 min-w-0">
+                        <textarea
+                          rows={1}
+                          value={activeSlide?.cards?.[0]?.title || 'Peak Mastery'}
+                          onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                          className="w-full text-xs font-bold bg-transparent border-none focus:outline-none resize-none leading-snug text-white placeholder:text-white/40"
+                          style={{ fontFamily: activeTheme.headingFont }}
+                        />
+                        <div className="text-[9px] font-mono uppercase tracking-wider text-white/70">
+                          {activeSlide?.cards?.[0]?.badge || 'TIER 03 • PEAK'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Tier 2: Core Mechanics (Middle) */}
-                  <div
-                    className="w-3/4 p-3 rounded-2xl border text-center transition-all shadow-sm"
-                    style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                  >
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.cardTitleColor }}>
-                      {activeSlide?.cards?.[1]?.badge || 'TIER 02 • CORE MECHANICS'}
-                    </span>
-                    <textarea
-                      rows={1}
-                      value={activeSlide?.cards?.[1]?.title || 'Mathematical Laws & Empirical Relationships'}
-                      onChange={(e) => handleUpdateCardField(1, 'title', e.target.value)}
-                      className="w-full text-xs font-bold bg-transparent border-none focus:outline-none text-center mt-1 resize-none"
-                      style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
-                    />
+                  {/* Tier 02 — MIDDLE */}
+                  <div className="relative flex items-center justify-center w-full mb-1">
+                    <div
+                      className="relative flex items-center gap-3 px-5 py-3 transition-all"
+                      style={{
+                        width: '68%',
+                        clipPath: 'polygon(4% 0%, 96% 0%, 100% 100%, 0% 100%)',
+                        backgroundColor: activeTheme.cardBg,
+                        border: `1.5px solid ${activeTheme.accentColor}60`,
+                        borderRadius: '4px',
+                      }}
+                    >
+                      <span className="font-black text-xs font-mono shrink-0" style={{ color: `${activeTheme.accentColor}80` }}>02</span>
+                      <div className="flex-1 min-w-0">
+                        <textarea
+                          rows={1}
+                          value={activeSlide?.cards?.[1]?.title || 'Core Mechanics'}
+                          onChange={(e) => handleUpdateCardField(1, 'title', e.target.value)}
+                          className="w-full text-xs font-bold bg-transparent border-none focus:outline-none resize-none leading-snug"
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                        />
+                        <div className="text-[9px] font-mono uppercase tracking-wider" style={{ color: activeTheme.accentColor }}>
+                          {activeSlide?.cards?.[1]?.badge || 'TIER 02 • CORE'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Tier 1: Foundation (Bottom) */}
-                  <div
-                    className="w-full p-3.5 rounded-2xl border text-center transition-all shadow-xs"
-                    style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                  >
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.cardTitleColor }}>
-                      {activeSlide?.cards?.[2]?.badge || 'TIER 01 • FOUNDATIONAL DEFINITIONS'}
-                    </span>
-                    <textarea
-                      rows={1}
-                      value={activeSlide?.cards?.[2]?.title || 'Core Nomenclature, Axioms, and Observable Postulates'}
-                      onChange={(e) => handleUpdateCardField(2, 'title', e.target.value)}
-                      className="w-full text-xs font-bold bg-transparent border-none focus:outline-none text-center mt-1 resize-none"
-                      style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
-                    />
+                  {/* Tier 03 — FOUNDATION (widest, bottom) */}
+                  <div className="relative flex items-center justify-center w-full">
+                    <div
+                      className="relative flex items-center gap-3 px-5 py-3 transition-all"
+                      style={{
+                        width: '94%',
+                        clipPath: 'polygon(2% 0%, 98% 0%, 100% 100%, 0% 100%)',
+                        backgroundColor: activeTheme.cardBg,
+                        border: `1.5px solid ${activeTheme.cardBorder}`,
+                        borderRadius: '4px',
+                      }}
+                    >
+                      <span className="font-black text-xs font-mono shrink-0" style={{ color: `${activeTheme.accentColor}50` }}>03</span>
+                      <div className="flex-1 min-w-0">
+                        <textarea
+                          rows={1}
+                          value={activeSlide?.cards?.[2]?.title || 'Foundational Definitions'}
+                          onChange={(e) => handleUpdateCardField(2, 'title', e.target.value)}
+                          className="w-full text-xs font-bold bg-transparent border-none focus:outline-none resize-none leading-snug"
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                        />
+                        <div className="text-[9px] font-mono uppercase tracking-wider" style={{ color: activeTheme.cardBodyColor }}>
+                          {activeSlide?.cards?.[2]?.badge || 'TIER 01 • FOUNDATION'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2370,60 +2441,122 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
               {/* ── PRESENTON SMART LAYOUT: S-CURVE SNAKE ROADMAP ── */}
               {activeSlide?.archetype === 'snake_roadmap' && (
-                <div className="pt-2">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {(activeSlide?.cards || []).slice(0, 4).map((card: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className={`p-3.5 rounded-2xl border flex flex-col justify-between shadow-xs transition-all ${
-                          idx % 2 === 1 ? 'md:translate-y-4' : ''
-                        }`}
-                        style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
-                            {card.badge || `Phase 0${idx + 1}`}
-                          </span>
-                          <span className="text-xs font-mono font-black" style={{ color: activeTheme.accentColor }}>
-                            0{idx + 1}
-                          </span>
+                <div className="pt-2 relative">
+                  {/* Subtle S-curve connector trail */}
+                  <div className="hidden md:block absolute top-1/2 left-8 right-8 h-0.5 border-t-2 border-dashed pointer-events-none -translate-y-1/2" style={{ borderColor: `${activeTheme.accentColor}40` }} />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 relative z-10">
+                    {([0, 1, 2, 3]).map((idx) => {
+                      const card = activeSlide?.cards?.[idx] || {};
+                      const defaultBadges = ['Phase 01', 'Phase 02', 'Phase 03', 'Phase 04'];
+                      const defaultTitles = ['Discovery & Axioms', 'Mechanistic Flow', 'Empirical Testing', 'Systemic Rollout'];
+                      const defaultBodies = ['Survey canonical textbooks.', 'Synthesize key formulas.', 'Verify across problem sets.', 'Final curriculum deployment.'];
+                      const badgeVal = card.badge || defaultBadges[idx];
+                      const titleVal = card.title || defaultTitles[idx];
+                      const bodyVal = card.body || defaultBodies[idx];
+                      return (
+                        <div
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCardIndex(idx);
+                          }}
+                          className={`p-3.5 rounded-2xl border flex flex-col justify-between shadow-xs transition-all cursor-pointer ${
+                            idx % 2 === 1 ? 'md:translate-y-4' : ''
+                          } ${selectedCardIndex === idx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''}`}
+                          style={{
+                            backgroundColor: activeTheme.cardBg,
+                            borderColor: selectedCardIndex === idx ? activeTheme.accentColor : activeTheme.cardBorder,
+                            borderRadius: activeTheme.cardRadius,
+                          }}
+                        >
+                          {renderFloatingToolbar(idx, card)}
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span
+                                className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                                style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}
+                              >
+                                {badgeVal}
+                              </span>
+                              <span className="text-xs font-mono font-black" style={{ color: activeTheme.accentColor }}>
+                                0{idx + 1}
+                              </span>
+                            </div>
+                            <textarea
+                              rows={1}
+                              value={titleVal}
+                              onChange={(e) => handleUpdateCardField(idx, 'title', e.target.value)}
+                              className="w-full font-bold text-xs bg-transparent border-none focus:outline-none resize-none leading-snug"
+                              style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                            />
+                            <textarea
+                              rows={3}
+                              value={bodyVal}
+                              onChange={(e) => handleUpdateCardField(idx, 'body', e.target.value)}
+                              className="w-full text-[11px] bg-transparent border-none focus:outline-none resize-none leading-relaxed mt-1"
+                              style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                            />
+                          </div>
                         </div>
-                        <div className="font-bold text-xs mt-1" style={{ color: activeTheme.cardTitleColor }}>
-                          {card.title}
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-1 line-clamp-3">
-                          {card.body}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* ── PRESENTON SMART LAYOUT: CIRCULAR HUB & SPOKE ── */}
               {activeSlide?.archetype === 'circular_hub' && (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 items-center relative">
                   {/* Left satellites (2 cards) */}
                   <div className="md:col-span-4 space-y-3">
-                    {(activeSlide?.cards?.slice(0, 2) || []).map((card: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="p-3.5 rounded-2xl border shadow-xs"
-                        style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                      >
-                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
-                          {card.badge || `Pillar 0${idx + 1}`}
-                        </span>
-                        <div className="font-bold text-xs mt-0.5" style={{ color: activeTheme.cardTitleColor }}>{card.title}</div>
-                        <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">{card.body}</div>
-                      </div>
-                    ))}
+                    {([0, 1]).map((idx) => {
+                      const card = activeSlide?.cards?.[idx] || {};
+                      const defaultBadges = ['Pillar 01', 'Pillar 02'];
+                      const defaultTitles = ['Primary Mechanism', 'Thermodynamic Limit'];
+                      const defaultBodies = ['Governed by kinetic rate constants.', 'Constrained by entropy conservation.'];
+                      return (
+                        <div
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCardIndex(idx);
+                          }}
+                          className={`relative p-3.5 rounded-2xl border shadow-xs cursor-pointer transition-all ${
+                            selectedCardIndex === idx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                          }`}
+                          style={{
+                            backgroundColor: activeTheme.cardBg,
+                            borderColor: selectedCardIndex === idx ? activeTheme.accentColor : activeTheme.cardBorder,
+                            borderRadius: activeTheme.cardRadius,
+                          }}
+                        >
+                          {renderFloatingToolbar(idx, card)}
+                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider block mb-1" style={{ color: activeTheme.accentColor }}>
+                            {card.badge || defaultBadges[idx]}
+                          </span>
+                          <textarea
+                            rows={1}
+                            value={card.title || defaultTitles[idx]}
+                            onChange={(e) => handleUpdateCardField(idx, 'title', e.target.value)}
+                            className="w-full font-bold text-xs bg-transparent border-none focus:outline-none resize-none leading-snug"
+                            style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                          />
+                          <textarea
+                            rows={2}
+                            value={card.body || defaultBodies[idx]}
+                            onChange={(e) => handleUpdateCardField(idx, 'body', e.target.value)}
+                            className="w-full text-[11px] bg-transparent border-none focus:outline-none resize-none leading-relaxed mt-1"
+                            style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Center Hub */}
-                  <div className="md:col-span-4 flex flex-col items-center justify-center p-6 text-center">
+                  <div className="md:col-span-4 flex flex-col items-center justify-center p-4 text-center">
                     <div
-                      className="w-28 h-28 rounded-full border-2 flex flex-col items-center justify-center p-3 shadow-xl transition-transform hover:scale-105"
+                      className="w-32 h-32 rounded-full border-2 flex flex-col items-center justify-center p-3 shadow-xl transition-transform hover:scale-105 relative"
                       style={{
                         backgroundColor: activeTheme.cardBg,
                         borderColor: activeTheme.accentColor,
@@ -2431,27 +2564,59 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                       }}
                     >
                       <Sparkles className="w-5 h-5 mb-1" style={{ color: activeTheme.accentColor }} />
-                      <span className="text-[10px] font-bold text-center leading-tight font-mono uppercase tracking-tight" style={{ color: activeTheme.cardTitleColor }}>
-                        Core Thesis
+                      <span className="text-[11px] font-bold text-center leading-tight font-mono uppercase tracking-tight" style={{ color: activeTheme.cardTitleColor }}>
+                        {activeSlide?.title?.slice(0, 24) || 'Core Thesis'}
+                      </span>
+                      <span className="text-[9px] font-mono mt-1 opacity-70" style={{ color: activeTheme.accentColor }}>
+                        System Hub
                       </span>
                     </div>
                   </div>
 
                   {/* Right satellites (2 cards) */}
                   <div className="md:col-span-4 space-y-3">
-                    {(activeSlide?.cards?.slice(2, 4) || []).map((card: any, idx: number) => (
-                      <div
-                        key={idx + 2}
-                        className="p-3.5 rounded-2xl border shadow-xs"
-                        style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                      >
-                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
-                          {card.badge || `Pillar 0${idx + 3}`}
-                        </span>
-                        <div className="font-bold text-xs mt-0.5" style={{ color: activeTheme.cardTitleColor }}>{card.title}</div>
-                        <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">{card.body}</div>
-                      </div>
-                    ))}
+                    {([2, 3]).map((idx) => {
+                      const card = activeSlide?.cards?.[idx] || {};
+                      const defaultBadges = ['Pillar 03', 'Pillar 04'];
+                      const defaultTitles = ['Catalytic Influence', 'Equilibrium State'];
+                      const defaultBodies = ['Lowers activation threshold.', 'Dynamic balance at endpoint.'];
+                      return (
+                        <div
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCardIndex(idx);
+                          }}
+                          className={`relative p-3.5 rounded-2xl border shadow-xs cursor-pointer transition-all ${
+                            selectedCardIndex === idx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                          }`}
+                          style={{
+                            backgroundColor: activeTheme.cardBg,
+                            borderColor: selectedCardIndex === idx ? activeTheme.accentColor : activeTheme.cardBorder,
+                            borderRadius: activeTheme.cardRadius,
+                          }}
+                        >
+                          {renderFloatingToolbar(idx, card)}
+                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider block mb-1" style={{ color: activeTheme.accentColor }}>
+                            {card.badge || defaultBadges[idx - 2]}
+                          </span>
+                          <textarea
+                            rows={1}
+                            value={card.title || defaultTitles[idx - 2]}
+                            onChange={(e) => handleUpdateCardField(idx, 'title', e.target.value)}
+                            className="w-full font-bold text-xs bg-transparent border-none focus:outline-none resize-none leading-snug"
+                            style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                          />
+                          <textarea
+                            rows={2}
+                            value={card.body || defaultBodies[idx - 2]}
+                            onChange={(e) => handleUpdateCardField(idx, 'body', e.target.value)}
+                            className="w-full text-[11px] bg-transparent border-none focus:outline-none resize-none leading-relaxed mt-1"
+                            style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -2527,31 +2692,68 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
               {/* ── PRESENTON SMART LAYOUT: KPI STATS GRID ── */}
               {activeSlide?.archetype === 'stats_grid' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 items-stretch">
-                  {[
-                    { val: '94.8%', label: 'Comprehension Gain', badge: 'Retention' },
-                    { val: '3.2x', label: 'Faster Synthesis', badge: 'Speed' },
-                    { val: '100%', label: 'Curriculum Grounding', badge: 'Accuracy' },
-                  ].map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-5 rounded-2xl border flex flex-col justify-between text-center shadow-xs transition-all hover:shadow-md"
-                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
-                    >
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
-                        {item.badge}
-                      </span>
-                      <div className="text-3xl sm:text-4xl font-black my-2 tracking-tight" style={{ color: activeTheme.titleColor, fontFamily: activeTheme.headingFont }}>
-                        {item.val}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 items-stretch">
+                  {([0, 1, 2]).map((idx) => {
+                    const card = activeSlide?.cards?.[idx] || {};
+                    const defaultStats = ['94.8%', '3.2x', '100%'];
+                    const defaultBadges = ['Retention', 'Speed', 'Accuracy'];
+                    const defaultTitles = ['Comprehension Gain', 'Faster Synthesis', 'Curriculum Grounding'];
+                    const statVal = card.stat || defaultStats[idx];
+                    const badgeVal = card.badge || defaultBadges[idx];
+                    const titleVal = card.title || defaultTitles[idx];
+                    return (
+                      <div
+                        key={idx}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCardIndex(idx);
+                        }}
+                        className={`group relative p-5 rounded-2xl border flex flex-col justify-between text-center shadow-xs transition-all hover:shadow-md cursor-pointer ${
+                          selectedCardIndex === idx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                        }`}
+                        style={{
+                          backgroundColor: activeTheme.cardBg,
+                          borderColor: selectedCardIndex === idx ? activeTheme.accentColor : activeTheme.cardBorder,
+                          borderRadius: activeTheme.cardRadius,
+                          boxShadow: activeTheme.cardShadow,
+                        }}
+                      >
+                        {renderFloatingToolbar(idx, card)}
+                        <div>
+                          <input
+                            type="text"
+                            value={badgeVal}
+                            onChange={(e) => handleUpdateCardField(idx, 'badge', e.target.value)}
+                            className="text-[10px] font-mono font-bold uppercase tracking-wider block w-full text-center bg-transparent border-none focus:outline-none"
+                            style={{ color: activeTheme.accentColor }}
+                          />
+                          <input
+                            type="text"
+                            value={statVal}
+                            onChange={(e) => handleUpdateCardField(idx, 'stat', e.target.value)}
+                            className="w-full text-center text-3xl sm:text-4xl font-black my-2 tracking-tight bg-transparent border-none focus:outline-none"
+                            style={{ color: activeTheme.titleColor, fontFamily: activeTheme.headingFont }}
+                          />
+                          <textarea
+                            rows={1}
+                            value={titleVal}
+                            onChange={(e) => handleUpdateCardField(idx, 'title', e.target.value)}
+                            className="w-full text-center text-xs font-semibold bg-transparent border-none focus:outline-none resize-none"
+                            style={{ color: activeTheme.cardTitleColor }}
+                          />
+                        </div>
+                        <div className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full mt-3 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: idx === 0 ? '94%' : idx === 1 ? '75%' : '100%',
+                              backgroundColor: activeTheme.accentColor,
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="text-xs font-semibold text-slate-400">
-                        {item.label}
-                      </div>
-                      <div className="w-full h-1 bg-black/10 dark:bg-white/10 rounded-full mt-3 overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: idx === 0 ? '94%' : idx === 1 ? '75%' : '100%', backgroundColor: activeTheme.accentColor }} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
