@@ -952,13 +952,14 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 f"   - 'card_grid_3' (Balanced 3 concept cards)\n"
                 f"2. 'subtitle': A concise academic strand (e.g., '{subject.upper()} · {grade.upper()} · FOUNDATIONAL PRINCIPLES').\n"
                 f"3. 'standard': Relevant curriculum competency (e.g., '{subject} Core Standard').\n"
-                f"4. 'image_query': (REQUIRED for every slide): A concise 2-4 word search query for a scientific illustration, real photograph, or 3D diagram (e.g. 'chloroplast light absorption', 'archimedes principle fluid mechanics', 'mitochondria ATP synthesis').\n"
-                f"5. 'chart_data': (Optional, for comparative/experimental slides): A list of 2-4 points with 'label' and numeric 'value' (e.g. [{{\"label\": \"Blue (450nm)\", \"value\": 92}}, {{\"label\": \"Green (550nm)\", \"value\": 18}}, {{\"label\": \"Red (680nm)\", \"value\": 85}}]).\n"
-                f"6. 'cards': A list of 2 or 3 distinct content cards. Each card must have:\n"
+                f"4. 'has_visual': Boolean. True ONLY for slides whose archetype visually features an image (like 'hero_visual_split' or 'image_hero_full'). For all other archetypes, set to false.\n"
+                f"5. 'image_query': If 'has_visual' is true, provide a concise 2-4 word search query for a scientific illustration, real photograph, or 3D diagram (e.g. 'chloroplast light absorption', 'archimedes principle fluid mechanics'). For non-visual slides, omit or set to null.\n"
+                f"6. 'chart_data': (Optional, for comparative/experimental slides): A list of 2-4 points with 'label' and numeric 'value' (e.g. [{{\"label\": \"Blue (450nm)\", \"value\": 92}}, {{\"label\": \"Green (550nm)\", \"value\": 18}}, {{\"label\": \"Red (680nm)\", \"value\": 85}}]).\n"
+                f"7. 'cards': A list of 2 or 3 distinct content cards. Each card must have:\n"
                 f"   - 'badge': Concise 1-2 word tag (e.g. 'Law 01', 'Mechanism', 'Formula', 'Application').\n"
                 f"   - 'title': Short, punchy 2 to 4-word heading (e.g. 'Inertial Mass', 'Normal Contact Force'). NEVER slice sentences or use generic filler!\n"
                 f"   - 'body': Clear, substantive explanation (1-2 sentences) of the concept.\n"
-                f"7. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n\n"
+                f"8. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n\n"
                 f"Rules:\n"
                 f"- Return strictly a valid JSON object with key 'slides': a list of {len(req.outlines)} slide objects.\n"
                 f"- NEVER use placeholder text or boilerplate repetition."
@@ -1008,9 +1009,16 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                             b1 = orig_bullets[1] if len(orig_bullets) > 1 else "key observable mechanics"
                             notes = f"Introduce {title} by drawing students' attention to: {b0}. Contrast common student misconceptions against: {b1}."
 
-                        img_query = s.get("image_query") or f"{title} scientific illustration"
-                        img_res = resolve_image(img_query, title)
-                        img_url = img_res["url"]
+                        # Only resolve/generate images for archetypes that explicitly feature a visual layout
+                        is_visual = arch in ("hero_visual_split", "image_hero_full") or s.get("has_visual") is True
+                        if is_visual:
+                            img_query = s.get("image_query") or f"{title} scientific illustration"
+                            img_res = resolve_image(img_query, title)
+                            img_url = img_res["url"]
+                        else:
+                            img_query = None
+                            img_url = None
+
                         c_data = s.get("chart_data")
 
                         slide_obj = SlideContent(
@@ -1089,9 +1097,15 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
             b1 = bullets[1] if len(bullets) > 1 else "governing observable mechanics"
             speaker_notes = f"Introduce {title} by drawing students' attention to {b0}. Contrast common student misconceptions against {b1}."
 
-            img_query = f"{title} scientific illustration"
-            img_res = resolve_image(img_query, title)
-            img_url = img_res["url"]
+            # Only resolve/generate images for archetypes that explicitly feature a visual layout
+            is_visual = archetype in ("hero_visual_split", "image_hero_full")
+            if is_visual:
+                img_query = f"{title} scientific illustration"
+                img_res = resolve_image(img_query, title)
+                img_url = img_res["url"]
+            else:
+                img_query = None
+                img_url = None
 
             slide_obj = SlideContent(
                 slide_number=idx + 1,

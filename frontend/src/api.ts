@@ -328,3 +328,20 @@ export async function resolveImage(
   return res.json();
 }
 
+export async function generateAIImage(
+  prompt: string,
+  style: 'scientific' | '3d_concept' | 'vector_art' | 'photorealistic' = 'scientific',
+  title: string = ''
+): Promise<{ url: string; file_path: string; source: string; prompt: string; style: string }> {
+  const res = await fetch('/api/images/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, style, title }),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to generate AI image');
+  }
+  return res.json();
+}
+
+

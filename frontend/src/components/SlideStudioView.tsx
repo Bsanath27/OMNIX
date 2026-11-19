@@ -9,7 +9,6 @@ import {
   SuggestEditsResponse,
   refineSingleCard,
   generateSlideScript,
-  resolveImage,
 } from '../api';
 import {
   Maximize2,
@@ -59,7 +58,7 @@ import { RightEditPanel, ActiveRightPanel } from './RightEditPanel';
 import { RightPanelRenderer } from './RightPanelRenderer';
 import { SlideElementFloatingToolbar } from './SlideElementFloatingToolbar';
 import { SlideTemplateLibraryModal } from './SlideTemplateLibraryModal';
-import { ChartStudioPanel, MediaAssetPickerDrawer, SpeakerNotesDrawer } from './panels';
+import { ChartStudioPanel, MediaAssetPickerDrawer, SpeakerNotesDrawer, AIImageStudioModal } from './panels';
 import { themes, ThemeProperties, ThemeName } from '../lib/presentonThemes';
 import { useThemeFonts } from '../lib/fontLoader';
 
@@ -394,6 +393,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   }, [currentSlideIndex]);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+  const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
   const [isSpeakerNotesDrawerOpen, setIsSpeakerNotesDrawerOpen] = useState(false);
   const [isChartStudioOpen, setIsChartStudioOpen] = useState(false);
 
@@ -1433,6 +1433,17 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
 
               <button
+                onClick={() => setIsAIStudioOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#FF5C00]/15 to-amber-500/15 hover:from-[#FF5C00]/25 hover:to-amber-500/25 text-[#FF5C00] font-semibold text-xs border border-[#FF5C00]/25 transition-all shadow-xs"
+                title="Open AI Image Studio (Diffusion, Wikimedia, Styles)"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI Visual</span>
+              </button>
+
+              <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
+
+              <button
                 onClick={() => handleDuplicateSlide(currentSlideIndex)}
                 className="p-1.5 hover:text-[#FF5C00] text-slate-500 dark:text-slate-400 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                 title="Duplicate Current Slide"
@@ -1784,25 +1795,25 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         />
                       </div>
                       <button
-                        onClick={() => setIsMediaPickerOpen(true)}
-                        className="px-2 py-1 rounded-lg bg-[#FF5C00] hover:bg-orange-600 text-white border border-orange-500/30 transition-colors shadow-sm shrink-0 flex items-center gap-1 text-[10px] font-semibold"
-                        title="Open Media Asset Picker (Unsplash & Lucide)"
+                        onClick={() => setIsAIStudioOpen(true)}
+                        className="px-2 py-1 rounded-lg bg-gradient-to-r from-[#FF5C00] to-orange-600 hover:from-orange-500 hover:to-orange-600 text-white border border-orange-500/30 transition-colors shadow-sm shrink-0 flex items-center gap-1 text-[10px] font-semibold"
+                        title="Open AI Image Studio (Diffusion, Wikimedia, Styles)"
                       >
-                        <ImageIcon className="w-3 h-3" />
-                        <span>Asset Picker</span>
+                        <Sparkles className="w-3 h-3" />
+                        <span>AI Studio</span>
                       </button>
                       <button
-                        onClick={async () => {
-                          const q = activeSlide.image_query || activeSlide.title;
-                          try {
-                            const res = await resolveImage(q, activeSlide.title);
-                            handleUpdateSlideField('image_url', res.url);
-                          } catch {
-                            handleUpdateSlideField('image_url', `/api/images/resolve?query=${encodeURIComponent(q)}&title=${encodeURIComponent(activeSlide.title)}`);
-                          }
-                        }}
+                        onClick={() => setIsMediaPickerOpen(true)}
+                        className="px-2 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white border border-white/10 transition-colors shadow-sm shrink-0 flex items-center gap-1 text-[10px] font-semibold"
+                        title="Open Media Asset Picker (Stock Photography & Icons)"
+                      >
+                        <ImageIcon className="w-3 h-3 text-slate-300" />
+                        <span>Stock</span>
+                      </button>
+                      <button
+                        onClick={() => setIsAIStudioOpen(true)}
                         className="p-1 rounded-lg bg-black/60 hover:bg-[#FF5C00] text-white border border-white/10 transition-colors shadow-sm shrink-0"
-                        title="Regenerate / Refresh Image (Native High-Res Resolver)"
+                        title="Regenerate / Synthesize with AI"
                       >
                         <RefreshCw className="w-3 h-3" />
                       </button>
@@ -2902,9 +2913,19 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                   <div className="relative z-10 w-full bg-black/60 backdrop-blur-xl p-4 rounded-2xl border border-white/20 text-white space-y-1.5">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#FF5C00] text-white inline-block">
-                      Visual Feature Insight
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#FF5C00] text-white inline-block">
+                        Visual Feature Insight
+                      </span>
+                      <button
+                        onClick={() => setIsAIStudioOpen(true)}
+                        className="px-2 py-0.5 rounded-lg bg-black/60 hover:bg-[#FF5C00] text-white border border-white/20 text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                        title="Open AI Image Studio"
+                      >
+                        <Sparkles className="w-3 h-3 text-[#FF5C00]" />
+                        <span>AI Studio</span>
+                      </button>
+                    </div>
                     <div className="text-sm font-bold leading-snug">
                       {activeSlide?.cards?.[0]?.title || activeSlide?.title}
                     </div>
@@ -3372,6 +3393,30 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
         subject={project?.outline?.subject}
         onUpdateNotes={(notes) => handleUpdateSlideField('speaker_notes', notes)}
         onUpdateDiscussionPrompt={(prompt) => handleUpdateSlideField('discussion_prompt', prompt)}
+      />
+
+      {/* PRESENTON AI IMAGE STUDIO & REGENERATE MODAL */}
+      <AIImageStudioModal
+        isOpen={isAIStudioOpen}
+        onClose={() => setIsAIStudioOpen(false)}
+        slideTitle={activeSlide?.title || 'Slide Visual'}
+        currentQuery={activeSlide?.image_query || activeSlide?.title}
+        currentImageUrl={activeSlide?.image_url}
+        onApplyImage={(imageUrl, query) => {
+          handleUpdateSlideField('image_url', imageUrl);
+          if (query) handleUpdateSlideField('image_query', query);
+          if (activeSlide && activeSlide.archetype !== 'hero_visual_split' && activeSlide.archetype !== 'image_hero_full') {
+            handleSwitchLayout('hero_visual_split');
+          }
+        }}
+        onRemoveImage={() => {
+          handleUpdateSlideField('image_url', null);
+          handleUpdateSlideField('image_query', null);
+          if (activeSlide?.archetype === 'hero_visual_split') {
+            handleSwitchLayout('card_grid_3');
+          }
+        }}
+        isDarkMode={isDarkMode}
       />
 
       {/* PRESENTON INTERACTIVE CHART & DATA STUDIO MODAL */}

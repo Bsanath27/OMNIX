@@ -130,10 +130,13 @@ def run_diagnostic():
         print(f"    • Title:      {title}")
         print(f"    • Query:      {img_q}")
         print(f"    • URL:        {img_url}")
-        print(f"    • Local File: {'EXISTS (' + str(round(cache_file_size/1024, 1)) + ' KB, ' + str(img_dims[0]) + 'x' + str(img_dims[1]) + ')' if cache_file_exists else 'NOT FOUND'}")
-        assert not is_pollinations, f"Slide {s_num} still contains Pollinations.ai URL!"
-        assert has_local_url, f"Slide {s_num} image_url does not point to /static/images/!"
-        assert cache_file_exists, f"Slide {s_num} local cache file was not generated!"
+        if img_url:
+            print(f"    • Local File: {'EXISTS (' + str(round(cache_file_size/1024, 1)) + ' KB, ' + str(img_dims[0]) + 'x' + str(img_dims[1]) + ')' if cache_file_exists else 'NOT FOUND'}")
+            assert not is_pollinations, f"Slide {s_num} still contains Pollinations.ai URL!"
+            assert has_local_url, f"Slide {s_num} image_url does not point to /static/images/!"
+            assert cache_file_exists, f"Slide {s_num} local cache file was not generated!"
+        else:
+            print("    • Visual:     None (Selective non-visual archetype - clean text/cards)")
 
     # ── STEP 6: PPTX EMBEDDING & GEOMETRY DIAGNOSIS ──
     print("\n[Step 6] Diagnosing Exported PowerPoint (.pptx) File...")
@@ -167,11 +170,14 @@ def run_diagnostic():
 
     # ── STEP 7: STATIC ENDPOINT ACCESSIBILITY CHECK ──
     print("\n[Step 7] Checking HTTP Accessibility of Static Image Endpoint...")
-    sample_img_url = slides[0]["image_url"]
-    static_res = client.get(sample_img_url)
-    assert static_res.status_code == 200, f"Failed to fetch image from {sample_img_url}: {static_res.status_code}"
-    assert static_res.headers.get("content-type") in ("image/jpeg", "image/png"), f"Unexpected content-type: {static_res.headers.get('content-type')}"
-    print(f"  ✓ Static endpoint accessible: {sample_img_url} returned HTTP 200 ({len(static_res.content)} bytes, {static_res.headers.get('content-type')})")
+    sample_img_url = next((s.get("image_url") for s in slides if s.get("image_url")), None)
+    if sample_img_url:
+        static_res = client.get(sample_img_url)
+        assert static_res.status_code == 200, f"Failed to fetch image from {sample_img_url}: {static_res.status_code}"
+        assert static_res.headers.get("content-type") in ("image/jpeg", "image/png"), f"Unexpected content-type: {static_res.headers.get('content-type')}"
+        print(f"  ✓ Static endpoint accessible: {sample_img_url} returned HTTP 200 ({len(static_res.content)} bytes, {static_res.headers.get('content-type')})")
+    else:
+        print("  ✓ No visual slides in deck to check static image endpoint")
 
     t_total = time.time() - t_start
     print("\n" + "=" * 70)

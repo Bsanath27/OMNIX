@@ -18,3 +18,9 @@ export {
   SpeakerNotesDrawer,
   type SpeakerNotesDrawerProps,
 } from './SpeakerNotesDrawer';
+
+export {
+  AIImageStudioModal,
+  type AIStyle,
+} from './AIImageStudioModal';
+

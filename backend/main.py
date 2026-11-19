@@ -43,6 +43,16 @@ async def resolve_image_endpoint(query: str, title: str = ""):
     return await resolve_image_async(query, title)
 
 
+@app.post("/api/images/generate")
+async def generate_image_endpoint(payload: dict):
+    """Generate style-tailored AI visual (scientific, 3d, vector, photorealistic)."""
+    from backend.tools.slides.image_service import generate_ai_image_async
+    prompt = payload.get("prompt", "")
+    style = payload.get("style", "scientific")
+    title = payload.get("title", "")
+    return await generate_ai_image_async(prompt, style, title)
+
+
 @app.get("/api/health")
 async def health_check():
     """Basic health check endpoint."""
