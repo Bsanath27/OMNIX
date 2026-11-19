@@ -816,17 +816,25 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 f"You are a master presentation designer and curriculum author for {grade} learners.\n"
                 f"Convert the given approved presentation outline into a complete, presentation-ready slide deck.\n\n"
                 f"For each slide in the outline, synthesize rich, presentation-ready JSON:\n"
-                f"1. 'archetype': Select the most visually appropriate Presenton Smart Layout archetype:\n"
-                f"   - 'hero_visual_split' (Signature Presenton style: 60% structured insight on left + 40% high-res scientific photo/illustration on right)\n"
+                f"1. 'archetype': Select the most visually appropriate Presenton Smart Layout archetype.\n"
+                f"   STRICT RULE: Every slide MUST have a distinct archetype — NEVER repeat the same archetype consecutively!\n"
+                f"   Choose from:\n"
+                f"   - 'hero_visual_split' (60% structured insight on left + 40% high-res scientific photo/illustration on right)\n"
                 f"   - 'hero_title' (Slide 1: overarching title, thesis, and core inquiry)\n"
-                f"   - 'card_grid_3' (for 3 distinct components, principles, or mechanisms)\n"
-                f"   - 'split_comparison' (when comparing two concepts, laws, or systems side-by-side)\n"
-                f"   - 'timeline' (for chronological phases, milestones, or historical progressions)\n"
-                f"   - 'sequence_steps' (for step-by-step processes, procedures, or sequential derivations)\n"
-                f"   - 'stat_callout' (for high-impact quantitative metrics, retention percentages, or physical constants)\n"
-                f"   - 'chart_data' (for empirical data, rate curves, or comparative measurements with chart bars)\n"
-                f"   - 'process_cycle' (for closed-loop cyclical systems, biological cycles, or feedback loops)\n"
-                f"   - 'bullet_list' (for structured enumerated principles or formulas)\n"
+                f"   - 'before_after' (High-contrast problem vs transformed solution with checkmarks)\n"
+                f"   - 'pros_cons' (Structured decision matrix with green pros vs alert cons)\n"
+                f"   - 'pyramid_hierarchy' (3-tier ascending funnel / hierarchy pyramid: foundation to peak mastery)\n"
+                f"   - 'staircase_progression' (Ascending elevation steps moving upward: 01 to 03)\n"
+                f"   - 'snake_roadmap' (S-curve serpentine roadmap path with alternating milestone nodes)\n"
+                f"   - 'circular_hub' (Center core thesis disk surrounded by 4 satellite pillars)\n"
+                f"   - 'chart_data' (Empirical measurements and quantitative horizontal benchmark bars)\n"
+                f"   - 'stats_grid' (3 to 4 oversized KPI metric figures with retention progress bars)\n"
+                f"   - 'timeline' (Chronological milestones and phase track)\n"
+                f"   - 'sequence_steps' (Step-by-step procedural derivation with connecting arrows)\n"
+                f"   - 'editorial_quote' (Massive pullquote typography with author citation)\n"
+                f"   - 'bento_4' (2x2 quad bento cards for dense conceptual breakdown)\n"
+                f"   - 'process_cycle' (Closed-loop continuous cyclical workflow)\n"
+                f"   - 'card_grid_3' (Balanced 3 concept cards)\n"
                 f"2. 'subtitle': A concise academic strand (e.g., '{subject.upper()} · {grade.upper()} · FOUNDATIONAL PRINCIPLES').\n"
                 f"3. 'standard': Relevant curriculum competency (e.g., '{subject} Core Standard').\n"
                 f"4. 'image_query': (REQUIRED for every slide): A concise 2-4 word search query for a scientific illustration, real photograph, or 3D diagram (e.g. 'chloroplast light absorption', 'archimedes principle fluid mechanics', 'mitochondria ATP synthesis').\n"
@@ -920,7 +928,23 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 lines = item["content"].split("\n")
                 bullets = [line.lstrip("- *#").strip() for line in lines if line.strip() and not line.strip().startswith("#")]
 
-            archetype = "hero_stat" if idx == 0 else ("split_comparison" if len(bullets) == 2 else "card_grid_3")
+            # Non-repetitive Presenton archetype rhythm across the deck
+            ARCHETYPE_RHYTHM = [
+                "hero_title",
+                "hero_visual_split",
+                "before_after",
+                "sequence_steps",
+                "chart_data",
+                "pyramid_hierarchy",
+                "pros_cons",
+                "circular_hub",
+                "staircase_progression",
+                "stats_grid",
+                "process_cycle",
+                "editorial_quote",
+                "bento_4"
+            ]
+            archetype = ARCHETYPE_RHYTHM[idx % len(ARCHETYPE_RHYTHM)]
             cards = []
             for c_idx, b in enumerate(bullets[:3]):
                 if ":" in b:

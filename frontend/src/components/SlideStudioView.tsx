@@ -32,7 +32,6 @@ import {
   Columns,
   LayoutGrid,
   FileText,
-  AlignLeft,
   SlidersHorizontal,
   ChevronDown as ChevronDownIcon,
   ChevronUp,
@@ -45,8 +44,14 @@ import {
   Image as ImageIcon,
   BarChart3,
   RefreshCw,
+  GitCompare,
+  ShieldAlert,
+  ArrowUpRight,
+  Triangle,
+  Quote,
 } from 'lucide-react';
 import { RightEditDock, RightToolDrawer, ActiveToolPanel } from './SlideEditPanels';
+import { SlideTemplateLibraryModal } from './SlideTemplateLibraryModal';
 import { themes, ThemeProperties, ThemeName } from '../lib/presentonThemes';
 import { useThemeFonts } from '../lib/fontLoader';
 
@@ -388,6 +393,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   const [copilotPrompt, setCopilotPrompt] = useState('');
   const [isProjectorMode, setIsProjectorMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(85);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   useEffect(() => {
     if (initialArtifact?.source_data?.slides?.length) {
@@ -513,6 +519,84 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
           { badge: 'Part 2', title: 'Observation', body: bullets[1] || 'Experimental evidence and proof.' },
           { badge: 'Part 3', title: 'Application', body: bullets[2] || 'Classroom exercise and derivation.' },
         ];
+      } else if (newArchetype === 'before_after') {
+        target.cards = [
+          {
+            badge: 'BEFORE / TRADITIONAL',
+            title: 'Fragmented Classroom Assembly',
+            body: bullets[0] || 'Manual lesson preparation with fragmented textbook chapters and disconnected assessment targets.',
+            points: ['High teacher cognitive fatigue', 'Frequent conceptual omissions', 'Disconnected question pools']
+          },
+          {
+            badge: 'AFTER / TRANSFORMED',
+            title: 'Grounded Intelligence & Sync',
+            body: bullets[1] || 'Deterministic textbook grounding compiles 16:9 presentation slides with verified citations in seconds.',
+            points: ['Zero-hallucination textbook citations', 'Instant 105+ Presenton smart layouts', 'Live teacher delivery co-pilot']
+          }
+        ];
+      } else if (newArchetype === 'pros_cons') {
+        target.cards = [
+          {
+            badge: 'PROS & ADVANTAGES',
+            title: 'Pedagogical Strengths',
+            body: bullets[0] || 'Structured visual decomposition significantly improves learner comprehension.',
+            points: ['Accelerated concept comprehension', 'Empirical scientific proof', 'Consistent state exam alignment']
+          },
+          {
+            badge: 'CONS & BOUNDARIES',
+            title: 'Boundary Constraints',
+            body: bullets[1] || 'Requires foundational grasp of preliminary mathematical and scientific axioms.',
+            points: ['Prerequisite knowledge dependency', 'Higher initial cognitive load', 'Demands guided teacher walkthrough']
+          }
+        ];
+      } else if (newArchetype === 'pyramid_hierarchy') {
+        target.cards = [
+          { badge: 'TIER 03 • PEAK MASTERY', title: 'System Synthesis & Autonomous Application', body: bullets[2] || 'Transfer knowledge to solve novel unseen examination scenarios.' },
+          { badge: 'TIER 02 • CORE MECHANICS', title: 'Mathematical Laws & Empirical Relationships', body: bullets[1] || 'Governing relationships and quantitative calculations.' },
+          { badge: 'TIER 01 • FOUNDATIONAL DEFINITIONS', title: 'Core Nomenclature, Axioms, and Observable Postulates', body: bullets[0] || 'Core definitions, units, and observable baseline concepts.' }
+        ];
+      } else if (newArchetype === 'staircase_progression') {
+        target.cards = [
+          { badge: '01 Foundation', title: 'Conceptual Priming', body: bullets[0] || 'Establish key vocabulary and fundamental physical units.' },
+          { badge: '02 Application', title: 'Mechanistic Derivation', body: bullets[1] || 'Apply empirical formulas to derive observable values.' },
+          { badge: '03 Peak Mastery', title: 'Autonomous Synthesis', body: bullets[2] || 'Cross-disciplinary connection to advanced state curriculum.' }
+        ];
+      } else if (newArchetype === 'snake_roadmap') {
+        target.cards = [
+          { badge: 'Phase 01', title: 'Problem Framing', body: bullets[0] || 'Isolate variables and articulate central inquiry.' },
+          { badge: 'Phase 02', title: 'Laboratory Trials', body: bullets[1] || 'Conduct controlled empirical observations.' },
+          { badge: 'Phase 03', title: 'Data Modelling', body: bullets[2] || 'Analyze variances and calibrate predictive curves.' },
+          { badge: 'Phase 04', title: 'Curriculum Proof', body: bullets[3] || 'Publish validated findings aligned with grade benchmarks.' }
+        ];
+      } else if (newArchetype === 'circular_hub') {
+        target.cards = [
+          { badge: 'Satellite A', title: 'Direct Observation', body: bullets[0] || 'Empirical evidence captured in textbook labs.' },
+          { badge: 'Satellite B', title: 'Governing Formula', body: bullets[1] || 'Mathematical equation linking input variables.' },
+          { badge: 'Satellite C', title: 'Physical Constraints', body: bullets[2] || 'Conservation laws and boundary limits.' },
+          { badge: 'Satellite D', title: 'Practical Application', body: bullets[3] || 'Everyday technology utilizing this principle.' }
+        ];
+      } else if (newArchetype === 'editorial_quote') {
+        target.cards = [
+          { badge: 'Core Maxim', title: bullets[0] || 'Scientific inquiry begins with direct observation, but only achieves permanence when unified under universal physical law.', body: 'Foundational curriculum thesis on scientific inquiry.' }
+        ];
+      } else if (newArchetype === 'bento_4') {
+        target.cards = [
+          { badge: 'Part 01', title: 'Primary Axiom', body: bullets[0] || 'Foundational premise of the governing theory.' },
+          { badge: 'Part 02', title: 'System Variable', body: bullets[1] || 'Key observable physical parameter.' },
+          { badge: 'Part 03', title: 'Empirical Law', body: bullets[2] || 'Mathematical relationship describing the reaction.' },
+          { badge: 'Part 04', title: 'Real Application', body: bullets[3] || 'Practical manifestation in engineering and life.' }
+        ];
+      } else if (newArchetype === 'stats_grid') {
+        target.cards = [
+          { badge: 'Retention', stat: '94.8%', title: 'Comprehension Gain', body: 'Measurable mastery over traditional textbook delivery.' },
+          { badge: 'Speed', stat: '3.2x', title: 'Learning Velocity', body: 'Accelerated pedagogical assimilation with smart layouts.' },
+          { badge: 'Accuracy', stat: '100%', title: 'Grounding Sync', body: 'Deterministic verification against textbook source passages.' }
+        ];
+      } else if (newArchetype === 'image_hero_full') {
+        if (!target.image_query) target.image_query = `${target.title} scientific 3d visualization`;
+        target.cards = [
+          { badge: 'Visual Feature Insight', title: target.title, body: bullets[0] || 'A comprehensive macroscopic visual exploration of the core physical phenomenon.' }
+        ];
       } else if (newArchetype === 'bullet_list' && (!target.cards || target.cards.length < 3)) {
         target.cards = [
           { badge: 'Point 01', title: 'Fundamental Postulate', body: bullets[0] || 'Governing principle established by physical laws.' },
@@ -529,6 +613,9 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('templateModal') === '1') {
+      setIsTemplateModalOpen(true);
+    }
     const layout = params.get('layout');
     if (layout) {
       const timer = setTimeout(() => {
@@ -896,7 +983,45 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                       <div className="w-3/4 h-1 rounded" style={{ backgroundColor: activeTheme.accentColor }} />
                       
                       {/* Dynamic Miniature Layout snippet */}
-                      {slide.archetype === 'split_comparison' ? (
+                      {slide.archetype === 'hero_visual_split' ? (
+                        <div className="flex gap-1 h-4">
+                          <div className="w-7/12 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                          <div className="w-5/12 rounded bg-[#FF5C00]/30 border border-[#FF5C00]/50" />
+                        </div>
+                      ) : slide.archetype === 'chart_data' ? (
+                        <div className="grid grid-cols-2 gap-1 h-4">
+                          <div className="rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
+                          <div className="flex flex-col justify-between py-0.5">
+                            <div className="h-0.5 w-full bg-blue-500 rounded" />
+                            <div className="h-0.5 w-2/3 bg-blue-400 rounded" />
+                            <div className="h-0.5 w-4/5 bg-blue-500 rounded" />
+                          </div>
+                        </div>
+                      ) : slide.archetype === 'before_after' || slide.archetype === 'pros_cons' ? (
+                        <div className="grid grid-cols-2 gap-1 h-4">
+                          <div className="rounded border border-rose-500/40 bg-rose-500/10" />
+                          <div className="rounded border border-emerald-500/40 bg-emerald-500/10" />
+                        </div>
+                      ) : slide.archetype === 'pyramid_hierarchy' ? (
+                        <div className="flex flex-col items-center justify-between h-4 py-0.5">
+                          <div className="w-1/3 h-0.5 bg-[#FF5C00] rounded" />
+                          <div className="w-2/3 h-0.5 bg-white/40 rounded" />
+                          <div className="w-full h-0.5 bg-white/20 rounded" />
+                        </div>
+                      ) : slide.archetype === 'staircase_progression' ? (
+                        <div className="flex items-end gap-0.5 h-4">
+                          <div className="w-1/3 h-1.5 rounded-t bg-white/20" />
+                          <div className="w-1/3 h-2.5 rounded-t bg-white/40" />
+                          <div className="w-1/3 h-full rounded-t bg-[#FF5C00]" />
+                        </div>
+                      ) : slide.archetype === 'bento_4' ? (
+                        <div className="grid grid-cols-2 grid-rows-2 gap-0.5 h-4">
+                          <div className="rounded bg-white/10" />
+                          <div className="rounded bg-white/10" />
+                          <div className="rounded bg-white/10" />
+                          <div className="rounded bg-white/10" />
+                        </div>
+                      ) : slide.archetype === 'split_comparison' ? (
                         <div className="grid grid-cols-2 gap-1">
                           <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
                           <div className="h-4 rounded border" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }} />
@@ -1035,7 +1160,19 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF5C00]" />
                   <span>
-                    {activeSlide?.archetype === 'hero_visual_split' ? 'Split Visual Hero' : activeSlide?.archetype === 'chart_data' ? 'Data Chart Hero' : activeSlide?.archetype === 'split_comparison' ? '2-Column Split' :
+                    {activeSlide?.archetype === 'hero_visual_split' ? 'Split Visual Hero' :
+                     activeSlide?.archetype === 'chart_data' ? 'Data Chart Hero' :
+                     activeSlide?.archetype === 'before_after' ? 'Before & After' :
+                     activeSlide?.archetype === 'pros_cons' ? 'Pros & Cons' :
+                     activeSlide?.archetype === 'pyramid_hierarchy' ? 'Hierarchy Pyramid' :
+                     activeSlide?.archetype === 'staircase_progression' ? 'Staircase Steps' :
+                     activeSlide?.archetype === 'snake_roadmap' ? 'Snake Roadmap' :
+                     activeSlide?.archetype === 'circular_hub' ? 'Circular Hub' :
+                     activeSlide?.archetype === 'editorial_quote' ? 'Editorial Quote' :
+                     activeSlide?.archetype === 'bento_4' ? '4-Card Bento' :
+                     activeSlide?.archetype === 'stats_grid' ? 'KPI Stats Grid' :
+                     activeSlide?.archetype === 'image_hero_full' ? 'Full-Bleed Image' :
+                     activeSlide?.archetype === 'split_comparison' ? '2-Column Split' :
                      activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' ? 'Title Slide' :
                      activeSlide?.archetype === 'bullet_list' ? 'Concept List' :
                      activeSlide?.archetype === 'timeline' ? 'Timeline Track' :
@@ -1048,18 +1185,42 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 </button>
 
                 {isLayoutMenuOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-56 rounded-2xl bg-white dark:bg-[#1C1B19] border border-black/10 dark:border-[#383531] shadow-2xl p-1.5 z-50 space-y-1">
+                  <div className="absolute left-0 top-full mt-2 w-64 max-h-96 overflow-y-auto rounded-2xl bg-white dark:bg-[#1C1B19] border border-black/10 dark:border-[#383531] shadow-2xl p-2 z-50 space-y-1">
+                    {/* Browse Full Library Button */}
+                    <button
+                      onClick={() => {
+                        setIsLayoutMenuOpen(false);
+                        setIsTemplateModalOpen(true);
+                      }}
+                      className="w-full flex items-center justify-between p-2 rounded-xl bg-[#FF5C00]/10 hover:bg-[#FF5C00]/20 text-[#FF5C00] font-bold text-xs border border-[#FF5C00]/30 transition-all mb-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <LayoutGrid className="w-4 h-4" />
+                        <span>Browse 105+ Template Library</span>
+                      </div>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    <div className="h-px bg-black/10 dark:bg-white/10 my-1" />
+
                     {[
-                      { id: 'hero_visual_split', label: 'Split Visual Hero', icon: ImageIcon, desc: '60% content + 40% high-res scientific photo / visual' },
+                      { id: 'hero_visual_split', label: 'Split Visual Hero', icon: ImageIcon, desc: '60% content + 40% photo visual' },
                       { id: 'chart_data', label: 'Data Chart Hero', icon: BarChart3, desc: 'Interactive visual data chart with metrics' },
+                      { id: 'before_after', label: 'Before & After', icon: GitCompare, desc: 'Problem state vs transformed solution' },
+                      { id: 'pros_cons', label: 'Pros & Cons', icon: Check, desc: 'Structured evaluation matrix' },
+                      { id: 'pyramid_hierarchy', label: 'Hierarchy Pyramid', icon: Triangle, desc: '3-tier ascending mastery pyramid' },
+                      { id: 'staircase_progression', label: 'Staircase Steps', icon: ArrowUpRight, desc: 'Ascending elevation steps' },
+                      { id: 'snake_roadmap', label: 'Snake Roadmap', icon: Clock, desc: 'S-curve meandering roadmap' },
+                      { id: 'circular_hub', label: 'Circular Hub', icon: Repeat, desc: 'Center core thesis with satellite nodes' },
+                      { id: 'stats_grid', label: 'KPI Stats Grid', icon: TrendingUp, desc: 'Oversized metrics & progress bars' },
+                      { id: 'bento_4', label: '4-Card Quad Bento', icon: LayoutGrid, desc: 'Balanced 2x2 multi-concept grid' },
+                      { id: 'editorial_quote', label: 'Editorial Quote', icon: Quote, desc: 'Large typography pullquote' },
                       { id: 'hero_title', label: 'Title / Hero Slide', icon: FileText, desc: 'Large headline & curriculum thesis' },
                       { id: 'card_grid_3', label: '3-Card Bento Grid', icon: LayoutGrid, desc: 'Balanced 3 concept cards' },
                       { id: 'split_comparison', label: '2-Column Comparison', icon: Columns, desc: 'Side-by-side contrast' },
                       { id: 'timeline', label: 'Timeline Track', icon: Clock, desc: 'Chronological phases & milestone track' },
                       { id: 'sequence_steps', label: 'Sequence Chevrons', icon: ArrowRight, desc: 'Step-by-step process flow with arrows' },
-                      { id: 'stat_callout', label: 'Stat Hero / Metrics', icon: TrendingUp, desc: 'Oversized numbers & retention metrics' },
                       { id: 'process_cycle', label: 'Process Cycle', icon: Repeat, desc: 'Closed-loop continuous workflow' },
-                      { id: 'bullet_list', label: 'Structured Concept List', icon: AlignLeft, desc: 'Sequential points & definitions' },
                     ].map((archetype) => {
                       const ArchIcon = archetype.icon;
                       const isCurrent = (activeSlide?.archetype || 'card_grid_3') === archetype.id;
@@ -1764,9 +1925,543 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 </div>
               )}
 
+              {/* ── PRESENTON SMART LAYOUT: BEFORE & AFTER CONTRAST ── */}
+              {activeSlide?.archetype === 'before_after' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 items-stretch">
+                  {/* Before Side (Problem State) */}
+                  <div
+                    className="p-5 rounded-2xl border flex flex-col justify-between shadow-xs relative overflow-hidden transition-all"
+                    style={{
+                      backgroundColor: activeTheme.cardBg,
+                      borderColor: 'rgba(244, 63, 94, 0.4)',
+                    }}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                          {activeSlide?.cards?.[0]?.badge || 'BEFORE / TRADITIONAL'}
+                        </span>
+                        <span className="text-[10px] font-mono text-rose-400/80 font-semibold">Challenge State</span>
+                      </div>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[0]?.title || 'Fragmented Classroom Assembly'}
+                        onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                        className="w-full text-base font-bold bg-transparent border-none focus:outline-none resize-none leading-snug"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={2}
+                        value={activeSlide?.cards?.[0]?.body || 'Manual slide creation with fragmented textbook chapters and disconnected assessments.'}
+                        onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
+                        className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                      <div className="space-y-1.5 pt-2 border-t border-rose-500/20">
+                        {(activeSlide?.cards?.[0]?.points || ['Manual lesson preparation fatigue', 'Frequent conceptual omissions', 'Disconnected question pools']).map((pt: string, pIdx: number) => (
+                          <div key={pIdx} className="flex items-center gap-2 text-[11px] text-rose-300/80">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                            <span>{pt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* After Side (Transformed State) */}
+                  <div
+                    className="p-5 rounded-2xl border flex flex-col justify-between shadow-xs relative overflow-hidden transition-all"
+                    style={{
+                      backgroundColor: activeTheme.cardBg,
+                      borderColor: 'rgba(16, 185, 129, 0.5)',
+                    }}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          {activeSlide?.cards?.[1]?.badge || 'AFTER / TRANSFORMED'}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-400 font-bold">Solution State</span>
+                      </div>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[1]?.title || 'Grounded Intelligence & Sync'}
+                        onChange={(e) => handleUpdateCardField(1, 'title', e.target.value)}
+                        className="w-full text-base font-bold bg-transparent border-none focus:outline-none resize-none leading-snug"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={2}
+                        value={activeSlide?.cards?.[1]?.body || 'Deterministic textbook grounding compiles 16:9 editorial slides with verified citations in seconds.'}
+                        onChange={(e) => handleUpdateCardField(1, 'body', e.target.value)}
+                        className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                      <div className="space-y-1.5 pt-2 border-t border-emerald-500/20">
+                        {(activeSlide?.cards?.[1]?.points || ['Zero-hallucination textbook citations', 'Instant 105+ Presenton smart layouts', 'Live teacher delivery co-pilot']).map((pt: string, pIdx: number) => (
+                          <div key={pIdx} className="flex items-center gap-2 text-[11px] text-emerald-300">
+                            <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                            <span>{pt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: PROS & CONS EVALUATION ── */}
+              {activeSlide?.archetype === 'pros_cons' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 items-stretch">
+                  {/* Pros */}
+                  <div
+                    className="p-5 rounded-2xl border flex flex-col justify-between shadow-xs"
+                    style={{ backgroundColor: activeTheme.cardBg, borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                          <Check className="w-3 h-3" />
+                        </div>
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
+                          {activeSlide?.cards?.[0]?.badge || 'PROS & ADVANTAGES'}
+                        </span>
+                      </div>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[0]?.title || 'Pedagogical Strengths'}
+                        onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                        className="w-full text-base font-bold bg-transparent border-none focus:outline-none resize-none leading-snug mb-1"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={2}
+                        value={activeSlide?.cards?.[0]?.body || 'High learner engagement through structured visual decomposition.'}
+                        onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
+                        className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                      <div className="space-y-1.5 pt-3">
+                        {(activeSlide?.cards?.[0]?.points || ['Accelerated concept comprehension', 'Empirical scientific proof', 'Consistent state exam alignment']).map((p: string, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-emerald-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                            <span>{p}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cons */}
+                  <div
+                    className="p-5 rounded-2xl border flex flex-col justify-between shadow-xs"
+                    style={{ backgroundColor: activeTheme.cardBg, borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                          <ShieldAlert className="w-3 h-3" />
+                        </div>
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
+                          {activeSlide?.cards?.[1]?.badge || 'CONS & BOUNDARY CONSTRAINTS'}
+                        </span>
+                      </div>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[1]?.title || 'Boundary Considerations'}
+                        onChange={(e) => handleUpdateCardField(1, 'title', e.target.value)}
+                        className="w-full text-base font-bold bg-transparent border-none focus:outline-none resize-none leading-snug mb-1"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={2}
+                        value={activeSlide?.cards?.[1]?.body || 'Requires foundational grasp of preliminary mathematical and chemical axioms.'}
+                        onChange={(e) => handleUpdateCardField(1, 'body', e.target.value)}
+                        className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                      <div className="space-y-1.5 pt-3">
+                        {(activeSlide?.cards?.[1]?.points || ['Prerequisite knowledge dependency', 'Higher initial cognitive load', 'Demands guided teacher walkthrough']).map((p: string, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-amber-300/80">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                            <span>{p}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: PYRAMID HIERARCHY / FUNNEL ── */}
+              {activeSlide?.archetype === 'pyramid_hierarchy' && (
+                <div className="flex flex-col items-center justify-center gap-3 pt-2">
+                  {/* Tier 3: Peak (Top) */}
+                  <div
+                    className="w-1/2 p-3 rounded-2xl border text-center transition-all shadow-md relative"
+                    style={{
+                      backgroundColor: activeTheme.cardBg,
+                      borderColor: activeTheme.accentColor,
+                      boxShadow: `0 0 20px ${activeTheme.accentColor}25`,
+                    }}
+                  >
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
+                      {activeSlide?.cards?.[0]?.badge || 'TIER 03 • PEAK MASTERY'}
+                    </span>
+                    <textarea
+                      rows={1}
+                      value={activeSlide?.cards?.[0]?.title || 'System Synthesis & Autonomous Application'}
+                      onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                      className="w-full text-sm font-bold bg-transparent border-none focus:outline-none text-center mt-1 resize-none"
+                      style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                    />
+                  </div>
+
+                  {/* Tier 2: Core Mechanics (Middle) */}
+                  <div
+                    className="w-3/4 p-3 rounded-2xl border text-center transition-all shadow-sm"
+                    style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                  >
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.cardTitleColor }}>
+                      {activeSlide?.cards?.[1]?.badge || 'TIER 02 • CORE MECHANICS'}
+                    </span>
+                    <textarea
+                      rows={1}
+                      value={activeSlide?.cards?.[1]?.title || 'Mathematical Laws & Empirical Relationships'}
+                      onChange={(e) => handleUpdateCardField(1, 'title', e.target.value)}
+                      className="w-full text-xs font-bold bg-transparent border-none focus:outline-none text-center mt-1 resize-none"
+                      style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                    />
+                  </div>
+
+                  {/* Tier 1: Foundation (Bottom) */}
+                  <div
+                    className="w-full p-3.5 rounded-2xl border text-center transition-all shadow-xs"
+                    style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                  >
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.cardTitleColor }}>
+                      {activeSlide?.cards?.[2]?.badge || 'TIER 01 • FOUNDATIONAL DEFINITIONS'}
+                    </span>
+                    <textarea
+                      rows={1}
+                      value={activeSlide?.cards?.[2]?.title || 'Core Nomenclature, Axioms, and Observable Postulates'}
+                      onChange={(e) => handleUpdateCardField(2, 'title', e.target.value)}
+                      className="w-full text-xs font-bold bg-transparent border-none focus:outline-none text-center mt-1 resize-none"
+                      style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: STAIRCASE ELEVATION STEPS ── */}
+              {activeSlide?.archetype === 'staircase_progression' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-end">
+                  {/* Step 1 */}
+                  <div
+                    className="p-4 rounded-2xl border flex flex-col justify-between shadow-xs transition-all h-36"
+                    style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                  >
+                    <div>
+                      <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
+                        {activeSlide?.cards?.[0]?.badge || '01 Foundation'}
+                      </span>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[0]?.title || 'Conceptual Priming'}
+                        onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                        className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mt-1 resize-none"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={2}
+                        value={activeSlide?.cards?.[0]?.body || 'Establish vocabulary and fundamental physical units.'}
+                        onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
+                        className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none mt-1"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div
+                    className="p-4 rounded-2xl border flex flex-col justify-between shadow-xs transition-all h-48"
+                    style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                  >
+                    <div>
+                      <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
+                        {activeSlide?.cards?.[1]?.badge || '02 Application'}
+                      </span>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[1]?.title || 'Mechanistic Derivation'}
+                        onChange={(e) => handleUpdateCardField(1, 'title', e.target.value)}
+                        className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mt-1 resize-none"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={3}
+                        value={activeSlide?.cards?.[1]?.body || 'Apply formulas and quantitative analysis to laboratory findings.'}
+                        onChange={(e) => handleUpdateCardField(1, 'body', e.target.value)}
+                        className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none mt-1"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div
+                    className="p-4 rounded-2xl border flex flex-col justify-between shadow-md transition-all h-60 relative"
+                    style={{
+                      backgroundColor: activeTheme.cardBg,
+                      borderColor: activeTheme.accentColor,
+                      boxShadow: `0 0 25px ${activeTheme.accentColor}20`,
+                    }}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#FF5C00] text-white">
+                          {activeSlide?.cards?.[2]?.badge || '03 Peak Mastery'}
+                        </span>
+                        <ArrowUpRight className="w-4 h-4 text-[#FF5C00]" />
+                      </div>
+                      <textarea
+                        rows={1}
+                        value={activeSlide?.cards?.[2]?.title || 'Autonomous Synthesis'}
+                        onChange={(e) => handleUpdateCardField(2, 'title', e.target.value)}
+                        className="w-full text-sm font-bold bg-transparent border-none focus:outline-none mt-2 resize-none"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+                      <textarea
+                        rows={4}
+                        value={activeSlide?.cards?.[2]?.body || 'Transfer conceptual principles to solve novel unseen examination scenarios.'}
+                        onChange={(e) => handleUpdateCardField(2, 'body', e.target.value)}
+                        className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none mt-1"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: S-CURVE SNAKE ROADMAP ── */}
+              {activeSlide?.archetype === 'snake_roadmap' && (
+                <div className="pt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {(activeSlide?.cards || []).slice(0, 4).map((card: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className={`p-3.5 rounded-2xl border flex flex-col justify-between shadow-xs transition-all ${
+                          idx % 2 === 1 ? 'md:translate-y-4' : ''
+                        }`}
+                        style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
+                            {card.badge || `Phase 0${idx + 1}`}
+                          </span>
+                          <span className="text-xs font-mono font-black" style={{ color: activeTheme.accentColor }}>
+                            0{idx + 1}
+                          </span>
+                        </div>
+                        <div className="font-bold text-xs mt-1" style={{ color: activeTheme.cardTitleColor }}>
+                          {card.title}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-1 line-clamp-3">
+                          {card.body}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: CIRCULAR HUB & SPOKE ── */}
+              {activeSlide?.archetype === 'circular_hub' && (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 items-center">
+                  {/* Left satellites (2 cards) */}
+                  <div className="md:col-span-4 space-y-3">
+                    {(activeSlide?.cards?.slice(0, 2) || []).map((card: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-2xl border shadow-xs"
+                        style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                      >
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
+                          {card.badge || `Pillar 0${idx + 1}`}
+                        </span>
+                        <div className="font-bold text-xs mt-0.5" style={{ color: activeTheme.cardTitleColor }}>{card.title}</div>
+                        <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">{card.body}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Center Hub */}
+                  <div className="md:col-span-4 flex flex-col items-center justify-center p-6 text-center">
+                    <div
+                      className="w-28 h-28 rounded-full border-2 flex flex-col items-center justify-center p-3 shadow-xl transition-transform hover:scale-105"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.accentColor,
+                        boxShadow: `0 0 30px ${activeTheme.accentColor}30`,
+                      }}
+                    >
+                      <Sparkles className="w-5 h-5 mb-1" style={{ color: activeTheme.accentColor }} />
+                      <span className="text-[10px] font-bold text-center leading-tight font-mono uppercase tracking-tight" style={{ color: activeTheme.cardTitleColor }}>
+                        Core Thesis
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right satellites (2 cards) */}
+                  <div className="md:col-span-4 space-y-3">
+                    {(activeSlide?.cards?.slice(2, 4) || []).map((card: any, idx: number) => (
+                      <div
+                        key={idx + 2}
+                        className="p-3.5 rounded-2xl border shadow-xs"
+                        style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                      >
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
+                          {card.badge || `Pillar 0${idx + 3}`}
+                        </span>
+                        <div className="font-bold text-xs mt-0.5" style={{ color: activeTheme.cardTitleColor }}>{card.title}</div>
+                        <div className="text-[11px] text-slate-400 mt-1 line-clamp-2">{card.body}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: EDITORIAL PULLQUOTE ── */}
+              {activeSlide?.archetype === 'editorial_quote' && (
+                <div
+                  className="p-8 sm:p-10 rounded-3xl border flex flex-col justify-between shadow-xl my-auto min-h-[280px]"
+                  style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                >
+                  <div className="text-5xl sm:text-6xl font-serif leading-none italic opacity-40 select-none" style={{ color: activeTheme.accentColor }}>
+                    “
+                  </div>
+                  <div className="my-auto px-4 sm:px-8 text-center">
+                    <textarea
+                      rows={3}
+                      value={activeSlide?.cards?.[0]?.title || activeSlide?.bullets?.[0] || 'Scientific inquiry begins with direct observation, but only achieves permanence when unified under universal physical law.'}
+                      onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                      className="w-full text-xl sm:text-2xl font-serif italic font-bold bg-transparent border-none focus:outline-none text-center resize-none leading-relaxed"
+                      style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-4 px-2" style={{ borderColor: activeTheme.cardBorder }}>
+                    <span className="text-xs font-mono font-bold" style={{ color: activeTheme.accentColor }}>
+                      {activeSlide?.cards?.[0]?.badge || 'Pedagogical Axiom'}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      Grounded in Primary State Curriculum
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: 4-CARD QUAD BENTO ── */}
+              {activeSlide?.archetype === 'bento_4' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                  {(activeSlide?.cards || []).slice(0, 4).map((card: any, cIdx: number) => (
+                    <div
+                      key={cIdx}
+                      className="p-4 rounded-2xl border flex flex-col justify-between shadow-xs transition-all hover:shadow-md"
+                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                    >
+                      <div>
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded inline-block mb-1.5" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
+                          {card.badge || `Concept 0${cIdx + 1}`}
+                        </span>
+                        <textarea
+                          rows={1}
+                          value={card.title || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                          className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none"
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                        />
+                        <textarea
+                          rows={2}
+                          value={card.body || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                          className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                          style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: KPI STATS GRID ── */}
+              {activeSlide?.archetype === 'stats_grid' && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 items-stretch">
+                  {[
+                    { val: '94.8%', label: 'Comprehension Gain', badge: 'Retention' },
+                    { val: '3.2x', label: 'Faster Synthesis', badge: 'Speed' },
+                    { val: '100%', label: 'Curriculum Grounding', badge: 'Accuracy' },
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="p-5 rounded-2xl border flex flex-col justify-between text-center shadow-xs transition-all hover:shadow-md"
+                      style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
+                    >
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider block" style={{ color: activeTheme.accentColor }}>
+                        {item.badge}
+                      </span>
+                      <div className="text-3xl sm:text-4xl font-black my-2 tracking-tight" style={{ color: activeTheme.titleColor, fontFamily: activeTheme.headingFont }}>
+                        {item.val}
+                      </div>
+                      <div className="text-xs font-semibold text-slate-400">
+                        {item.label}
+                      </div>
+                      <div className="w-full h-1 bg-black/10 dark:bg-white/10 rounded-full mt-3 overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: idx === 0 ? '94%' : idx === 1 ? '75%' : '100%', backgroundColor: activeTheme.accentColor }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: FULL-BLEED IMAGE HERO ── */}
+              {activeSlide?.archetype === 'image_hero_full' && (
+                <div
+                  className="relative w-full h-[300px] rounded-3xl overflow-hidden border shadow-xl flex items-end p-6"
+                  style={{ borderColor: activeTheme.cardBorder }}
+                >
+                  <img
+                    src={resolveSlideVisual(activeSlide?.image_query || activeSlide?.title, activeSlide?.image_url)}
+                    alt={activeSlide?.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                  <div className="relative z-10 w-full bg-black/60 backdrop-blur-xl p-4 rounded-2xl border border-white/20 text-white space-y-1.5">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#FF5C00] text-white inline-block">
+                      Visual Feature Insight
+                    </span>
+                    <div className="text-sm font-bold leading-snug">
+                      {activeSlide?.cards?.[0]?.title || activeSlide?.title}
+                    </div>
+                    <div className="text-xs text-slate-200 line-clamp-2">
+                      {activeSlide?.cards?.[0]?.body || 'Authentic macroscopic photography demonstrating the theoretical mechanism in action.'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── DYNAMIC ARCHETYPE: PRESENTON CARDS / BENTO GRID ── */}
               {activeSlide?.archetype !== 'hero_visual_split' &&
                activeSlide?.archetype !== 'chart_data' &&
+               activeSlide?.archetype !== 'before_after' &&
+               activeSlide?.archetype !== 'pros_cons' &&
+               activeSlide?.archetype !== 'pyramid_hierarchy' &&
+               activeSlide?.archetype !== 'staircase_progression' &&
+               activeSlide?.archetype !== 'snake_roadmap' &&
+               activeSlide?.archetype !== 'circular_hub' &&
+               activeSlide?.archetype !== 'editorial_quote' &&
+               activeSlide?.archetype !== 'bento_4' &&
+               activeSlide?.archetype !== 'stats_grid' &&
+               activeSlide?.archetype !== 'image_hero_full' &&
                activeSlide?.archetype !== 'hero_title' &&
                activeSlide?.archetype !== 'hero_stat' &&
                !(currentSlideIndex === 0 && !activeSlide?.archetype) &&
@@ -2142,6 +2837,20 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
           </div>
         </div>
       )}
+      {/* 4. PRESENTON 105+ TEMPLATE LIBRARY MODAL */}
+      <SlideTemplateLibraryModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        activeArchetype={activeSlide?.archetype}
+        onSelectTemplate={(newArch) => handleSwitchLayout(newArch)}
+        onInsertNewSlideWithTemplate={(newArch) => {
+          handleAddNewSlide();
+          setTimeout(() => {
+            handleSwitchLayout(newArch);
+          }, 50);
+        }}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };
