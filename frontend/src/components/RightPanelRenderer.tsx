@@ -256,12 +256,24 @@ export const RightPanelRenderer: React.FC<RightPanelRendererProps> = ({
                     icon: HelpCircle,
                     desc: 'Highlight essentials',
                   },
+                  {
+                    id: 'suggest_layout' as const,
+                    label: 'Suggest Layout',
+                    icon: LayoutGrid,
+                    desc: 'AI chooses best archetype',
+                  },
+                  {
+                    id: 'simplify' as const,
+                    label: 'Simplify',
+                    icon: Sparkles,
+                    desc: 'Clearer student terms',
+                  },
                 ].map((action) => {
                   const Icon = action.icon;
                   return (
                     <button
                       key={action.id}
-                      onClick={() => onTriggerRefinement(action.id)}
+                      onClick={() => onTriggerRefinement(action.id as any)}
                       disabled={isSuggesting}
                       className={`p-2.5 rounded-xl border text-left transition-all group flex flex-col justify-between ${
                         isDarkMode
@@ -294,7 +306,7 @@ export const RightPanelRenderer: React.FC<RightPanelRendererProps> = ({
                   rows={3}
                   value={coPilotPrompt}
                   onChange={(e) => setCoPilotPrompt(e.target.value)}
-                  placeholder="e.g., Rewrite cards with real-world biotechnology examples..."
+                  placeholder="e.g., Rewrite cards with real-world biotechnology examples or change layout to a timeline..."
                   className="w-full bg-transparent border-none text-xs text-slate-200 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
                 />
                 <div className="flex items-center justify-between pt-2 border-t border-white/5">
@@ -336,49 +348,82 @@ export const RightPanelRenderer: React.FC<RightPanelRendererProps> = ({
             </div>
 
             {/* AI Suggestion Diff Card Preview */}
-            {activeSuggestion && (
-              <div
-                className={`p-3 rounded-2xl border space-y-2 animate-in fade-in slide-in-from-bottom-2 ${
-                  isDarkMode ? 'bg-[#22201D] border-[#FF5C00]/40' : 'bg-orange-50 border-orange-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold text-[#FF5C00] uppercase">
-                    Suggested Revision
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {onApplySuggestion && (
-                      <button
-                        onClick={onApplySuggestion}
-                        className="px-2 py-1 rounded bg-[#FF5C00] text-white text-[11px] font-bold flex items-center gap-1 hover:bg-[#e05200]"
-                      >
-                        <Check className="w-3 h-3" /> Apply
-                      </button>
-                    )}
-                    {onDismissSuggestion && (
-                      <button
-                        onClick={onDismissSuggestion}
-                        className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+            {activeSuggestion && (() => {
+              const sug = activeSuggestion.suggested_slide || activeSuggestion;
+              const hasLayoutChange = sug.archetype && sug.archetype !== activeSlide?.archetype;
+              return (
+                <div
+                  className={`p-3.5 rounded-2xl border space-y-2.5 animate-in fade-in slide-in-from-bottom-2 ${
+                    isDarkMode ? 'bg-[#22201D] border-[#FF5C00]/40' : 'bg-orange-50 border-orange-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold text-[#FF5C00] uppercase flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      AI Proposal Ready
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {onApplySuggestion && (
+                        <button
+                          onClick={onApplySuggestion}
+                          className="px-2.5 py-1 rounded-lg bg-[#FF5C00] text-white text-[11px] font-bold flex items-center gap-1 hover:bg-[#e05200] shadow-sm transition-all"
+                        >
+                          <Check className="w-3 h-3" /> Apply All
+                        </button>
+                      )}
+                      {onDismissSuggestion && (
+                        <button
+                          onClick={onDismissSuggestion}
+                          className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Explanation Badge */}
+                  {activeSuggestion.explanation && (
+                    <div className="text-[11px] text-amber-200/90 italic leading-snug p-2 rounded-lg bg-black/30 border border-white/5">
+                      💡 {activeSuggestion.explanation}
+                    </div>
+                  )}
+
+                  {/* Proposed Layout Switch Banner */}
+                  {hasLayoutChange && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-[#FF5C00]/20 border border-[#FF5C00]/40 text-[#FF5C00] text-xs font-bold">
+                      <LayoutGrid className="w-4 h-4 shrink-0" />
+                      <span className="truncate">Layout switch: {activeSlide?.archetype || 'card_grid_3'} → {sug.archetype}</span>
+                    </div>
+                  )}
+
+                  {sug.title && (
+                    <div className="text-xs font-bold text-slate-100">{sug.title}</div>
+                  )}
+
+                  {sug.cards && sug.cards.length > 0 && (
+                    <div className="space-y-1 text-[11px] text-slate-300 max-h-48 overflow-y-auto">
+                      {sug.cards.map((c: any, i: number) => (
+                        <div key={i} className="p-2 rounded-lg bg-black/20 border border-white/5">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            {c.badge && <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#FF5C00]/20 text-[#FF5C00]">{c.badge}</span>}
+                            <span className="font-semibold text-slate-100">{c.title}</span>
+                          </div>
+                          <div className="text-slate-300 text-[10px] leading-relaxed line-clamp-2">{c.body}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {sug.image_query && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 p-1.5 rounded bg-black/20 border border-white/5">
+                      <ImageIcon className="w-3 h-3 text-[#FF5C00]" />
+                      <span className="truncate">Visual Query: {sug.image_query}</span>
+                    </div>
+                  )}
                 </div>
-                {activeSuggestion.title && (
-                  <div className="text-xs font-bold text-slate-100">{activeSuggestion.title}</div>
-                )}
-                {activeSuggestion.cards && (
-                  <div className="space-y-1 text-[11px] text-slate-300">
-                    {activeSuggestion.cards.map((c: any, i: number) => (
-                      <div key={i} className="p-1.5 rounded bg-black/20 border border-white/5">
-                        <span className="font-semibold text-slate-100">{c.title}:</span> {c.body}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 

@@ -104,6 +104,49 @@ def test_slide_tool_api():
     print("Slide API integration PASSED!")
 
 
+def test_suggest_slide_edits_and_refine_card():
+    client = TestClient(app)
+    create_res = client.post("/api/projects", data={"name": "Thermodynamics"})
+    assert create_res.status_code == 200
+    p_id = create_res.json()["project_id"]
+
+    test_slide = {
+        "slide_number": 2,
+        "title": "Carnot Cycle Process and Phases",
+        "archetype": "card_grid_3",
+        "cards": [
+            {"badge": "Phase 1", "title": "Isothermal Expansion", "body": "Gas absorbs heat from high temp reservoir at constant temperature."},
+            {"badge": "Phase 2", "title": "Adiabatic Expansion", "body": "Gas expands without heat exchange, reducing temperature to cold sink."},
+        ],
+        "bullets": ["Four-stage thermodynamic ideal cycle", "Maximum theoretical efficiency limit"],
+        "speaker_notes": "Guide students through the P-V diagram quadrants."
+    }
+
+    # Test suggest-edits with layout optimization
+    res1 = client.post(
+        f"/api/projects/{p_id}/slides/suggest-edits",
+        json={"slide": test_slide, "instruction": "suggest_layout"}
+    )
+    assert res1.status_code == 200
+    sug_data = res1.json()
+    assert "suggested_slide" in sug_data
+    assert "explanation" in sug_data
+    # Should recommend process_cycle or timeline due to 'Process and Phases' in title
+    assert sug_data["suggested_slide"]["archetype"] in ["process_cycle", "timeline", "sequence_steps"]
+
+    # Test refine-card endpoint
+    res2 = client.post(
+        f"/api/projects/{p_id}/slides/refine-card",
+        json={"slide": test_slide, "card_index": 0, "instruction": "make_concise"}
+    )
+    assert res2.status_code == 200
+    card_data = res2.json()
+    assert "suggested_card" in card_data
+    assert card_data["card_index"] == 0
+    assert len(card_data["suggested_card"]["body"]) > 0
+
+
 if __name__ == "__main__":
     test_slide_tool_direct_execution()
     test_slide_tool_api()
+    test_suggest_slide_edits_and_refine_card()

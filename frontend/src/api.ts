@@ -150,8 +150,17 @@ export async function updateProjectSlides(
 }
 
 export interface SuggestEditsResponse {
+  project_id?: string;
   original_slide: Record<string, any>;
   suggested_slide: Record<string, any>;
+  explanation: string;
+}
+
+export interface RefineCardResponse {
+  project_id: string;
+  card_index: number;
+  original_card: Record<string, any>;
+  suggested_card: Record<string, any>;
   explanation: string;
 }
 
@@ -173,6 +182,30 @@ export async function suggestSlideEdits(
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed to generate slide edit suggestion' }));
     throw new Error(err.detail || 'Failed to generate slide edit suggestion');
+  }
+  return res.json();
+}
+
+export async function refineSingleCard(
+  projectId: string,
+  slide: Record<string, any>,
+  cardIndex: number,
+  instruction: string,
+  customPrompt?: string
+): Promise<RefineCardResponse> {
+  const res = await fetch(`/api/projects/${projectId}/slides/refine-card`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      slide,
+      card_index: cardIndex,
+      instruction,
+      custom_prompt: customPrompt,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to refine card' }));
+    throw new Error(err.detail || 'Failed to refine card');
   }
   return res.json();
 }

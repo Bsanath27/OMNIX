@@ -409,14 +409,30 @@ class SuggestSlideEditsRequest(BaseModel):
 
 
 class SuggestSlideEditsResponse(BaseModel):
+    project_id: Optional[str] = None
     original_slide: Dict[str, Any]
     suggested_slide: Dict[str, Any]
     explanation: str
 
 
+class RefineCardRequest(BaseModel):
+    slide: Dict[str, Any]
+    card_index: int = 0
+    instruction: str = "make_concise"
+    custom_prompt: Optional[str] = None
+
+
+class RefineCardResponse(BaseModel):
+    project_id: str
+    card_index: int
+    original_card: Dict[str, Any]
+    suggested_card: Dict[str, Any]
+    explanation: str
+
+
 @router.post("/{project_id}/slides/suggest-edits", response_model=SuggestSlideEditsResponse)
 async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) -> SuggestSlideEditsResponse:
-    """Intelligently generate suggestions for refining slide content via Live LLM."""
+    """Intelligently generate suggestions for refining slide content, archetypes, and visuals via Live LLM."""
     import copy
     slide = copy.deepcopy(req.slide)
     original = copy.deepcopy(req.slide)
@@ -433,18 +449,21 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
                 "add_teacher_tip": "Add a practical, actionable teaching tip into speaker notes.",
                 "add_discussion_question": "Add a peer discussion think-pair-share prompt to test student comprehension.",
                 "simplify": "Simplify technical jargon into learner-friendly academic terminology.",
+                "suggest_layout": "Propose the most effective Presenton Smart Layout archetype (e.g. timeline, before_after, pros_cons, pyramid_hierarchy, circular_hub, chart_data) based on the conceptual structure of the content."
             }.get(inst, f"Refine the slide: {inst}")
 
             refine_prompt = (
-                f"You are an expert curriculum assistant refining an instructional presentation slide.\n"
+                f"You are an expert curriculum assistant and presentation designer refining an instructional slide.\n"
                 f"User Instruction: {instruction_text}\n\n"
                 f"Current Slide Data:\n{json.dumps(slide, indent=2)}\n\n"
                 f"Rules:\n"
                 f"1. Return ONLY a valid JSON object with keys:\n"
-                f"   - 'suggested_slide': The refined slide object with updated 'title', 'cards', 'bullets', and 'speaker_notes'. Keep existing fields like 'archetype' intact unless instructed.\n"
+                f"   - 'suggested_slide': The refined slide object with updated 'title', 'cards', 'bullets', 'speaker_notes', 'archetype', and 'image_query'.\n"
                 f"   - 'explanation': A 1-2 sentence explanation of the refinements made.\n"
-                f"2. Ensure each card has a punchy 'badge', meaningful 'title' (2-4 words), and clear 'body'.\n"
-                f"3. Strictly avoid placeholder words or repetitive boilerplate."
+                f"2. 'archetype': You MAY propose a different archetype if the conceptual content better fits another layout (e.g., 'timeline' for chronological stages, 'before_after' for problem/solution, 'pyramid_hierarchy' for tiers, 'chart_data' for statistics, 'editorial_quote' for core thesis/axiom, 'circular_hub' for core + pillars). If you change it, explain in 'explanation'.\n"
+                f"3. 'image_query': If the focus shifts, provide a tailored 2-4 word scientific/educational image search query.\n"
+                f"4. Ensure each card has a punchy 'badge', meaningful 'title' (2-4 words), and clear 'body'.\n"
+                f"5. Strictly avoid placeholder words or repetitive boilerplate."
             )
 
             res_str = await call_llm(
@@ -459,11 +478,15 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
             if res_str:
                 data = safe_json_loads(res_str)
                 if data.get("suggested_slide"):
+                    suggested = data["suggested_slide"]
+                    # Retain slide_number if omitted by LLM
+                    if "slide_number" not in suggested and "slide_number" in original:
+                        suggested["slide_number"] = original["slide_number"]
                     return SuggestSlideEditsResponse(
                         project_id=project_id,
                         original_slide=original,
-                        suggested_slide=data["suggested_slide"],
-                        explanation=data.get("explanation", "Refined slide content using live AI synthesis.")
+                        suggested_slide=suggested,
+                        explanation=data.get("explanation", "Refined slide content and layout using live AI synthesis.")
                     )
         except Exception as e:
             logger.error(f"Live LLM slide refinement failed: {e}. Falling back to rule-based.")
@@ -474,10 +497,8 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
     speaker_notes = slide.get("speaker_notes", "") or ""
 
     if inst == "make_concise":
-        # Condense bullets to essential high-impact keywords
         new_bullets = []
         for b in bullets:
-            # Strip wordy prefixes
             cleaned = b.replace("According to ", "").replace("It is important to note that ", "").replace("Students should understand that ", "")
             words = cleaned.split()
             if len(words) > 10:
@@ -485,7 +506,6 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
             new_bullets.append(cleaned)
         slide["bullets"] = new_bullets
         
-        # Condense cards
         for c in cards:
             body = c.get("body", "")
             words = body.split()
@@ -524,8 +544,30 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
         slide["bullets"] = simplified_bullets
         explanation = "Simplified academic vocabulary into learner-friendly language for secondary school students."
 
+    elif inst == "suggest_layout":
+        # Rule-based archetype optimization based on content signals
+        c_count = len(cards)
+        t_lower = title.lower()
+        if "vs" in t_lower or "difference" in t_lower or "comparison" in t_lower:
+            slide["archetype"] = "before_after" if "before" in t_lower else "split_comparison"
+            explanation = "Optimized layout to high-contrast comparison archetype for comparative study."
+        elif "process" in t_lower or "cycle" in t_lower or "flow" in t_lower:
+            slide["archetype"] = "process_cycle"
+            explanation = "Switched to Process Cycle layout for continuous pedagogical mechanisms."
+        elif "timeline" in t_lower or "history" in t_lower or "phase" in t_lower or "step" in t_lower:
+            slide["archetype"] = "timeline"
+            explanation = "Switched to Timeline Track archetype for sequential progression."
+        elif "data" in t_lower or "experiment" in t_lower or "rate" in t_lower or "measure" in t_lower:
+            slide["archetype"] = "chart_data"
+            explanation = "Switched to Data Chart Hero archetype to emphasize empirical findings."
+        elif "quote" in t_lower or "axiom" in t_lower or "law" in t_lower:
+            slide["archetype"] = "editorial_quote"
+            explanation = "Switched to Editorial Quote archetype for impactful core thesis presentation."
+        else:
+            slide["archetype"] = "hero_visual_split" if c_count <= 2 else "card_grid_3"
+            explanation = f"Recommended balanced '{slide['archetype']}' archetype for current card count."
+
     else:
-        # Custom revision prompt
         added_point = custom.strip() or "Additional pedagogical focal point derived from chapter reading."
         if cards:
             cards.append({
@@ -540,9 +582,81 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
         explanation = f"Applied custom edit request: '{custom or 'Refined slide structure'}'."
 
     return SuggestSlideEditsResponse(
+        project_id=project_id,
         original_slide=original,
         suggested_slide=slide,
         explanation=explanation
+    )
+
+
+@router.post("/{project_id}/slides/refine-card", response_model=RefineCardResponse)
+async def refine_single_card(project_id: str, req: RefineCardRequest) -> RefineCardResponse:
+    """Intelligently refine a single card on an active slide via Live LLM."""
+    import copy
+    slide = req.slide
+    cards = slide.get("cards", [])
+    c_idx = max(0, min(req.card_index, len(cards) - 1)) if cards else 0
+    orig_card = copy.deepcopy(cards[c_idx]) if cards else {"badge": "Point", "title": "Concept", "body": ""}
+    instruction = req.custom_prompt.strip() if req.custom_prompt and req.custom_prompt.strip() else req.instruction
+
+    # 1. LIVE LLM CARD REFINEMENT
+    llm_provider = get_active_llm_provider()
+    if llm_provider != "none":
+        try:
+            card_prompt = (
+                f"You are an expert curriculum author refining a single concept card on an educational slide.\n"
+                f"Slide Context: Title: '{slide.get('title')}', Archetype: '{slide.get('archetype', 'card_grid_3')}'.\n"
+                f"Target Card Current Content: {json.dumps(orig_card, indent=2)}\n"
+                f"Instruction: {instruction}\n\n"
+                f"Rules:\n"
+                f"1. Return ONLY a valid JSON object with keys:\n"
+                f"   - 'suggested_card': {{'badge': '1-2 words', 'title': 'punchy 2-4 words', 'body': '1-2 clear sentences'}}\n"
+                f"   - 'explanation': '1 concise sentence'\n"
+                f"2. Keep it accurate, pedagogical, and crisp."
+            )
+
+            res_str = await call_llm(
+                messages=[
+                    {"role": "system", "content": card_prompt},
+                    {"role": "user", "content": "Refine this card. Return strictly JSON."}
+                ],
+                json_mode=True,
+                temperature=0.3,
+                max_tokens=512
+            )
+            if res_str:
+                data = safe_json_loads(res_str)
+                if data.get("suggested_card"):
+                    return RefineCardResponse(
+                        project_id=project_id,
+                        card_index=c_idx,
+                        original_card=orig_card,
+                        suggested_card=data["suggested_card"],
+                        explanation=data.get("explanation", "Card refined via live AI.")
+                    )
+        except Exception as e:
+            logger.error(f"Live LLM card refinement failed: {e}. Falling back to rule-based.")
+
+    # 2. RULE-BASED FALLBACK
+    s_card = copy.deepcopy(orig_card)
+    body = s_card.get("body", "")
+    words = body.split()
+    if req.instruction == "make_concise":
+        s_card["body"] = " ".join(words[:10]) + ("..." if len(words) > 10 else "")
+        expl = "Condensed card text for rapid classroom reading."
+    elif req.instruction == "simplify":
+        s_card["body"] = body.replace("utilize", "use").replace("demonstrates", "shows")
+        expl = "Simplified technical vocabulary on card."
+    else:
+        s_card["body"] = f"{body} ({instruction})"
+        expl = f"Updated card based on '{instruction}'."
+
+    return RefineCardResponse(
+        project_id=project_id,
+        card_index=c_idx,
+        original_card=orig_card,
+        suggested_card=s_card,
+        explanation=expl
     )
 
 

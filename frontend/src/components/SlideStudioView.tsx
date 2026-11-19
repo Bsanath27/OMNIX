@@ -7,6 +7,7 @@ import {
   updateProjectSlides,
   suggestSlideEdits,
   SuggestEditsResponse,
+  refineSingleCard,
   generateSlideScript,
 } from '../api';
 import {
@@ -801,6 +802,32 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     setActiveSuggestion(null);
   };
 
+  // Targeted Single Card AI Refinement
+  const handleRefineSingleCard = async (cardIndex: number, promptText: string) => {
+    if (!project || !activeSlide) return;
+    setIsSuggesting(true);
+    try {
+      const res = await refineSingleCard(project.project_id, activeSlide, cardIndex, 'custom', promptText);
+      if (res && res.suggested_card) {
+        setEditableSlides((prev) => {
+          const updated = [...prev];
+          const curSlide = { ...updated[currentSlideIndex] };
+          const cards = [...(curSlide.cards || [])];
+          if (cards[cardIndex]) {
+            cards[cardIndex] = { ...cards[cardIndex], ...res.suggested_card };
+            curSlide.cards = cards;
+            updated[currentSlideIndex] = curSlide;
+          }
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error('Single card refinement failed:', err);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
 
   // Live LLM Teacher Lecture Script Synthesis
@@ -854,7 +881,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
           setSelectedCardIndex(null);
         }}
         onAIPromptRefine={(prompt, idx) => {
-          handleTriggerRefinement('custom', `For card ${(idx ?? 0) + 1}: ${prompt}`);
+          if (idx !== undefined && idx !== null) {
+            handleRefineSingleCard(idx, prompt);
+          } else {
+            handleTriggerRefinement('custom', prompt);
+          }
         }}
         onClose={() => setSelectedCardIndex(null)}
         isDarkMode={isDarkMode}
