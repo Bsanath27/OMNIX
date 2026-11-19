@@ -21,13 +21,13 @@ import {
   Menu,
   X,
   Plus,
-  Send,
   Search,
   CheckCircle2,
   Sun,
   Moon,
   Copy,
   ChevronDown,
+  ChevronRight,
   Presentation,
   Video,
   FileQuestion,
@@ -37,9 +37,12 @@ import {
   ShieldCheck,
   Cpu,
   Palette,
-  Paperclip,
   Check,
   ArrowRight,
+  Upload,
+  Sparkles,
+  Loader2,
+  Download,
 } from 'lucide-react';
 import { PresentonSlidePipeline } from './PresentonSlidePipeline';
 
@@ -47,7 +50,17 @@ type NavView = 'home' | 'tools' | 'library' | 'settings' | 'studio';
 type CapabilityType = 'all' | 'slides' | 'video' | 'quizzes' | 'diagrams';
 
 export const ChapterDashboard: React.FC = () => {
-  // Theme state: defaults to dark (#151413) like user reference, can toggle to light
+  // Theme state: defaults to clean modern minimalist light mode (#F8FAFC / #FFFFFF)
+  // Animated cycling placeholder text for the prompt capsule
+  const PLACEHOLDERS = [
+    "Ask OMNIX to create a slide deck, video explainer, or quiz from your chapter...",
+    "Create a 6-slide lecture with speaker notes and textbook citations...",
+    "Build an interactive quiz with MCQs, flashcards, and scoring...",
+    "Generate a 2D Manim animation explaining the key equations...",
+  ];
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const [placeholderKey, setPlaceholderKey] = useState(0);
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -55,15 +68,35 @@ export const ChapterDashboard: React.FC = () => {
       if (p.get('light') === '1') return false;
       const saved = localStorage.getItem('omnix_theme');
       if (saved) return saved === 'dark';
-      return true;
+      return false; // Default to clean modern minimalist light mode
     }
-    return true;
+    return false;
   });
 
   // Global Navigation & View state
-  const [activeView, setActiveView] = useState<NavView>('home');
+  const [activeView, setActiveView] = useState<NavView>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('view') === 'studio') return 'studio';
+    }
+    return 'home';
+  });
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedSlideArtifact, setSelectedSlideArtifact] = useState<Artifact | null>(null);
+
+  // Sync theme with document element
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('omnix_theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('omnix_theme', 'light');
+      }
+    }
+  }, [isDarkMode]);
+
 
   // Project & Ingestion states
   const [projects, setProjects] = useState<ProjectManifest[]>([]);
@@ -82,12 +115,18 @@ export const ChapterDashboard: React.FC = () => {
   const [promptText, setPromptText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-  const [showCapabilityDropdown, setShowCapabilityDropdown] = useState(false);
-
   // Capsule '+' attachment popover state
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
-  const [capsulePassageSearch, setCapsulePassageSearch] = useState('');
-  const [insertedCitation, setInsertedCitation] = useState<string | null>(null);
+
+  // Cycle placeholder text every 3.5s when textarea is empty
+  useEffect(() => {
+    if (promptText.trim()) return;
+    const timer = setInterval(() => {
+      setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length);
+      setPlaceholderKey(k => k + 1);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [promptText]);
 
   // Tools dynamic metadata
   const [registeredTools, setRegisteredTools] = useState<ToolMetadata[]>([]);
@@ -230,13 +269,6 @@ export const ChapterDashboard: React.FC = () => {
     setTimeout(() => setCopiedPassageId(null), 1500);
   };
 
-  const insertPassageCitationIntoPrompt = (pId: string) => {
-    const citationTag = `[${pId}]`;
-    setPromptText((prev) => (prev ? `${prev.trim()} ${citationTag}` : citationTag));
-    setInsertedCitation(pId);
-    setTimeout(() => setInsertedCitation(null), 1500);
-  };
-
   const handleSendPrompt = async () => {
     let currentProj = selectedProject;
     if (!currentProj) {
@@ -290,526 +322,485 @@ export const ChapterDashboard: React.FC = () => {
     return p.name.toLowerCase().includes(q) || (p.source_filename && p.source_filename.toLowerCase().includes(q));
   });
 
-  const capsuleFilteredPassages = Object.entries(passages).filter(([id, text]) => {
-    const q = capsulePassageSearch.toLowerCase();
-    return id.toLowerCase().includes(q) || text.toLowerCase().includes(q);
-  });
+  // Render Home View: Replit / Lovable / Bolt AI-First Hero Creator
+  const renderHomeView = () => {
+    return (
+      <div className="flex flex-col min-h-screen relative overflow-hidden">
+        {/* Subtle Ambient Radial Backlight Glow (Lovable/Bolt style) */}
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[800px] h-[500px] pointer-events-none -z-0 lovable-glow opacity-80" />
 
-  // Render Home View: Retains centered hero title, liquid mesh gradient aura, floating pill capsule, and capability pills
-  const renderHomeView = () => (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] justify-between">
-      {/* Top Header bar for Home View */}
-      <header className="h-16 px-6 sm:px-12 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Active Chapter indicator chip */}
-          {selectedProject ? (
-            <div
-              onClick={() => setActiveView('library')}
-              className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border cursor-pointer transition-all ${
-                isDarkMode
-                  ? 'bg-[#1E1D1B] border-[#32302C] text-[#F5F2EB] hover:border-[#FF5C00]/50'
-                  : 'bg-white border-[#E8E2D8] text-[#18181B] hover:border-[#FF5C00]/50 shadow-sm'
-              }`}
-              title="Click to view chapter in Library"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-[#FF5C00]" />
-              <span className="truncate max-w-[180px] sm:max-w-xs">{selectedProject.name}</span>
-              {selectedProject.source_filename && (
-                <span className="hidden sm:flex px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 items-center gap-1 font-mono">
-                  <CheckCircle2 className="w-2.5 h-2.5" /> Grounded
-                </span>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={() => setActiveView('library')}
-              className="text-xs text-slate-400 hover:text-[#FF5C00] flex items-center gap-1"
-            >
-              <BookOpen className="w-3.5 h-3.5" /> Select a chapter in Library
-            </button>
-          )}
-        </div>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2 rounded-xl border transition-colors ${
-              isDarkMode
-                ? 'bg-[#1E1D1B] border-[#32302C] text-amber-400 hover:bg-[#32302C]'
-                : 'bg-white border-[#E8E2D8] text-slate-700 hover:bg-[#FAF7F2] shadow-sm'
-            }`}
-            title="Toggle Light/Dark Theme"
-          >
-            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className={`text-xs px-4 py-2 rounded-full font-semibold transition-transform active:scale-95 shadow-sm ${
-              isDarkMode
-                ? 'bg-[#F5F2EB] text-[#151413] hover:bg-white'
-                : 'bg-[#18181B] text-white hover:bg-black'
-            }`}
-          >
-            {isUploading ? 'Extracting...' : '+ Upload Chapter'}
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept=".pdf,.docx,.txt"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        </div>
-      </header>
-
-      {/* Centered Lovable Hero & Floating Capsule */}
-      <main className="max-w-3xl w-full mx-auto px-6 py-12 sm:py-20 text-center space-y-7 my-auto">
-        {/* Hero Headings */}
-        <div className="space-y-3">
-          <h1 className={`text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight ${
-            isDarkMode ? 'text-[#F5F2EB]' : 'text-[#18181B]'
-          }`}>
-            Build something <span className="text-[#FF5C00]">Immersive</span>
-          </h1>
-          <p
-            className={`text-sm sm:text-base max-w-lg mx-auto leading-relaxed ${
-              isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'
-            }`}
-          >
-            Transform any textbook chapter into classroom slide presentations, STEM explainer animations, and interactive quizzes.
-          </p>
-        </div>
-
-        {/* Lovable Floating Pill Capsule */}
-        <div
-          className={`relative rounded-full p-2 flex items-center justify-between border transition-all duration-300 max-w-xl mx-auto ${
-            isDarkMode
-              ? 'bg-[#1E1D1B] border-[#32302C] capsule-shadow-dark'
-              : 'bg-white border-[#E8E2D8] capsule-shadow-light'
+        {/* Top Header Bar */}
+        <header
+          className={`h-16 px-6 sm:px-10 border-b flex items-center justify-between sticky top-0 z-30 transition-colors ${
+            isDarkMode ? "bg-[#111318]/80 border-slate-800/60 backdrop-blur-md" : "bg-[#F8FAFC]/80 border-slate-200/80 backdrop-blur-md"
           }`}
         >
-          {/* Left '+' Attachment Button with Relocated Chapter & Passage Access Popover */}
-          <div className="relative shrink-0" ref={attachmentPopoverRef}>
-            <button
-              onClick={() => setIsAttachmentOpen(!isAttachmentOpen)}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                isAttachmentOpen
-                  ? 'bg-[#FF5C00] text-white'
-                  : isDarkMode
-                  ? 'text-[#9CA3AF] hover:text-[#FF5C00] hover:bg-[#252422]'
-                  : 'text-slate-400 hover:text-[#FF5C00] hover:bg-orange-50'
-              }`}
-              title="Attach File, Switch Chapter, or Cite Passages"
-            >
-              <Plus className="w-5 h-5 font-light" />
-            </button>
-
-            {/* Attachment Popover */}
-            {isAttachmentOpen && (
-              <div
-                className={`absolute bottom-12 left-0 w-80 sm:w-96 rounded-2xl shadow-2xl z-30 p-4 border text-left space-y-3 ${
-                  isDarkMode ? 'bg-[#1E1D1B] border-[#32302C] text-[#F5F2EB]' : 'bg-white border-[#E8E2D8] text-[#18181B]'
+          {/* Left: Active Chapter Chip & Dropdown */}
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={attachmentPopoverRef}>
+              <button
+                onClick={() => setIsAttachmentOpen(!isAttachmentOpen)}
+                className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                  isDarkMode
+                    ? "bg-slate-800/80 border-slate-700 text-slate-200 hover:border-slate-500"
+                    : "bg-white border-slate-200 text-slate-800 hover:border-slate-300 shadow-sm"
                 }`}
+                title="Switch Chapter Project"
               >
-                {/* Popover Header */}
-                <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: isDarkMode ? '#32302C' : '#E8E2D8' }}>
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#FF5C00]">
-                    <Paperclip className="w-3.5 h-3.5" />
-                    <span>Grounding Attachments</span>
-                  </div>
-                  <button
-                    onClick={() => setIsAttachmentOpen(false)}
-                    className="p-1 rounded text-slate-400 hover:text-black"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                <BookOpen className="w-3.5 h-3.5 text-[#FF5C00]" />
+                <span className="truncate max-w-[180px] sm:max-w-xs font-bold">
+                  {selectedProject ? selectedProject.name : "Select Chapter"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
 
-                {/* 1. Quick File Upload */}
-                <div>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`w-full py-2 px-3 rounded-xl border border-dashed flex items-center justify-center gap-2 text-xs font-medium transition-all ${
-                      isDarkMode
-                        ? 'border-[#32302C] hover:border-[#FF5C00] bg-[#151413]/60'
-                        : 'border-[#E8E2D8] hover:border-[#FF5C00] bg-[#FAF7F2]'
-                    }`}
-                  >
-                    <Plus className="w-3.5 h-3.5 text-[#FF5C00]" />
-                    <span>{isUploading ? 'Extracting Passages...' : 'Upload Textbook Document (PDF/DOCX)'}</span>
-                  </button>
-                </div>
-
-                {/* 2. Quick Chapter Switcher */}
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Active Chapter Project
+              {/* Chapter Switcher Popover */}
+              {isAttachmentOpen && (
+                <div
+                  className={`absolute top-11 left-0 w-80 sm:w-96 rounded-2xl shadow-2xl z-40 p-4 border text-left space-y-3 ${
+                    isDarkMode ? "bg-slate-900 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#FF5C00]">Curriculum Chapters</span>
+                    <button onClick={() => setIsAttachmentOpen(false)} className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                    {projects.map((p) => {
+
+                  <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+                    {filteredProjects.map((p) => {
                       const isSelected = selectedProject?.project_id === p.project_id;
                       return (
-                        <button
+                        <div
                           key={p.project_id}
-                          onClick={() => setSelectedProject(p)}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors ${
+                          onClick={() => {
+                            setSelectedProject(p);
+                            setIsAttachmentOpen(false);
+                          }}
+                          className={`p-2.5 rounded-xl text-xs cursor-pointer flex items-center justify-between transition-all ${
                             isSelected
-                              ? 'bg-[#FF5C00]/15 text-[#FF5C00] font-semibold border border-[#FF5C00]/30'
+                              ? "bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] font-semibold"
                               : isDarkMode
-                              ? 'text-[#9CA3AF] hover:bg-[#151413]'
-                              : 'text-slate-600 hover:bg-slate-50'
+                              ? "hover:bg-slate-800 text-slate-300"
+                              : "hover:bg-slate-100 text-slate-700"
                           }`}
                         >
-                          <span className="truncate max-w-[200px]">{p.name}</span>
+                          <div className="truncate pr-2">
+                            <p className="font-semibold truncate">{p.name}</p>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {p.outline?.subject ? `${p.outline.subject} • ${p.outline.grade_level || "Grade 10"}` : "Curriculum Chapter"}
+                            </p>
+                          </div>
                           {isSelected && <Check className="w-3.5 h-3.5 text-[#FF5C00] shrink-0" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      setIsAttachmentOpen(false);
+                    }}
+                    className="w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#FF5C00] text-xs font-semibold flex items-center justify-center gap-1.5 text-[#FF5C00] transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Upload New Chapter (PDF / DOCX)</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {selectedProject?.source_filename && (
+              <span className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                <span>Grounded ({Object.keys(passages).length} Passages)</span>
+              </span>
+            )}
+          </div>
+
+          {/* Right Header Controls (Gemini pill removed per feedback) */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`p-2 rounded-xl border transition-colors ${
+                isDarkMode
+                  ? "bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+              }`}
+              title="Toggle Light/Dark Theme"
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-xs px-4 py-2 rounded-full font-bold bg-[#FF5C00] hover:bg-[#e05200] text-white shadow-md shadow-orange-500/20 transition-transform active:scale-95 flex items-center gap-1.5"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{isUploading ? "Extracting..." : "Upload Chapter"}</span>
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".pdf,.docx,.txt"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </div>
+        </header>
+
+        {/* Centered Bolt / Lovable Hero Stage */}
+        <main className="max-w-3xl w-full mx-auto px-6 py-12 sm:py-16 text-center space-y-8 my-auto z-10">
+          {/* Hero Header (Sub-badge removed, better high-impact title and subtitle per feedback) */}
+          <div className="space-y-3.5">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.12]">
+              What would you like to teach{" "}
+              <span className="bg-gradient-to-r from-[#FF5C00] via-orange-500 to-amber-500 bg-clip-text text-transparent">
+                today?
+              </span>
+            </h1>
+            <p className="text-sm sm:text-base max-w-xl mx-auto text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+              Generate curriculum-aligned presentation slides, interactive assessments, and visual explainers directly from your textbook chapters.
+            </p>
+          </div>
+
+          {/* The Iconic Bolt / Lovable Floating Prompt Capsule */}
+          <div className="relative max-w-2xl mx-auto group">
+            {/* Ambient Backlight Glow behind Capsule */}
+            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#FF5C00]/20 via-amber-500/15 to-orange-600/20 blur-xl opacity-75 group-hover:opacity-100 transition-opacity -z-10" />
+
+            <div
+              className={`p-3 sm:p-4 rounded-3xl border shadow-2xl transition-all ${
+                isDarkMode
+                  ? "bg-slate-900/90 border-slate-700/80 backdrop-blur-xl"
+                  : "bg-white/95 border-slate-200/90 backdrop-blur-xl shadow-slate-200/50"
+              }`}
+            >
+              {/* Text Input Field */}
+              <div className="px-2 pt-1 pb-2">
+                <textarea
+                  rows={2}
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendPrompt();
+                    }
+                  }}
+                  key={placeholderKey}
+                  placeholder={PLACEHOLDERS[placeholderIdx]}
+                  className="w-full bg-transparent text-sm sm:text-base focus:outline-none placeholder:text-slate-400 placeholder:transition-all placeholder:duration-500 resize-none leading-relaxed placeholder-animate"
+                />
+              </div>
+
+              {/* Bottom Capsule Control Row */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 gap-2">
+                {/* Left Attachment & Context Badge */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setIsAttachmentOpen(true)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-[#FF5C00] hover:bg-orange-50 dark:hover:bg-slate-800 transition-colors"
+                    title="Attach Chapter / Passages"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+
+                  {selectedProject && (
+                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                      <BookOpen className="w-3 h-3 text-[#FF5C00]" />
+                      <span className="truncate max-w-[140px]">{selectedProject.name}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Capability Pills & Build Send Button (NO EMOJIS, POLISHED ICONS) */}
+                <div className="flex items-center gap-2">
+                  <div className="hidden sm:flex items-center gap-1">
+                    {[
+                      { id: "slides" as CapabilityType, label: "Slides", icon: Presentation },
+                      { id: "quizzes" as CapabilityType, label: "Quizzes", icon: FileQuestion },
+                      { id: "video" as CapabilityType, label: "Video", icon: Video },
+                    ].map((cap) => {
+                      const Icon = cap.icon;
+                      const isSelected = selectedCapability === cap.id;
+                      return (
+                        <button
+                          key={cap.id}
+                          onClick={() => setSelectedCapability(cap.id)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                            isSelected
+                              ? "bg-[#FF5C00] text-white shadow-sm"
+                              : "text-slate-500 hover:text-black dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                          }`}
+                        >
+                          <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-slate-400"}`} />
+                          <span>{cap.label}</span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
 
-                {/* 3. Quick Passage Citation Insertion */}
-                {selectedProject && Object.keys(passages).length > 0 && (
-                  <div className="pt-2 border-t" style={{ borderColor: isDarkMode ? '#32302C' : '#E8E2D8' }}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Insert Passage Citation
-                      </span>
-                      {insertedCitation && (
-                        <span className="text-[10px] text-emerald-500 font-mono animate-pulse">
-                          +{insertedCitation} Inserted!
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="relative mb-2">
-                      <Search className="w-3 h-3 absolute left-2.5 top-2 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Search passages to cite..."
-                        value={capsulePassageSearch}
-                        onChange={(e) => setCapsulePassageSearch(e.target.value)}
-                        className={`w-full text-[11px] pl-7 pr-2 py-1 rounded-lg border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
-                          isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
-                        }`}
-                      />
-                    </div>
-
-                    <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
-                      {capsuleFilteredPassages.slice(0, 15).map(([pId, text]) => (
-                        <div
-                          key={pId}
-                          onClick={() => insertPassageCitationIntoPrompt(pId)}
-                          className={`p-1.5 rounded-lg border text-left cursor-pointer transition-all hover:border-[#FF5C00] ${
-                            isDarkMode ? 'bg-[#151413]/60 border-[#32302C]' : 'bg-white border-[#E8E2D8]'
-                          }`}
-                          title="Click to insert [Passage-ID] into prompt"
-                        >
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className="font-mono text-[#FF5C00] font-semibold">{pId}</span>
-                            <span className="text-slate-400 text-[9px]">+ Insert</span>
-                          </div>
-                          <p className={`text-[10px] line-clamp-1 leading-snug mt-0.5 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-slate-600'}`}>
-                            {text}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Deep Link to Library */}
-                <div className="pt-2 border-t flex items-center justify-between text-xs" style={{ borderColor: isDarkMode ? '#32302C' : '#E8E2D8' }}>
                   <button
-                    onClick={() => {
-                      setActiveView('library');
-                      setIsAttachmentOpen(false);
-                    }}
-                    className="text-[#FF5C00] hover:underline flex items-center gap-1 font-medium text-[11px]"
+                    onClick={handleSendPrompt}
+                    disabled={isGenerating}
+                    className="px-4 py-2 rounded-2xl bg-[#FF5C00] hover:bg-[#e05200] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/30 transition-all shrink-0"
                   >
-                    <span>Open full Chapter Library</span>
-                    <ArrowRight className="w-3 h-3" />
+                    {isGenerating ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isGenerating ? "Building..." : "Build"}</span>
                   </button>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Conversational Text Input */}
-          <input
-            type="text"
-            value={promptText}
-            onChange={(e) => setPromptText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSendPrompt();
-            }}
-            placeholder={
-              selectedCapability === 'slides'
-                ? 'Ask OMNIX to create a 6-slide deck for Newton\'s 1st Law..'
-                : selectedCapability === 'quizzes'
-                ? 'Ask OMNIX to generate an interactive quiz & flashcards..'
-                : selectedCapability === 'video'
-                ? 'Ask OMNIX to draft a Manim STEM video storyboard..'
-                : 'Ask OMNIX to create a slide deck, video, or quiz from your chapter..'
-            }
-            className={`w-full bg-transparent text-xs sm:text-sm px-2 focus:outline-none placeholder:text-slate-400 ${
-              isDarkMode ? 'text-[#F5F2EB]' : 'text-[#18181B]'
-            }`}
-          />
+          {/* Quick Filter Pills (NO EMOJIS, POLISHED ICONS) */}
+          <div className="flex items-center justify-center gap-2 text-xs font-medium pt-1 flex-wrap">
+            {[
+              { id: "all" as CapabilityType, label: "All Capabilities", icon: Sparkles },
+              { id: "slides" as CapabilityType, label: "Slides", icon: Presentation },
+              { id: "video" as CapabilityType, label: "Video", icon: Video },
+              { id: "quizzes" as CapabilityType, label: "Quizzes", icon: FileQuestion },
+              { id: "diagrams" as CapabilityType, label: "Diagrams", icon: Network },
+            ].map((cap) => {
+              const Icon = cap.icon;
+              const isSelected = selectedCapability === cap.id;
+              return (
+                <button
+                  key={cap.id}
+                  onClick={() => setSelectedCapability(cap.id)}
+                  className={`px-3 py-1.5 rounded-full transition-all border text-xs font-semibold flex items-center gap-1.5 ${
+                    isSelected
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-sm"
+                      : isDarkMode
+                      ? "bg-slate-800/60 border-slate-700/80 text-slate-300 hover:text-white"
+                      : "bg-white border-slate-200 text-slate-700 hover:text-black shadow-sm"
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isSelected ? (isDarkMode ? "text-slate-900" : "text-white") : "text-slate-400"}`} />
+                  <span>{cap.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Right Action Dropdown & Send Arrow */}
-          <div className="flex items-center gap-2 pr-1 shrink-0 relative">
-            <div
-              onClick={() => setShowCapabilityDropdown(!showCapabilityDropdown)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer select-none ${
-                isDarkMode
-                  ? 'bg-[#151413] border-[#32302C] text-[#F5F2EB] hover:bg-[#252422]'
-                  : 'bg-[#FAF7F2] border-[#E8E2D8] text-[#18181B] hover:bg-slate-100'
-              }`}
-            >
-              <span className="capitalize">{selectedCapability === 'all' ? 'Build' : selectedCapability}</span>
-              <ChevronDown className="w-3 h-3 opacity-60" />
+          {/* Teacher-Ready Templates (Lovable / Bolt Bento Cards) */}
+          <div className="pt-4 text-left space-y-3 w-full">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                  Teacher-ready templates
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Click any template to load prompt into creator box above.
+                </p>
+              </div>
+
+              {selectedProject && (
+                <button
+                  onClick={() => setActiveView("studio")}
+                  className="text-xs font-semibold text-[#FF5C00] hover:underline flex items-center gap-1"
+                >
+                  <span>Open Full Slide Studio</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* Dropdown Menu */}
-            {showCapabilityDropdown && (
-              <div
-                className={`absolute right-10 top-11 py-1.5 w-36 rounded-2xl border shadow-xl z-30 text-left text-xs ${
-                  isDarkMode ? 'bg-[#1E1D1B] border-[#32302C]' : 'bg-white border-[#E8E2D8]'
+            {/* Single-column horizontal template list (Linear / GitHub Copilot style) */}
+            <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/70 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              {/* SLIDES */}
+              <button
+                onClick={() => {
+                  setSelectedCapability("slides");
+                  setPromptText("Create a 6-slide classroom lecture presentation with clear learning objectives, core concepts, and teacher speaker notes for each slide.");
+                }}
+                className={`flex items-center gap-4 px-4 py-3.5 text-left w-full group transition-colors ${
+                  isDarkMode
+                    ? "bg-[#16181D] hover:bg-[#1E2027]"
+                    : "bg-white hover:bg-orange-50/60"
                 }`}
               >
-                {(['all', 'slides', 'video', 'quizzes', 'diagrams'] as CapabilityType[]).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => {
-                      setSelectedCapability(c);
-                      setShowCapabilityDropdown(false);
-                    }}
-                    className={`w-full text-left px-3.5 py-1.5 capitalize transition-colors flex items-center justify-between ${
-                      selectedCapability === c
-                        ? 'text-[#FF5C00] font-bold'
-                        : isDarkMode
-                        ? 'text-[#9CA3AF] hover:text-white'
-                        : 'text-slate-600 hover:text-black'
-                    }`}
-                  >
-                    <span>{c === 'all' ? '✨ All' : c}</span>
-                    {selectedCapability === c && <span>✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#FF5C00]/10">
+                  <Presentation className="w-4 h-4 text-[#FF5C00]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#FF5C00] mb-0.5">Slides</p>
+                  <h4 className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>Classroom Lecture Presentation</h4>
+                  <p className="text-xs text-slate-500 leading-snug mt-0.5">6 slides with speaker notes, every point linked to textbook passage citations.</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#FF5C00] group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
 
-            <button
-              disabled={isGenerating}
-              onClick={handleSendPrompt}
-              className="w-8 h-8 rounded-full bg-[#FF5C00] hover:bg-[#e05200] text-white flex items-center justify-center shadow transition-transform active:scale-95 disabled:opacity-50"
-              title="Generate"
-            >
-              {isGenerating ? (
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Send className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
-        </div>
+              {/* VIDEO */}
+              <button
+                onClick={() => {
+                  setSelectedCapability("video");
+                  setPromptText("Generate a 2D Manim physics animation with synchronized Kokoro TTS voiceover explaining key equations.");
+                }}
+                className={`flex items-center gap-4 px-4 py-3.5 text-left w-full group transition-colors ${
+                  isDarkMode
+                    ? "bg-[#16181D] hover:bg-[#1E2027]"
+                    : "bg-white hover:bg-orange-50/60"
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-500/10">
+                  <Video className="w-4 h-4 text-blue-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-blue-500 mb-0.5">Video</p>
+                  <h4 className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>STEM Animated Explainer</h4>
+                  <p className="text-xs text-slate-500 leading-snug mt-0.5">2D mathematical animations with voiceover explaining tricky formulas and mechanics.</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
 
-        {/* Capability Quick Pills */}
-        <div className="flex items-center justify-center gap-2 text-xs font-medium pt-1 flex-wrap">
-          <button
-            onClick={() => setSelectedCapability('all')}
-            className={`px-3 py-1 rounded-full transition-all border ${
-              selectedCapability === 'all'
-                ? 'bg-[#FF5C00] border-[#FF5C00] text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-[#1E1D1B]/60 border-[#32302C] text-[#9CA3AF] hover:text-white'
-                : 'bg-white/70 border-[#E8E2D8] text-[#716D64] hover:text-black shadow-sm'
-            }`}
-          >
-            ✨ All
-          </button>
-          <button
-            onClick={() => setSelectedCapability('slides')}
-            className={`px-3 py-1 rounded-full transition-all border ${
-              selectedCapability === 'slides'
-                ? 'bg-[#FF5C00] border-[#FF5C00] text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-[#1E1D1B]/60 border-[#32302C] text-[#9CA3AF] hover:text-white'
-                : 'bg-white/70 border-[#E8E2D8] text-[#716D64] hover:text-black shadow-sm'
-            }`}
-          >
-            📊 Slides
-          </button>
-          <button
-            onClick={() => setSelectedCapability('video')}
-            className={`px-3 py-1 rounded-full transition-all border ${
-              selectedCapability === 'video'
-                ? 'bg-[#FF5C00] border-[#FF5C00] text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-[#1E1D1B]/60 border-[#32302C] text-[#9CA3AF] hover:text-white'
-                : 'bg-white/70 border-[#E8E2D8] text-[#716D64] hover:text-black shadow-sm'
-            }`}
-          >
-            🎬 Video
-          </button>
-          <button
-            onClick={() => setSelectedCapability('quizzes')}
-            className={`px-3 py-1 rounded-full transition-all border ${
-              selectedCapability === 'quizzes'
-                ? 'bg-[#FF5C00] border-[#FF5C00] text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-[#1E1D1B]/60 border-[#32302C] text-[#9CA3AF] hover:text-white'
-                : 'bg-white/70 border-[#E8E2D8] text-[#716D64] hover:text-black shadow-sm'
-            }`}
-          >
-            🧩 Quizzes
-          </button>
-          <button
-            onClick={() => setSelectedCapability('diagrams')}
-            className={`px-3 py-1 rounded-full transition-all border ${
-              selectedCapability === 'diagrams'
-                ? 'bg-[#FF5C00] border-[#FF5C00] text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-[#1E1D1B]/60 border-[#32302C] text-[#9CA3AF] hover:text-white'
-                : 'bg-white/70 border-[#E8E2D8] text-[#716D64] hover:text-black shadow-sm'
-            }`}
-          >
-            📐 Diagrams
-          </button>
-        </div>
+              {/* QUIZZES */}
+              <button
+                onClick={() => {
+                  setSelectedCapability("quizzes");
+                  setPromptText("Create a 4-question formative assessment with multiple choice, true/false, and flashcard revision cards.");
+                }}
+                className={`flex items-center gap-4 px-4 py-3.5 text-left w-full group transition-colors ${
+                  isDarkMode
+                    ? "bg-[#16181D] hover:bg-[#1E2027]"
+                    : "bg-white hover:bg-orange-50/60"
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10">
+                  <FileQuestion className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-500 mb-0.5">Quizzes</p>
+                  <h4 className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>Interactive Quiz & Study Cards</h4>
+                  <p className="text-xs text-slate-500 leading-snug mt-0.5">Works offline in class, no internet needed for students to review.</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
 
-        {/* Teacher-ready templates */}
-        <div className="pt-6 sm:pt-8 text-left space-y-4 w-full">
-          <div>
-            <h3 className={`text-sm sm:text-base font-bold ${isDarkMode ? 'text-[#F5F2EB]' : 'text-[#18181B]'}`}>
-              Teacher-ready templates
-            </h3>
-            <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-              Click any template to load its prompt into the creator box above.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* SLIDES */}
-            <div
-              onClick={() => {
-                setSelectedCapability('slides');
-                setPromptText('Create a 6-slide classroom presentation with clear learning objectives, core concepts, and teacher speaker notes for each slide.');
-              }}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
-                isDarkMode
-                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
-                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
-                <span>Slides</span>
-                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
-              </div>
-              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
-                Classroom Lecture Presentation
-              </h4>
-              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-                6 slides with speaker notes, every point linked to the textbook page
-              </p>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
-                Load prompt →
-              </span>
-            </div>
-
-            {/* VIDEO */}
-            <div
-              onClick={() => {
-                setSelectedCapability('video');
-                setPromptText('Draft an animated explainer video script illustrating the core scientific mechanisms step-by-step with narration.');
-              }}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
-                isDarkMode
-                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
-                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
-                <span>Video</span>
-                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
-              </div>
-              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
-                STEM Animation & Voiceover
-              </h4>
-              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-                Animated maths and science illustrations with voiceover
-              </p>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
-                Load prompt →
-              </span>
-            </div>
-
-            {/* QUIZZES */}
-            <div
-              onClick={() => {
-                setSelectedCapability('quizzes');
-                setPromptText('Generate an interactive assessment with multiple choice questions and review flashcards for classroom practice.');
-              }}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
-                isDarkMode
-                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
-                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
-                <span>Quizzes</span>
-                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
-              </div>
-              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
-                Interactive Quiz & Study Cards
-              </h4>
-              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-                Works offline in class, no internet needed for students
-              </p>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
-                Load prompt →
-              </span>
-            </div>
-
-            {/* DIAGRAMS */}
-            <div
-              onClick={() => {
-                setSelectedCapability('diagrams');
-                setPromptText('Build a structured concept flowchart organizing the main topics and subordinate definitions.');
-              }}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
-                isDarkMode
-                  ? 'border-[#2B2926] bg-[#181715]/90 hover:border-[#FF5C00]/50'
-                  : 'border-[#E8E2D8] bg-white hover:border-[#FF5C00]/50 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center justify-between text-[#FF5C00] text-[11px] font-bold uppercase tracking-wider mb-1">
-                <span>Diagrams</span>
-                <span className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">›</span>
-              </div>
-              <h4 className={`text-xs sm:text-sm font-bold ${isDarkMode ? 'text-white' : 'text-[#18181B]'}`}>
-                Concept Mind Map
-              </h4>
-              <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-                Visual flowchart showing relationships between key terms
-              </p>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF5C00] mt-3 group-hover:underline">
-                Load prompt →
-              </span>
+              {/* DIAGRAMS */}
+              <button
+                onClick={() => {
+                  setSelectedCapability("diagrams");
+                  setPromptText("Build a structured concept flowchart organizing the main topics and subordinate definitions.");
+                }}
+                className={`flex items-center gap-4 px-4 py-3.5 text-left w-full group transition-colors ${
+                  isDarkMode
+                    ? "bg-[#16181D] hover:bg-[#1E2027]"
+                    : "bg-white hover:bg-orange-50/60"
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-purple-500/10">
+                  <Network className="w-4 h-4 text-purple-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-purple-500 mb-0.5">Diagrams</p>
+                  <h4 className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>Concept Mind Map</h4>
+                  <p className="text-xs text-slate-500 leading-snug mt-0.5">Visual flowchart showing relationships between key domain concepts.</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
             </div>
           </div>
-        </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="py-5 text-center text-[11px] opacity-60">
-        OMNIX · Developed for IIT Madras / Commonwealth of Learning (COL) Training of Trainers Programme
-      </footer>
-    </div>
-  );
+          {/* Recent Deliverables (Replit / Bolt Style Cards) */}
+          {artifacts.length > 0 && (
+            <div className="pt-4 text-left space-y-3 w-full">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                  Your Deliverables ({artifacts.length})
+                </h3>
+                <span className="text-xs text-slate-400 font-mono">Ready for classroom projection</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {artifacts.slice(0, 4).map((art) => {
+                  const isSlide = art.tool_name === "slides";
+                  const slideCount = art.source_data?.slides?.length || 4;
+                  const pptxFile = art.files.find((f) => f.endsWith(".pptx"));
+                  const htmlFile = art.files.find((f) => f.endsWith(".html"));
+
+                  return (
+                    <div
+                      key={art.id}
+                      className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 bolt-card ${
+                        isDarkMode ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isSlide ? "bg-[#FF5C00]/10 text-[#FF5C00]" : "bg-blue-500/10 text-blue-500"
+                          }`}
+                        >
+                          {isSlide ? <Presentation className="w-4 h-4" /> : <FileQuestion className="w-4 h-4" />}
+                        </div>
+                        <div className="truncate">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {art.source_data?.title || (isSlide ? `${selectedProject?.name || "Curriculum"} Deck` : "Assessment")}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {isSlide ? `${slideCount} Slides • Grounded` : "Interactive Assessment"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isSlide && (
+                          <button
+                            onClick={() => {
+                              setSelectedSlideArtifact(art);
+                              setActiveView("studio");
+                            }}
+                            className="px-2.5 py-1 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white text-[11px] font-bold"
+                          >
+                            Studio →
+                          </button>
+                        )}
+                        {pptxFile && selectedProject && (
+                          <a
+                            href={`/api/projects/${selectedProject.project_id}/files/${pptxFile}`}
+                            download
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-black dark:hover:text-white"
+                            title="Download .pptx"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {htmlFile && selectedProject && (
+                          <a
+                            href={`/api/projects/${selectedProject.project_id}/files/${htmlFile}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-black dark:hover:text-white"
+                            title="Play Quiz"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* Clean Modern Minimalist Footer */}
+        <footer className="py-6 text-center text-xs text-slate-400 border-t border-slate-200/60 dark:border-slate-800/60 mt-auto z-10">
+          OMNIX · IIT Madras / Commonwealth of Learning (COL) Training of Trainers Programme
+        </footer>
+      </div>
+    );
+  };
+
 
   // Render Tools Catalog View
   const renderToolsView = () => {
@@ -1367,23 +1358,13 @@ export const ChapterDashboard: React.FC = () => {
   return (
     <div
       className={`relative min-h-screen transition-colors duration-300 flex flex-col md:flex-row font-sans overflow-x-hidden ${
-        isDarkMode ? 'lovable-mesh-dark text-[#F5F2EB]' : 'lovable-mesh-light text-[#18181B]'
+        isDarkMode ? 'dark textured-canvas-dark text-slate-100' : 'textured-canvas-light text-slate-900'
       }`}
     >
-      {/* 1. Multi-Stop Blooming Liquid Mesh Aura (Exact Lovable Effect) */}
-      <div className="mesh-aura"></div>
-
-      {/* 2. Top Sky Gradient Overlay */}
-      <div
-        className={`absolute inset-0 pointer-events-none z-0 ${
-          isDarkMode ? 'sky-fade-dark' : 'sky-fade-light'
-        }`}
-      ></div>
-
-      {/* 3. Global Navigation Sidebar: STRICTLY 4 ITEMS (Home, Tools, Library, Settings) */}
+      {/* Global Navigation Sidebar */}
       <aside
-        className={`hidden md:flex flex-col w-64 shrink-0 border-r backdrop-blur-xl z-20 min-h-screen sticky top-0 h-screen justify-between p-4 transition-colors duration-300 ${
-          isDarkMode ? 'bg-[#1E1D1B]/80 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8]'
+        className={`hidden md:flex flex-col w-64 shrink-0 border-r z-20 min-h-screen sticky top-0 h-screen justify-between p-4 transition-colors duration-300 ${
+          isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'
         }`}
       >
         {/* Top: Brand Header */}
@@ -1395,9 +1376,7 @@ export const ChapterDashboard: React.FC = () => {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-base tracking-tight">OMNIX</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-[#FF5C00]/10 text-[#FF5C00] border border-[#FF5C00]/20">
-                  v0.5
-                </span>
+
               </div>
               <p className="text-[10px] text-slate-400 font-medium tracking-tight">IIT Madras · COL</p>
             </div>

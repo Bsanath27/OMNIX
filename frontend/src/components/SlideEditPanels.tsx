@@ -26,7 +26,6 @@ import {
   Scissors,
   Lightbulb,
   MessageSquare,
-  ShieldCheck,
   Check,
   Loader2,
   Mic,
@@ -151,7 +150,7 @@ export function RightToolDrawer({
   isListening,
   onToggleVoiceInput,
   onApplyCustomRefinement,
-  activeSlide,
+  activeSlide: _activeSlide,
   activeSuggestion,
   onApplySuggestion,
   onDismissSuggestion,
@@ -723,37 +722,6 @@ export function RightToolDrawer({
                   <span>Key Principles</span>
                 </button>
               </div>
-            </div>
-
-            {/* Grounding Source Badge */}
-            <div className="p-3 rounded-xl bg-[#201F1C] border border-[#2B2926] space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[10px] font-bold text-slate-400 font-mono">GROUNDING SOURCE</span>
-                <span className="text-[10px] font-mono text-emerald-400">99.4% confidence</span>
-              </div>
-              <p className="text-xs text-slate-300 font-medium truncate">
-                Grounded in <span className="text-white font-semibold">Primary Curriculum Standard</span>.
-              </p>
-              <div className="flex items-center gap-1 text-[10px] text-slate-400 pt-0.5">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                <span>Zero hallucination filter applied.</span>
-              </div>
-            </div>
-
-            {/* Slide Synthesizer Box */}
-            <div className="p-3 rounded-xl bg-[#201F1C] border border-[#2B2926] space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#FF5C00]" />
-                  <span className="text-xs font-semibold text-slate-200">Active Slide Intelligence</span>
-                </div>
-                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/30">
-                  Grounded
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 leading-snug">
-                Pedagogical cards synthesized for "{activeSlide?.title || 'Current Slide'}" aligned with grade standards.
-              </p>
             </div>
 
             {/* AI Suggestion Diff / Merge Card */}

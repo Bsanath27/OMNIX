@@ -58,5 +58,9 @@ data/golden_chapters/*
 *.wav
 *.png
 *.jpg
+*.pptx
+*.zip
 media/
+output/
+
 

@@ -9,6 +9,8 @@ import {
   fetchSlideTemplates,
 } from '../api';
 import { SlideStudioView } from './SlideStudioView';
+import { themes, ThemeProperties } from '../lib/presentonThemes';
+import { loadGoogleFont } from '../lib/fontLoader';
 import {
   ArrowLeft,
   ChevronRight,
@@ -24,6 +26,7 @@ import {
   GripVertical,
   Palette,
   CheckCircle2,
+  Search,
 } from 'lucide-react';
 
 export type PipelineStep = 'input' | 'outline' | 'theme' | 'studio';
@@ -39,59 +42,37 @@ export interface PresentonSlidePipelineProps {
   onArtifactUpdated?: (art: Artifact) => void;
 }
 
-interface TemplateOption {
+export interface TemplateOption {
   id: string;
   name: string;
   description: string;
-  themeKey: 'solar' | 'academic' | 'midnight' | 'col';
+  themeKey: string;
   previewBg: string;
   accentColor: string;
   textColor: string;
+  headingFont: string;
+  bodyFont: string;
+  isDark: boolean;
   tags: string[];
 }
 
-const TEMPLATE_OPTIONS: TemplateOption[] = [
-  {
-    id: 'tpl-solar',
-    name: 'Solar Obsidian',
-    description: 'Deep obsidian dark surfaces with high-visibility solar orange accents and modern bento cards.',
-    themeKey: 'solar',
-    previewBg: '#151413',
-    accentColor: '#FF5C00',
-    textColor: '#F5F2EB',
-    tags: ['Dark Mode', 'Bento Cards', 'High Contrast'],
-  },
-  {
-    id: 'tpl-academic',
-    name: 'Academic Clean',
-    description: 'Crisp white canvas with classic Oxford blue headings and structured textbook sectioning.',
-    themeKey: 'academic',
-    previewBg: '#FFFFFF',
-    accentColor: '#1E3A8A',
-    textColor: '#1E293B',
-    tags: ['Textbook Standard', 'Light Canvas', 'Formative Checkpoints'],
-  },
-  {
-    id: 'tpl-midnight',
-    name: 'Midnight Minimal',
-    description: 'Slate-900 technical backdrop with clean sky cyan indicators and reduced visual clutter.',
-    themeKey: 'midnight',
-    previewBg: '#0F172A',
-    accentColor: '#38BDF8',
-    textColor: '#F1F5F9',
-    tags: ['Minimalist', 'Code & Equations', 'Deep Slate'],
-  },
-  {
-    id: 'tpl-col',
-    name: 'COL Sky Blue',
-    description: 'Warm creme paper tone with Commonwealth of Learning sky blue badges for classroom projection.',
-    themeKey: 'col',
-    previewBg: '#FAF7F2',
-    accentColor: '#0369A1',
-    textColor: '#18181B',
-    tags: ['Warm Creme', 'COL Standard', 'Print Ready'],
-  },
-];
+export const TEMPLATE_OPTIONS: TemplateOption[] = (Object.entries(themes) as [string, ThemeProperties][]).map(([key, t]) => ({
+  id: key,
+  name: t.name,
+  description: t.description,
+  themeKey: key,
+  previewBg: t.background?.override || t.colors.background,
+  accentColor: t.colors.accent || t.colors.primary,
+  textColor: t.colors.text,
+  headingFont: t.fonts.heading,
+  bodyFont: t.fonts.body,
+  isDark: t.mode === 'dark',
+  tags: [
+    t.mode === 'dark' ? 'Dark Mode' : 'Light Canvas',
+    `${t.fonts.heading} / ${t.fonts.body}`,
+    'Presenton Native',
+  ],
+}));
 
 export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   project,
@@ -145,7 +126,8 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   // Step 3: Theme selection with 16 Presenton templates
   const [templates, setTemplates] = useState<SlideTemplateItem[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('verdant');
-  const [failedThumbnails, setFailedThumbnails] = useState<Record<string, boolean>>({});
+  const [themeFilter, setThemeFilter] = useState<'all' | 'dark' | 'light'>('all');
+  const [themeSearch, setThemeSearch] = useState<string>('');
 
   // Fetch dynamic templates from Presenton service
   useEffect(() => {
@@ -806,25 +788,75 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
           <div className="text-center space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-[#FF5C00]/10 text-[#FF5C00] border border-[#FF5C00]/20 mb-2">
               <Palette className="w-3.5 h-3.5" />
-              <span>Step 3 of 4 · Design System</span>
+              <span>Step 3 of 4 · Design System & Typography</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               Select Your <span className="text-[#FF5C00]">Visual Palette</span>
             </h2>
-            <p className={`text-sm max-w-md mx-auto ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Choose how your {outlines.length} outlined slides will be compiled into PowerPoint and rendered on the 16:9 stage.
+            <p className={`text-sm max-w-lg mx-auto ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              38 official Presenton production themes with paired Google Web Fonts, custom radial gradients, and smart layout palettes.
             </p>
+
+            {/* Filter Pills and Search */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+              <div className="flex items-center p-1 rounded-xl bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs font-semibold">
+                <button
+                  onClick={() => setThemeFilter('all')}
+                  className={`px-3 py-1 rounded-lg transition-colors ${themeFilter === 'all' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  All (38)
+                </button>
+                <button
+                  onClick={() => setThemeFilter('dark')}
+                  className={`px-3 py-1 rounded-lg transition-colors ${themeFilter === 'dark' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Dark (20)
+                </button>
+                <button
+                  onClick={() => setThemeFilter('light')}
+                  className={`px-3 py-1 rounded-lg transition-colors ${themeFilter === 'light' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Light (18)
+                </button>
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter by theme or font..."
+                  value={themeSearch}
+                  onChange={(e) => setThemeSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 rounded-xl bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#FF5C00] w-48 sm:w-56"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Template Cards Grid: All 16 Official Presenton Templates */}
+          {/* Template Cards Grid: All 38 Official Presenton Production Themes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(templates.length > 0 ? templates : TEMPLATE_OPTIONS).map((tpl: any) => {
+            {TEMPLATE_OPTIONS.filter((t) => {
+              if (themeFilter === 'dark' && !t.isDark) return false;
+              if (themeFilter === 'light' && t.isDark) return false;
+              if (themeSearch.trim()) {
+                const q = themeSearch.toLowerCase();
+                return t.name.toLowerCase().includes(q) ||
+                       t.headingFont.toLowerCase().includes(q) ||
+                       t.bodyFont.toLowerCase().includes(q) ||
+                       t.description.toLowerCase().includes(q);
+              }
+              return true;
+            }).map((tpl) => {
               const isSelected = selectedTemplateId === tpl.id;
+              // Preload Google Fonts for preview
+              loadGoogleFont(tpl.headingFont);
+              loadGoogleFont(tpl.bodyFont);
+
               return (
                 <div
                   key={tpl.id}
                   onClick={() => setSelectedTemplateId(tpl.id)}
-                  className={`group relative p-6 rounded-3xl border text-left cursor-pointer transition-all ${
+                  className={`group relative p-5 rounded-3xl border text-left cursor-pointer transition-all ${
                     isSelected
                       ? 'border-[#FF5C00] ring-2 ring-[#FF5C00] shadow-xl shadow-orange-950/20'
                       : isDarkMode
@@ -835,41 +867,60 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                     backgroundColor: isDarkMode ? '#181715' : '#FFFFFF',
                   }}
                 >
-                  {/* Real Presenton Thumbnail Image or Styled Preview */}
-                  <div className="h-40 w-full rounded-2xl mb-3 border border-black/10 overflow-hidden shadow-inner bg-slate-900 relative">
-                    {tpl.thumbnail && !failedThumbnails[tpl.id] ? (
-                      <img
-                        src={tpl.thumbnail}
-                        alt={tpl.name}
-                        onError={() => setFailedThumbnails(prev => ({ ...prev, [tpl.id]: true }))}
-                        className="w-full h-full object-cover object-top transition-transform group-hover:scale-105"
-                      />
-                    ) : (
-                      <div
-                        className="w-full h-full p-4 flex flex-col justify-between"
-                        style={{ backgroundColor: tpl.previewBg || (isDarkMode ? '#1F1E1C' : '#F3F4F6') }}
+                  {/* Authentic Presenton Dynamic Mini-Canvas Preview with Real Gradient and Fonts */}
+                  <div
+                    className="h-44 w-full rounded-2xl mb-3 border border-black/10 overflow-hidden shadow-inner p-4 flex flex-col justify-between relative transition-transform group-hover:scale-[1.02]"
+                    style={{
+                      background: tpl.previewBg,
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: `${tpl.accentColor}20`,
+                          color: tpl.accentColor,
+                        }}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono font-bold text-[#FF5C00] uppercase">
-                            {tpl.name}
-                          </span>
-                          <span className="text-[9px] font-mono text-slate-400">16:9</span>
-                        </div>
-                        <div className="text-sm font-bold truncate text-slate-200">
-                          {outlines[0]?.title || project?.name || 'Classroom Module'}
-                        </div>
-                        <div className="grid grid-cols-3 gap-1">
-                          <div className="h-4 rounded bg-[#FF5C00]/20" />
-                          <div className="h-4 rounded bg-[#FF5C00]/20" />
-                          <div className="h-4 rounded bg-[#FF5C00]/20" />
-                        </div>
+                        {tpl.name}
+                      </span>
+                      <span
+                        className="text-[9px] font-mono px-2 py-0.5 rounded-md"
+                        style={{
+                          backgroundColor: tpl.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                          color: tpl.textColor,
+                        }}
+                      >
+                        {tpl.isDark ? 'Dark' : 'Light'}
+                      </span>
+                    </div>
+
+                    <div className="my-auto space-y-1">
+                      <div
+                        className="text-base font-extrabold truncate"
+                        style={{
+                          color: tpl.textColor,
+                          fontFamily: tpl.headingFont,
+                        }}
+                      >
+                        {outlines[0]?.title || project?.name || 'Lesson Presentation'}
                       </div>
-                    )}
-                    {tpl.layout_count && (
-                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-mono font-bold text-white border border-white/20">
-                        {tpl.layout_count} layouts
+                      <div
+                        className="text-[11px] line-clamp-2 opacity-80"
+                        style={{
+                          color: tpl.textColor,
+                          fontFamily: tpl.bodyFont,
+                        }}
+                      >
+                        {tpl.description}
                       </div>
-                    )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
+                      <div className="h-3 rounded-md" style={{ backgroundColor: `${tpl.accentColor}30` }} />
+                      <div className="h-3 rounded-md" style={{ backgroundColor: `${tpl.accentColor}30` }} />
+                      <div className="h-3 rounded-md" style={{ backgroundColor: `${tpl.accentColor}30` }} />
+                    </div>
                   </div>
 
                   {/* Template Meta Info */}
@@ -878,13 +929,13 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                       <h4 className="text-base font-bold flex items-center gap-2">
                         <span>{tpl.name}</span>
                         {isSelected && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#FF5C00]/20 text-[#FF5C00] font-mono text-[10px] font-bold">
-                            Active
+                          <span className="px-2 py-0.5 rounded-full bg-[#FF5C00]/20 text-[#FF5C00] text-[10px] font-mono font-bold">
+                            Selected
                           </span>
                         )}
                       </h4>
-                      <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                        {tpl.description}
+                      <p className={`text-xs mt-1 line-clamp-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {tpl.headingFont} & {tpl.bodyFont}
                       </p>
                     </div>
 
@@ -900,18 +951,18 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                   </div>
 
                   {/* Tags */}
-                  <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/5">
-                    {(tpl.tags || []).map((tag: string) => (
-                      <span
-                        key={tag}
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
-                          isDarkMode ? 'bg-[#23211F] text-slate-400' : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {tpl.tags && tpl.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2.5 border-t border-black/5 dark:border-white/5">
+                      {tpl.tags.map((tag: string, tIdx: number) => (
+                        <span
+                          key={tIdx}
+                          className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-black/5 dark:bg-white/5 text-slate-500 dark:text-slate-400"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

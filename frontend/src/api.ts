@@ -227,6 +227,65 @@ export async function compileSlideFromOutline(
   return res.json();
 }
 
+export interface SlideTemplateItem {
+  id: string;
+  name: string;
+  description: string;
+  layout_count?: number;
+  thumbnail: string;
+  themeKey: string;
+  tags?: string[];
+}
+
+export async function fetchSlideTemplates(): Promise<SlideTemplateItem[]> {
+  try {
+    const res = await fetch('/api/projects/slides/templates');
+    if (res.ok) {
+      const data = await res.json();
+      return data.templates || [];
+    }
+  } catch (err) {
+    console.warn('Failed to fetch slide templates from API, using default list:', err);
+  }
+  return [];
+}
+
+export interface GenerateSlideScriptResponse {
+  slide_number: number;
+  title: string;
+  speaker_notes: string;
+  discussion_prompt?: string;
+  est_delivery: string;
+}
+
+export async function generateSlideScript(
+  projectId: string,
+  slideData: {
+    slide_number?: number;
+    title: string;
+    subtitle?: string;
+    archetype?: string;
+    cards?: any[];
+    bullets?: string[];
+    grade_level?: string;
+    subject?: string;
+  }
+): Promise<GenerateSlideScriptResponse> {
+  const res = await fetch(`/api/projects/${projectId}/slides/generate-script`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(slideData),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to generate slide script' }));
+    throw new Error(err.detail || 'Failed to generate slide script');
+  }
+  return res.json();
+}
+
+
+
+
 
 
 

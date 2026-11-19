@@ -96,15 +96,31 @@ A core area of research this week was resolving visual inconsistency and retriev
 % ═════════════════════════════════════════════════════════════════════════════
 \subsection*{3. Interactive Slide Studio Workspace \& In-Browser Editing}
 
-Building on our workflow research, we implemented an in-browser slide editing studio (Figure~\ref{fig:presenton_editor}). Teachers can review the extracted outline, make direct text modifications on the 16:9 canvas, reorder slides via the filmstrip, and use pedagogical co-pilot prompts (\textit{Condense bullets}, \textit{Add peer discussion question}, \textit{Simplify language}).
+Building on our workflow research, we implemented the OMNIX in-browser presentation generation interface (Figure~\ref{fig:omnix_ui}). Teachers enter curriculum topics on the OMNIX home screen with attached textbook references, select from over 16 tailored visual design presets (e.g., \textit{Verdant}, \textit{Swift}, \textit{Standard}, \textit{Modern}), and perform direct in-canvas text and diagram refinements with pedagogical co-pilot prompts and textbook-grounded speaker notes.
 
-\vspace{0.1cm}
+\vspace{0.05cm}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=4.6cm,keepaspectratio]{fig_presenton_editor.png}
-\caption{\textbf{Active Slide Studio Interface:} Live editing workspace showing in-canvas text manipulation, slide filmstrip navigation, and pedagogical prompt configuration.}
-\label{fig:presenton_editor}
+\begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth,height=3.2cm,keepaspectratio]{fig_omnix_home.png}
+    \caption{\textbf{OMNIX Home:} Hero prompt capsule \& textbook attachment.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth,height=3.2cm,keepaspectratio]{fig_omnix_templates.png}
+    \caption{\textbf{Design Presets:} 16+ visual palette archetypes.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth,height=3.2cm,keepaspectratio]{fig_omnix_studio.png}
+    \caption{\textbf{Slide Studio:} 16:9 stage, notes, \& live manipulation.}
+\end{subfigure}
+\caption{\textbf{End-to-End OMNIX Platform Interface:} Three-stage workflow spanning curriculum prompt ingestion, visual palette presets selection, and in-canvas slide manipulation with grounded speaker notes.}
+\label{fig:omnix_ui}
 \end{figure}
 
 \vspace{-0.3cm}

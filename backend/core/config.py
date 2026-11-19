@@ -19,8 +19,18 @@ class Settings(BaseSettings):
     PROJECTS_DIR: Path = DATA_DIR / "projects"
     GOLDEN_CHAPTERS_DIR: Path = DATA_DIR / "golden_chapters"
 
-    # LLM Providers (Groq is Primary Default in PRD v0.5)
+    # LLM Providers
+    LLM: str = "google"
+    GOOGLE_API_KEY: str = ""
+    GOOGLE_MODEL: str = "gemini-3.1-flash-lite-preview"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
     GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "nvidia/nemotron-3.5-lightning:free"
     PRIMARY_LLM_MODEL: str = "groq/llama-3.3-70b-versatile"
     FAST_LLM_MODEL: str = "groq/llama-3.1-8b-instant"
 

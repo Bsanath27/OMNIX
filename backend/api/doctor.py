@@ -3,6 +3,7 @@ import importlib.util
 from typing import Dict, Any
 from fastapi import APIRouter
 from backend.core.config import settings
+from backend.core.llm import get_active_llm_provider
 
 router = APIRouter(prefix="/api/doctor", tags=["Diagnostics"])
 
@@ -18,7 +19,26 @@ def check_python_package(pkg: str) -> bool:
 @router.get("", response_model=Dict[str, Any])
 async def run_diagnostics() -> Dict[str, Any]:
     """Inspect server capabilities and provider credentials."""
+    active_llm = get_active_llm_provider()
+    model_name = (
+        settings.GOOGLE_MODEL.replace("models/", "")
+        if active_llm == "google"
+        else settings.GROQ_MODEL
+        if active_llm == "groq"
+        else settings.OPENAI_MODEL
+        if active_llm == "openai"
+        else "none"
+    )
+
     checks = {
+        "llm": {
+            "status": "ok" if active_llm != "none" else "warning",
+            "message": f"Active LLM: {active_llm.upper()} ({model_name})" if active_llm != "none" else "No LLM configured; running in deterministic offline fallback"
+        },
+        "google_api": {
+            "status": "ok" if bool(settings.GOOGLE_API_KEY) else "info",
+            "message": f"Google Gemini key configured ({settings.GOOGLE_MODEL})" if bool(settings.GOOGLE_API_KEY) else "Google API key not set"
+        },
         "ffmpeg": {
             "status": "ok" if check_command("ffmpeg") else "missing",
             "message": "FFmpeg binary found" if check_command("ffmpeg") else "FFmpeg missing; video joining disabled"
@@ -36,7 +56,7 @@ async def run_diagnostics() -> Dict[str, Any]:
             "message": "kokoro-onnx installed" if check_python_package("kokoro_onnx") else "kokoro-onnx missing; TTS disabled"
         },
         "groq_api": {
-            "status": "ok" if bool(settings.GROQ_API_KEY) else "warning",
+            "status": "ok" if bool(settings.GROQ_API_KEY) else "info",
             "message": "Groq API key configured" if bool(settings.GROQ_API_KEY) else "Groq API key not set"
         },
         "cloudflare_api": {
