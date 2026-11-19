@@ -146,7 +146,132 @@ def test_suggest_slide_edits_and_refine_card():
     assert len(card_data["suggested_card"]["body"]) > 0
 
 
+def test_multi_archetype_pptx_compiler():
+    from backend.tools.slides.slide_tool import SlideContent, SlideCard, build_presentation_file, THEME_PALETTES
+    import tempfile
+
+    # Ensure 38 Presenton themes are supported
+    assert "daktilo" in THEME_PALETTES
+    assert "noir" in THEME_PALETTES
+    assert "cornflower" in THEME_PALETTES
+    assert "indigo" in THEME_PALETTES
+    assert "orbit" in THEME_PALETTES
+    assert "cosmos" in THEME_PALETTES
+    assert "velvet" in THEME_PALETTES
+    assert len(THEME_PALETTES) >= 38
+
+    # Test all smart archetypes
+    test_slides = [
+        SlideContent(
+            slide_number=1,
+            title="Introduction to Quantum Optics",
+            subtitle="Pedagogical Chapter Overview",
+            archetype="hero_title",
+            cards=[SlideCard(stat="100%", title="Photonic Coherence", body="Pure state vector alignment.")]
+        ),
+        SlideContent(
+            slide_number=2,
+            title="Classical vs Quantum Electrodynamics",
+            subtitle="Direct Paradigm Contrast",
+            archetype="before_after",
+            cards=[
+                SlideCard(title="Classical Limits", body="Continuous wave approximation."),
+                SlideCard(title="Quantum Fock States", body="Discrete photon field quantization.")
+            ]
+        ),
+        SlideContent(
+            slide_number=3,
+            title="Quantum Measurement Pipeline",
+            subtitle="Sequential stages",
+            archetype="timeline",
+            cards=[
+                SlideCard(title="Laser Preparation", body="Coherent state pulse injection."),
+                SlideCard(title="Beam Splitting", body="Interferometric phase shifting."),
+                SlideCard(title="Single Photon Detection", body="Avalanche photodiode readout.")
+            ]
+        ),
+        SlideContent(
+            slide_number=4,
+            title="Theoretical Abstraction Pyramid",
+            subtitle="Foundational to applied layers",
+            archetype="pyramid_hierarchy",
+            cards=[
+                SlideCard(title="Peak: Quantum Computing", body="Shor and Grover algorithm execution."),
+                SlideCard(title="Middle: Cavity QED", body="Jaynes-Cummings atom-photon coupling."),
+                SlideCard(title="Base: Maxwell-Bloch Equations", body="Fundamental electromagnetic equations.")
+            ]
+        ),
+        SlideContent(
+            slide_number=5,
+            title="Experimental Staircase",
+            subtitle="Scaling fidelity milestones",
+            archetype="staircase_progression",
+            cards=[
+                SlideCard(title="Bench Setup", body="Initial optical alignment."),
+                SlideCard(title="Cryogenic Cooling", body="Thermal noise suppression."),
+                SlideCard(title="Coherent Control", body="99.9% 2-qubit gate fidelity.")
+            ]
+        ),
+        SlideContent(
+            slide_number=6,
+            title="Foundational Maxim",
+            subtitle="Richard Feynman",
+            archetype="editorial_quote",
+            cards=[
+                SlideCard(title="Richard Feynman", body="I think I can safely say that nobody understands quantum mechanics.")
+            ]
+        ),
+        SlideContent(
+            slide_number=7,
+            title="Core Performance Metrics",
+            subtitle="Quantitative Benchmarks",
+            archetype="stats_grid",
+            cards=[
+                SlideCard(stat="99.8%", title="Fidelity", body="Gate operations."),
+                SlideCard(stat="120 µs", title="T2 Time", body="Dephasing coherence."),
+                SlideCard(stat="10 mK", title="Temperature", body="Dilution fridge baseline.")
+            ]
+        ),
+        SlideContent(
+            slide_number=8,
+            title="Architecture Bento",
+            subtitle="Modular subsystems",
+            archetype="bento_4",
+            cards=[
+                SlideCard(title="Module Alpha", body="Cryogenic routing."),
+                SlideCard(title="Module Beta", body="Microwave pulse synthesis."),
+                SlideCard(title="Module Gamma", body="Readout amplification."),
+                SlideCard(title="Module Delta", body="FPGA feedback logic.")
+            ]
+        ),
+        SlideContent(
+            slide_number=9,
+            title="Visual Apparatus Inspection",
+            subtitle="Split schematic diagram",
+            archetype="hero_visual_split",
+            image_query="Cryogenic dilution refrigerator wiring schematic",
+            cards=[SlideCard(title="Cryostat Setup", body="Continuous helium-3/helium-4 phase separation cooling.")]
+        )
+    ]
+
+    with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as f:
+        out_path = Path(f.name)
+
+    try:
+        build_presentation_file(test_slides, "noir", out_path)
+        assert out_path.exists()
+        prs = Presentation(out_path)
+        assert len(prs.slides) == 9
+        # Verify custom slide width/height
+        assert prs.slide_width.inches > 13.0
+        assert prs.slide_height.inches > 7.0
+    finally:
+        if out_path.exists():
+            out_path.unlink()
+
+
 if __name__ == "__main__":
     test_slide_tool_direct_execution()
     test_slide_tool_api()
     test_suggest_slide_edits_and_refine_card()
+    test_multi_archetype_pptx_compiler()
