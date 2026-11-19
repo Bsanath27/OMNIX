@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Artifact,
   ProjectManifest,
@@ -38,8 +38,17 @@ import {
   ChevronUp,
   PanelLeftClose,
   PanelLeftOpen,
+  TrendingUp,
+  Clock,
+  ArrowRight,
+  Repeat,
+  Image as ImageIcon,
+  BarChart3,
+  RefreshCw,
 } from 'lucide-react';
 import { RightEditDock, RightToolDrawer, ActiveToolPanel } from './SlideEditPanels';
+import { themes, ThemeProperties, ThemeName } from '../lib/presentonThemes';
+import { useThemeFonts } from '../lib/fontLoader';
 
 interface SlideStudioViewProps {
   project: ProjectManifest | null;
@@ -231,276 +240,95 @@ function buildDynamicSlidesFromProject(proj: ProjectManifest | null, passages: R
 }
 
 
-// ── Presenton Slide Studio Dynamic Design System Tokens ─────────────────────
-export interface SlideThemeTokens {
-  canvasBg: string;
-  canvasBorder: string;
-  titleColor: string;
-  subtitleColor: string;
-  cardBg: string;
-  cardBorder: string;
-  cardTitleColor: string;
-  cardBodyColor: string;
-  accentColor: string;
-  badgeBg: string;
-  badgeText: string;
-  isDark: boolean;
+// ── Presenton Slide Studio Theme Architecture ──────────────────────────────
+export const THEME_ALIAS_MAP: Record<string, ThemeName> = {
+  verdant: 'forest',
+  nova: 'orbit',
+  pulse: 'indigo',
+  signal: 'sunset',
+  momentum: 'noir',
+  swift: 'ocean',
+  mosaic: 'sand',
+  editorial: 'piano',
+  civic: 'cornflower',
+  landmark: 'ebony',
+  modern: 'mint',
+  horizon: 'dusk',
+  solar_obsidian: 'noir',
+  academic_clean: 'daktilo',
+  standard: 'cornflower',
+  dynamic: 'ember',
+  executive: 'mystique',
+  col_blue: 'orbit',
+};
+
+export function resolvePresentonTheme(key: string): ThemeProperties {
+  const normalizedKey = (THEME_ALIAS_MAP[key] || key) as ThemeName;
+  return themes[normalizedKey] || themes['cornflower'];
 }
 
-export const PRESENTON_STUDIO_THEMES: Record<string, SlideThemeTokens> = {
-  verdant: {
-    canvasBg: '#F6FAF7',
-    canvasBorder: '#D1E7D6',
-    titleColor: '#15803D',
-    subtitleColor: '#6B7D70',
-    cardBg: '#FFFFFF',
-    cardBorder: '#D1E7D6',
-    cardTitleColor: '#142319',
-    cardBodyColor: '#2D3A30',
-    accentColor: '#15803D',
-    badgeBg: '#15803D18',
-    badgeText: '#15803D',
-    isDark: false,
+export const PRESENTON_STUDIO_THEMES: Record<string, any> = themes;
+
+export type SlideThemeTokens = any;
+
+const CURATED_TOPIC_IMAGES: Array<{ keywords: string[]; url: string }> = [
+  {
+    keywords: ['photosynthesis', 'chloroplast', 'plant', 'leaf', 'botany', 'light absorption', 'respiration'],
+    url: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1000&q=80',
   },
-  nova: {
-    canvasBg: '#0B132B',
-    canvasBorder: '#1C2541',
-    titleColor: '#48CAE4',
-    subtitleColor: '#8D99AE',
-    cardBg: '#1C2541',
-    cardBorder: '#3A506B',
-    cardTitleColor: '#F0F8FF',
-    cardBodyColor: '#CAD2C5',
-    accentColor: '#00B4D8',
-    badgeBg: '#00B4D825',
-    badgeText: '#48CAE4',
-    isDark: true,
+  {
+    keywords: ['cell', 'mitochondria', 'membrane', 'nucleus', 'biology', 'microscopic', 'tissue', 'objective', 'competency'],
+    url: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&w=1000&q=80',
   },
-  pulse: {
-    canvasBg: '#F8FAFC',
-    canvasBorder: '#E2E8F0',
-    titleColor: '#0284C7',
-    subtitleColor: '#64748B',
-    cardBg: '#FFFFFF',
-    cardBorder: '#E2E8F0',
-    cardTitleColor: '#0F172A',
-    cardBodyColor: '#334155',
-    accentColor: '#0284C7',
-    badgeBg: '#0284C718',
-    badgeText: '#0284C7',
-    isDark: false,
+  {
+    keywords: ['dna', 'genetics', 'rna', 'chromosome', 'genome', 'heredity', 'molecular'],
+    url: 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?auto=format&fit=crop&w=1000&q=80',
   },
-  signal: {
-    canvasBg: '#181715',
-    canvasBorder: '#383531',
-    titleColor: '#FF5C00',
-    subtitleColor: '#A09B91',
-    cardBg: '#23211F',
-    cardBorder: '#383531',
-    cardTitleColor: '#FAF8F5',
-    cardBodyColor: '#D6D3D1',
-    accentColor: '#FF5C00',
-    badgeBg: '#FF5C0020',
-    badgeText: '#FF5C00',
-    isDark: true,
+  {
+    keywords: ['physics', 'force', 'gravity', 'motion', 'buoyancy', 'mechanics', 'energy', 'velocity'],
+    url: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=1000&q=80',
   },
-  solar_obsidian: {
-    canvasBg: '#151413',
-    canvasBorder: '#332F2B',
-    titleColor: '#FF5C00',
-    subtitleColor: '#9CA3AF',
-    cardBg: '#201E1C',
-    cardBorder: '#332F2B',
-    cardTitleColor: '#F5F2EB',
-    cardBodyColor: '#D1D5DB',
-    accentColor: '#FF5C00',
-    badgeBg: '#FF5C0020',
-    badgeText: '#FF5C00',
-    isDark: true,
+  {
+    keywords: ['fluid', 'liquid', 'water', 'hydrostatics', 'density', 'archimedes'],
+    url: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1000&q=80',
   },
-  academic_clean: {
-    canvasBg: '#FFFFFF',
-    canvasBorder: '#E2E8F0',
-    titleColor: '#1E3A8A',
-    subtitleColor: '#64748B',
-    cardBg: '#F8FAFC',
-    cardBorder: '#E2E8F0',
-    cardTitleColor: '#1E293B',
-    cardBodyColor: '#475569',
-    accentColor: '#1E3A8A',
-    badgeBg: '#1E3A8A18',
-    badgeText: '#1E3A8A',
-    isDark: false,
+  {
+    keywords: ['chemistry', 'chemical', 'reaction', 'atom', 'compound', 'acid', 'base', 'solution'],
+    url: 'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&w=1000&q=80',
   },
-  standard: {
-    canvasBg: '#FFFFFF',
-    canvasBorder: '#E2E8F0',
-    titleColor: '#0F172A',
-    subtitleColor: '#64748B',
-    cardBg: '#F8FAFC',
-    cardBorder: '#E2E8F0',
-    cardTitleColor: '#0F172A',
-    cardBodyColor: '#334155',
-    accentColor: '#0EA5E9',
-    badgeBg: '#0EA5E918',
-    badgeText: '#0284C7',
-    isDark: false,
+  {
+    keywords: ['laboratory', 'lab', 'experiment', 'beaker', 'flask', 'science', 'research'],
+    url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80',
   },
-  dynamic: {
-    canvasBg: '#111318',
-    canvasBorder: '#2D323E',
-    titleColor: '#F97316',
-    subtitleColor: '#9CA3AF',
-    cardBg: '#1C1F26',
-    cardBorder: '#2D323E',
-    cardTitleColor: '#F8FAFC',
-    cardBodyColor: '#CBD5E1',
-    accentColor: '#F97316',
-    badgeBg: '#F9731620',
-    badgeText: '#F97316',
-    isDark: true,
+  {
+    keywords: ['space', 'astronomy', 'planet', 'solar', 'galaxy', 'universe', 'orbit'],
+    url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1000&q=80',
   },
-  col_blue: {
-    canvasBg: '#FAF7F2',
-    canvasBorder: '#E8E2D8',
-    titleColor: '#0369A1',
-    subtitleColor: '#716D64',
-    cardBg: '#FFFFFF',
-    cardBorder: '#E8E2D8',
-    cardTitleColor: '#18181B',
-    cardBodyColor: '#3F3F46',
-    accentColor: '#0369A1',
-    badgeBg: '#0369A118',
-    badgeText: '#0369A1',
-    isDark: false,
+  {
+    keywords: ['math', 'mathematics', 'calculus', 'geometry', 'algebra', 'equation', 'formula'],
+    url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1000&q=80',
   },
-  executive: {
-    canvasBg: '#0F0E17',
-    canvasBorder: '#2E2A4A',
-    titleColor: '#A78BFA',
-    subtitleColor: '#938BAA',
-    cardBg: '#1E1B2E',
-    cardBorder: '#2E2A4A',
-    cardTitleColor: '#F5F3FF',
-    cardBodyColor: '#DDD6FE',
-    accentColor: '#A78BFA',
-    badgeBg: '#A78BFA20',
-    badgeText: '#C084FC',
-    isDark: true,
+  {
+    keywords: ['technology', 'computer', 'digital', 'algorithm', 'code', 'data', 'circuit'],
+    url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=80',
   },
-  modern: {
-    canvasBg: '#FFFFFF',
-    canvasBorder: '#E5E7EB',
-    titleColor: '#2563EB',
-    subtitleColor: '#6B7280',
-    cardBg: '#F9FAFB',
-    cardBorder: '#E5E7EB',
-    cardTitleColor: '#111827',
-    cardBodyColor: '#374151',
-    accentColor: '#2563EB',
-    badgeBg: '#2563EB18',
-    badgeText: '#2563EB',
-    isDark: false,
-  },
-  mosaic: {
-    canvasBg: '#FAFAFA',
-    canvasBorder: '#E4E4E7',
-    titleColor: '#D97706',
-    subtitleColor: '#71717A',
-    cardBg: '#FFFFFF',
-    cardBorder: '#E4E4E7',
-    cardTitleColor: '#18181B',
-    cardBodyColor: '#3F3F46',
-    accentColor: '#D97706',
-    badgeBg: '#D9770618',
-    badgeText: '#D97706',
-    isDark: false,
-  },
-  momentum: {
-    canvasBg: '#131416',
-    canvasBorder: '#272A30',
-    titleColor: '#38BDF8',
-    subtitleColor: '#94A3B8',
-    cardBg: '#1E2025',
-    cardBorder: '#272A30',
-    cardTitleColor: '#F1F5F9',
-    cardBodyColor: '#CBD5E1',
-    accentColor: '#38BDF8',
-    badgeBg: '#38BDF820',
-    badgeText: '#38BDF8',
-    isDark: true,
-  },
-  swift: {
-    canvasBg: '#F8FAFC',
-    canvasBorder: '#E2E8F0',
-    titleColor: '#2563EB',
-    subtitleColor: '#64748B',
-    cardBg: '#FFFFFF',
-    cardBorder: '#E2E8F0',
-    cardTitleColor: '#0F172A',
-    cardBodyColor: '#334155',
-    accentColor: '#2563EB',
-    badgeBg: '#2563EB18',
-    badgeText: '#2563EB',
-    isDark: false,
-  },
-  editorial: {
-    canvasBg: '#FDFBF7',
-    canvasBorder: '#E7E1D7',
-    titleColor: '#1C1917',
-    subtitleColor: '#78716C',
-    cardBg: '#FFFFFF',
-    cardBorder: '#E7E1D7',
-    cardTitleColor: '#1C1917',
-    cardBodyColor: '#44403C',
-    accentColor: '#1C1917',
-    badgeBg: '#1C191715',
-    badgeText: '#1C1917',
-    isDark: false,
-  },
-  civic: {
-    canvasBg: '#F0F4F8',
-    canvasBorder: '#D6E0EA',
-    titleColor: '#1E40AF',
-    subtitleColor: '#64748B',
-    cardBg: '#FFFFFF',
-    cardBorder: '#D6E0EA',
-    cardTitleColor: '#1E293B',
-    cardBodyColor: '#334155',
-    accentColor: '#1E40AF',
-    badgeBg: '#1E40AF18',
-    badgeText: '#1E40AF',
-    isDark: false,
-  },
-  landmark: {
-    canvasBg: '#14181E',
-    canvasBorder: '#232B35',
-    titleColor: '#E2E8F0',
-    subtitleColor: '#94A3B8',
-    cardBg: '#1C222B',
-    cardBorder: '#232B35',
-    cardTitleColor: '#F8FAFC',
-    cardBodyColor: '#CBD5E1',
-    accentColor: '#94A3B8',
-    badgeBg: '#94A3B820',
-    badgeText: '#E2E8F0',
-    isDark: true,
-  },
-  horizon: {
-    canvasBg: '#0E1525',
-    canvasBorder: '#1E293B',
-    titleColor: '#60A5FA',
-    subtitleColor: '#94A3B8',
-    cardBg: '#172136',
-    cardBorder: '#1E293B',
-    cardTitleColor: '#F8FAFC',
-    cardBodyColor: '#CBD5E1',
-    accentColor: '#60A5FA',
-    badgeBg: '#60A5FA20',
-    badgeText: '#60A5FA',
-    isDark: true,
-  },
-};
+];
+
+export function resolveSlideVisual(query?: string, customUrl?: string): string {
+  if (customUrl) return customUrl;
+  if (!query) return CURATED_TOPIC_IMAGES[0].url;
+
+  const lower = query.toLowerCase();
+  for (const entry of CURATED_TOPIC_IMAGES) {
+    if (entry.keywords.some((k) => lower.includes(k))) {
+      return entry.url;
+    }
+  }
+
+  const hash = query.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const idx = Math.abs(hash) % CURATED_TOPIC_IMAGES.length;
+  return CURATED_TOPIC_IMAGES[idx].url;
+}
 
 export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   project,
@@ -516,7 +344,12 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     const params = new URLSearchParams(window.location.search);
     return params.get('theme') || initialArtifact?.source_data?.theme || 'verdant';
   });
-  const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false);
+  const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('menu') === 'layout';
+    }
+    return false;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -568,7 +401,40 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     }
   }, [initialArtifact, project]);
 
-  const activeTheme: SlideThemeTokens = PRESENTON_STUDIO_THEMES[activeThemeKey] || PRESENTON_STUDIO_THEMES['solar_obsidian'];
+  const rawTheme = resolvePresentonTheme(activeThemeKey);
+  useThemeFonts(rawTheme);
+
+  const themeTokens = useMemo(() => {
+    const isDark = rawTheme.mode === 'dark';
+    const colors = rawTheme.colors;
+
+    return {
+      raw: rawTheme,
+      name: rawTheme.name,
+      canvasBg: rawTheme.background?.override || colors.background,
+      canvasBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+      accentColor: colors.accent || colors.primary,
+      primaryColor: colors.primary,
+      titleColor: colors.heading || colors.text,
+      subtitleColor: isDark ? '#94A3B8' : '#64748B',
+      badgeBg: colors.smartLayout ? `${colors.smartLayout}20` : (colors.accent ? `${colors.accent}1a` : 'rgba(255,92,0,0.12)'),
+      badgeText: colors.accent || colors.primary,
+      cardBg: colors.cardBackground || colors.background,
+      cardBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+      cardTitleColor: colors.heading || colors.text,
+      cardBodyColor: colors.text || (isDark ? '#E2E8F0' : '#334155'),
+      headingFont: rawTheme.fonts.heading || 'system-ui, sans-serif',
+      bodyFont: rawTheme.fonts.body || 'system-ui, sans-serif',
+      slideRadius: rawTheme.borderRadius?.slide || '1.25rem',
+      cardRadius: rawTheme.borderRadius?.card || '1rem',
+      slideShadow: rawTheme.shadows?.slide || '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+      cardShadow: rawTheme.shadows?.card || '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+      smartLayout: colors.smartLayout,
+      isDark,
+    };
+  }, [activeThemeKey, rawTheme]);
+
+  const activeTheme = themeTokens;
 
   const activeSlide = editableSlides[currentSlideIndex] || editableSlides[0];
 
@@ -579,18 +445,79 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
       const updated = [...prev];
       const target = { ...updated[currentSlideIndex] };
       target.archetype = newArchetype;
+      const bullets = target.bullets || [];
 
-      // Adapt cards structure if switching to comparison or list
-      if (newArchetype === 'split_comparison' && (!target.cards || target.cards.length < 2)) {
+      if (newArchetype === 'hero_visual_split') {
+        if (!target.cards || target.cards.length < 2) {
+          target.cards = [
+            { badge: 'Core Mechanism', title: 'Primary Principle', body: bullets[0] || 'Foundational conceptual process explained with scientific clarity.' },
+            { badge: 'Observable Proof', title: 'Empirical Application', body: bullets[1] || 'Experimental observation confirming the theoretical framework.' },
+          ];
+        }
+        if (!target.image_query) {
+          target.image_query = `${target.title} scientific 3d illustration`;
+        }
+      } else if (newArchetype === 'chart_data') {
         target.cards = [
-          { badge: 'Column 1', title: 'Primary Principle', body: target.bullets?.[0] || 'Foundational mechanism.' },
-          { badge: 'Column 2', title: 'Comparative Outcome', body: target.bullets?.[1] || 'Observable effect.' },
+          {
+            badge: 'Empirical Data',
+            title: 'Quantitative Measurements',
+            body: bullets[0] || 'Empirical comparison observed under controlled curriculum parameters.',
+            isChart: true,
+            chartData: [
+              { label: 'Wavelength 450nm (Blue)', value: 92 },
+              { label: 'Wavelength 550nm (Green)', value: 18 },
+              { label: 'Wavelength 680nm (Red)', value: 85 },
+              { label: 'Dark Respiration Baseline', value: 24 },
+            ]
+          }
+        ];
+        target.chart_data = [
+          { label: 'Wavelength 450nm (Blue)', value: 92 },
+          { label: 'Wavelength 550nm (Green)', value: 18 },
+          { label: 'Wavelength 680nm (Red)', value: 85 },
+          { label: 'Dark Respiration Baseline', value: 24 },
+        ];
+      } else if (newArchetype === 'timeline') {
+        target.cards = [
+          { badge: 'Phase 01', stat: 'Week 1', title: 'Initiation & Hypothesis', body: bullets[0] || 'Establish baseline parameters and research assumptions.' },
+          { badge: 'Phase 02', stat: 'Week 3', title: 'Empirical Testing', body: bullets[1] || 'Run controlled trials and document observation variances.' },
+          { badge: 'Phase 03', stat: 'Week 6', title: 'Synthesis & Proof', body: bullets[2] || 'Evaluate statistical significance and confirm thesis.' },
+        ];
+      } else if (newArchetype === 'sequence_steps') {
+        target.cards = [
+          { badge: 'Step 01', title: 'Problem Discovery', body: bullets[0] || 'Isolate the core physical variable and establish boundary conditions.' },
+          { badge: 'Step 02', title: 'Mechanistic Execution', body: bullets[1] || 'Apply the primary governing law and compute deterministic values.' },
+          { badge: 'Step 03', title: 'Mastery Verification', body: bullets[2] || 'Confirm equilibrium and cross-validate against textbook standards.' },
+        ];
+      } else if (newArchetype === 'stat_callout') {
+        target.cards = [
+          { badge: 'Key Metric', stat: '94.8%', title: 'Curriculum Mastery', body: bullets[0] || 'Empirical comprehension gain measured across structured textbook modules.' },
+          { badge: 'Velocity', stat: '3.2x', title: 'Synthesis Speed', body: bullets[1] || 'Faster retention rate achieved through multi-card bento decomposition.' },
+        ];
+      } else if (newArchetype === 'process_cycle') {
+        target.cards = [
+          { badge: 'Node 01', title: 'Intake & Perception', body: bullets[0] || 'Absorption of initial textbook postulates and definitions.' },
+          { badge: 'Node 02', title: 'Relational Synthesis', body: bullets[1] || 'Mapping components into interconnected functional structures.' },
+          { badge: 'Node 03', title: 'Feedback Loop', body: bullets[2] || 'Formative checkpoint verifying zero conceptual hallucination.' },
+          { badge: 'Node 04', title: 'Equilibrium', body: bullets[3] || 'Continuous iterative refinement ensuring sustained mastery.' },
+        ];
+      } else if (newArchetype === 'split_comparison' && (!target.cards || target.cards.length < 2)) {
+        target.cards = [
+          { badge: 'Condition A', title: 'Baseline Paradigm', body: bullets[0] || 'Fragmented instruction with manual lesson assembly.' },
+          { badge: 'Condition B', title: 'Grounded Intelligence', body: bullets[1] || 'Deterministic textbook alignment with instant smart layouts.' },
         ];
       } else if (newArchetype === 'card_grid_3' && (!target.cards || target.cards.length < 3)) {
         target.cards = [
-          { badge: 'Part 1', title: 'Concept 1', body: target.bullets?.[0] || 'Core principle definition.' },
-          { badge: 'Part 2', title: 'Concept 2', body: target.bullets?.[1] || 'Experimental observation.' },
-          { badge: 'Part 3', title: 'Concept 3', body: target.bullets?.[2] || 'Theoretical application.' },
+          { badge: 'Part 1', title: 'Core Principle', body: bullets[0] || 'Primary foundational mechanism.' },
+          { badge: 'Part 2', title: 'Observation', body: bullets[1] || 'Experimental evidence and proof.' },
+          { badge: 'Part 3', title: 'Application', body: bullets[2] || 'Classroom exercise and derivation.' },
+        ];
+      } else if (newArchetype === 'bullet_list' && (!target.cards || target.cards.length < 3)) {
+        target.cards = [
+          { badge: 'Point 01', title: 'Fundamental Postulate', body: bullets[0] || 'Governing principle established by physical laws.' },
+          { badge: 'Point 02', title: 'Operational Constraint', body: bullets[1] || 'Boundary conditions determining practical limits.' },
+          { badge: 'Point 03', title: 'Pedagogical Takeaway', body: bullets[2] || 'Critical concept for high-retention examinations.' },
         ];
       }
 
@@ -604,9 +531,12 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     const params = new URLSearchParams(window.location.search);
     const layout = params.get('layout');
     if (layout) {
-      handleSwitchLayout(layout);
+      const timer = setTimeout(() => {
+        handleSwitchLayout(layout);
+      }, 150);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [currentSlideIndex, initialArtifact]);
 
   const handleUpdateSlideField = (field: string, value: any) => {
     setEditableSlides((prev) => {
@@ -856,26 +786,13 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             <select
               value={activeThemeKey}
               onChange={(e) => setActiveThemeKey(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer max-w-[220px]"
             >
-              <option value="verdant" className="bg-[#1C1B19]">Verdant (Life Sciences)</option>
-              <option value="nova" className="bg-[#1C1B19]">Nova (Tech/Physics)</option>
-              <option value="pulse" className="bg-[#1C1B19]">Pulse (Clinical Blue)</option>
-              <option value="signal" className="bg-[#1C1B19]">Signal (Solar Amber)</option>
-              <option value="momentum" className="bg-[#1C1B19]">Momentum (Deep Carbon)</option>
-              <option value="swift" className="bg-[#1C1B19]">Swift (Electric Blue)</option>
-              <option value="mosaic" className="bg-[#1C1B19]">Mosaic (Warm Terracotta)</option>
-              <option value="editorial" className="bg-[#1C1B19]">Editorial (Warm Ivory)</option>
-              <option value="civic" className="bg-[#1C1B19]">Civic (Steel Blue)</option>
-              <option value="landmark" className="bg-[#1C1B19]">Landmark (Dark Slate)</option>
-              <option value="modern" className="bg-[#1C1B19]">Modern (Clean Blue)</option>
-              <option value="horizon" className="bg-[#1C1B19]">Horizon (Dusk Navy)</option>
-              <option value="solar_obsidian" className="bg-[#1C1B19]">Solar Obsidian (Dark)</option>
-              <option value="academic_clean" className="bg-[#1C1B19]">Academic Clean (Light)</option>
-              <option value="standard" className="bg-[#1C1B19]">Standard (Classroom)</option>
-              <option value="dynamic" className="bg-[#1C1B19]">Dynamic (High Contrast)</option>
-              <option value="executive" className="bg-[#1C1B19]">Executive (Violet)</option>
-              <option value="col_blue" className="bg-[#1C1B19]">COL Sky Blue (Creme)</option>
+              {Object.entries(themes).map(([key, t]) => (
+                <option key={key} value={key} className="bg-[#1C1B19] text-slate-200">
+                  {t.name} ({t.fonts.heading} / {t.fonts.body}) {t.mode === 'dark' ? '• Dark' : '• Light'}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -1082,6 +999,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">
                 Grounding Sync: Verified Stable
               </span>
+              <span className="text-slate-500 dark:text-slate-400 text-xs">|</span>
+              <span className="px-2 py-0.5 rounded-md bg-white/70 dark:bg-[#1C1B19] border border-black/10 dark:border-[#2B2926] text-[10px] font-mono font-bold text-slate-400">
+                SLIDE {String(currentSlideIndex + 1).padStart(2, '0')} / {String(editableSlides.length).padStart(2, '0')}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-white/70 dark:bg-[#1C1B19] border border-black/10 dark:border-[#2B2926] text-[10px] font-mono font-bold text-emerald-500 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                <span>{activeSlide?.standard || 'Curriculum Standard'}</span>
+              </span>
             </div>
 
             <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 text-[11px] font-mono">
@@ -1100,7 +1025,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
           </div>
 
           {/* Presenton Centered Floating Action Pill */}
-          <div className="flex items-center justify-center mb-3">
+          <div className="flex items-center justify-center mb-3 relative z-30">
             <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/90 dark:bg-[#1C1B19]/90 backdrop-blur-md border border-black/10 dark:border-white/10 shadow-lg text-xs">
               {/* Left: Layout Switcher Button & Dropdown */}
               <div className="relative">
@@ -1110,7 +1035,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF5C00]" />
                   <span>
-                    {activeSlide?.archetype === 'split_comparison' ? '2-Column Split' : activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' ? 'Title Slide' : activeSlide?.archetype === 'bullet_list' ? 'Concept List' : '3-Card Grid'}
+                    {activeSlide?.archetype === 'hero_visual_split' ? 'Split Visual Hero' : activeSlide?.archetype === 'chart_data' ? 'Data Chart Hero' : activeSlide?.archetype === 'split_comparison' ? '2-Column Split' :
+                     activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' ? 'Title Slide' :
+                     activeSlide?.archetype === 'bullet_list' ? 'Concept List' :
+                     activeSlide?.archetype === 'timeline' ? 'Timeline Track' :
+                     activeSlide?.archetype === 'sequence_steps' ? 'Sequence Steps' :
+                     activeSlide?.archetype === 'stat_callout' ? 'Stat Hero' :
+                     activeSlide?.archetype === 'process_cycle' ? 'Process Cycle' :
+                     '3-Card Grid'}
                   </span>
                   <ChevronDownIcon className="w-3 h-3 text-slate-400" />
                 </button>
@@ -1118,9 +1050,15 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 {isLayoutMenuOpen && (
                   <div className="absolute left-0 top-full mt-2 w-56 rounded-2xl bg-white dark:bg-[#1C1B19] border border-black/10 dark:border-[#383531] shadow-2xl p-1.5 z-50 space-y-1">
                     {[
+                      { id: 'hero_visual_split', label: 'Split Visual Hero', icon: ImageIcon, desc: '60% content + 40% high-res scientific photo / visual' },
+                      { id: 'chart_data', label: 'Data Chart Hero', icon: BarChart3, desc: 'Interactive visual data chart with metrics' },
                       { id: 'hero_title', label: 'Title / Hero Slide', icon: FileText, desc: 'Large headline & curriculum thesis' },
                       { id: 'card_grid_3', label: '3-Card Bento Grid', icon: LayoutGrid, desc: 'Balanced 3 concept cards' },
                       { id: 'split_comparison', label: '2-Column Comparison', icon: Columns, desc: 'Side-by-side contrast' },
+                      { id: 'timeline', label: 'Timeline Track', icon: Clock, desc: 'Chronological phases & milestone track' },
+                      { id: 'sequence_steps', label: 'Sequence Chevrons', icon: ArrowRight, desc: 'Step-by-step process flow with arrows' },
+                      { id: 'stat_callout', label: 'Stat Hero / Metrics', icon: TrendingUp, desc: 'Oversized numbers & retention metrics' },
+                      { id: 'process_cycle', label: 'Process Cycle', icon: Repeat, desc: 'Closed-loop continuous workflow' },
                       { id: 'bullet_list', label: 'Structured Concept List', icon: AlignLeft, desc: 'Sequential points & definitions' },
                     ].map((archetype) => {
                       const ArchIcon = archetype.icon;
@@ -1181,10 +1119,13 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
           {/* 16:9 Center Slide Canvas (Presenton-Style Floating Card on Neutral Backdrop) */}
           <div
-            className="my-auto w-full max-w-4xl xl:max-w-5xl min-w-[560px] md:min-w-[640px] aspect-video min-h-[360px] md:min-h-[400px] mx-auto rounded-2xl p-5 sm:p-7 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300 border border-black/5 dark:border-white/10"
+            className="my-auto w-full max-w-4xl xl:max-w-5xl min-w-[560px] md:min-w-[640px] aspect-video min-h-[360px] md:min-h-[400px] mx-auto p-5 sm:p-7 flex flex-col justify-between relative overflow-hidden transition-all duration-300 border"
             style={{
-              backgroundColor: activeTheme.canvasBg,
+              background: activeTheme.canvasBg,
               borderColor: activeTheme.canvasBorder,
+              borderRadius: activeTheme.slideRadius,
+              boxShadow: activeTheme.slideShadow,
+              fontFamily: activeTheme.bodyFont,
             }}
           >
             {/* Corner Ambient Glow */}
@@ -1194,35 +1135,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             />
 
             <div className="relative z-10 space-y-2.5">
-              {/* Slide Header: Metadata & Subject Standard */}
+              {/* Clean Editorial Kicker (Presenton Style - Uncluttered Canvas) */}
               <div className="flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="font-bold uppercase tracking-wider text-[11px] px-2 py-0.5 rounded-full"
-                    style={{
-                      backgroundColor: activeTheme.badgeBg,
-                      color: activeTheme.accentColor,
-                    }}
-                  >
-                    {activeSlide?.subtitle || `${(project?.outline?.subject || 'Curriculum').toUpperCase()} · ${(project?.outline?.grade_level || 'Grade 10').toUpperCase()}`}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span style={{ color: activeTheme.subtitleColor }} className="font-bold text-[11px]">
-                    SLIDE {String(currentSlideIndex + 1).padStart(2, '0')} / {String(editableSlides.length).padStart(2, '0')}
-                  </span>
-                  <span
-                    className="px-2 py-0.5 rounded-full flex items-center gap-1 font-medium text-[10px] border"
-                    style={{
-                      backgroundColor: activeTheme.badgeBg,
-                      color: activeTheme.badgeText,
-                      borderColor: activeTheme.accentColor + '30',
-                    }}
-                  >
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>{activeSlide?.standard || `${project?.outline?.subject || 'Curriculum'} Standard`}</span>
-                  </span>
-                </div>
+                <span
+                  className="font-bold uppercase tracking-widest text-[10px] font-mono opacity-80"
+                  style={{ color: activeTheme.accentColor }}
+                >
+                  {activeSlide?.subtitle || `${(project?.outline?.subject || 'Curriculum').toUpperCase()} · ${(project?.outline?.grade_level || 'Grade 10').toUpperCase()}`}
+                </span>
               </div>
 
               {/* Large Bold Slide Title (Clean Editorial Typography, No Form Borders) */}
@@ -1231,11 +1151,11 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 value={activeSlide?.title || ''}
                 onChange={(e) => handleUpdateSlideField('title', e.target.value)}
                 className="w-full text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight bg-transparent border-none focus:outline-none resize-none leading-tight"
-                style={{ color: activeTheme.titleColor }}
+                style={{ color: activeTheme.titleColor, fontFamily: activeTheme.headingFont }}
               />
 
               {/* ── DYNAMIC ARCHETYPE 1: HERO TITLE / STAT SLIDE (Presenton 12-Column Split) ── */}
-              {(activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' || currentSlideIndex === 0) && (
+              {(activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' || (currentSlideIndex === 0 && !activeSlide?.archetype)) && (
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-stretch">
                   <div
                     className="md:col-span-7 p-4 sm:p-5 rounded-2xl border flex flex-col justify-between shadow-xs transition-colors"
@@ -1328,14 +1248,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
                           className="w-full text-base font-bold bg-transparent border-none focus:outline-none mb-1.5 resize-none leading-snug break-words"
-                          style={{ color: activeTheme.cardTitleColor }}
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
                         />
                         <textarea
                           rows={4}
                           value={card.body || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
                           className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
-                          style={{ color: activeTheme.cardBodyColor }}
+                          style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
                         />
                       </div>
                       {card.citation && (
@@ -1375,14 +1295,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                           value={card.title || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
                           className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-0.5 resize-none leading-snug break-words"
-                          style={{ color: activeTheme.cardTitleColor }}
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
                         />
                         <textarea
                           rows={2}
                           value={card.body || ''}
                           onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
                           className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
-                          style={{ color: activeTheme.cardBodyColor }}
+                          style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
                         />
                       </div>
                     </div>
@@ -1390,8 +1310,472 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 </div>
               )}
 
-              {/* ── DYNAMIC ARCHETYPE 4: PRESENTON CARDS / BENTO GRID ── */}
-              {activeSlide?.archetype !== 'hero_title' && activeSlide?.archetype !== 'hero_stat' && currentSlideIndex !== 0 && activeSlide?.archetype !== 'split_comparison' && activeSlide?.archetype !== 'bullet_list' && (
+              {/* ── PRESENTON SIGNATURE SMART LAYOUT: SPLIT VISUAL HERO (60% Content + 40% Photographic Card) ── */}
+              {activeSlide?.archetype === 'hero_visual_split' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1 items-stretch">
+                  {/* Left Column: 7 cols (approx 60%) */}
+                  <div className="lg:col-span-7 flex flex-col justify-between gap-2.5">
+                    <div
+                      className="p-4 sm:p-5 border flex flex-col justify-between flex-1 transition-all"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                        borderRadius: activeTheme.cardRadius,
+                        boxShadow: activeTheme.cardShadow,
+                      }}
+                    >
+                      <div>
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono inline-block mb-1.5"
+                          style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}
+                        >
+                          {activeSlide.cards?.[0]?.badge || 'Core Principle'}
+                        </span>
+                        <textarea
+                          rows={1}
+                          value={activeSlide.cards?.[0]?.title || 'Primary Mechanism'}
+                          onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                          className="w-full text-base font-bold bg-transparent border-none focus:outline-none mb-1 resize-none"
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                        />
+                        <textarea
+                          rows={3}
+                          value={activeSlide.cards?.[0]?.body || activeSlide.bullets?.[0] || 'Foundational conceptual process explained with scientific clarity.'}
+                          onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
+                          className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                          style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className="p-3.5 border flex flex-col justify-between transition-all"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                        borderRadius: activeTheme.cardRadius,
+                        boxShadow: activeTheme.cardShadow,
+                      }}
+                    >
+                      <span
+                        className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono inline-block mb-1 w-max"
+                        style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}
+                      >
+                        {activeSlide.cards?.[1]?.badge || 'Observable Proof'}
+                      </span>
+                      <textarea
+                        rows={2}
+                        value={activeSlide.cards?.[1]?.body || activeSlide.bullets?.[1] || 'Experimental observation confirming the theoretical framework.'}
+                        onChange={(e) => handleUpdateCardField(1, 'body', e.target.value)}
+                        className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Column: 5 cols (approx 40%) - Topic Visual Photographic Card */}
+                  <div
+                    className="lg:col-span-5 relative rounded-2xl overflow-hidden border flex flex-col justify-end group shadow-lg min-h-[220px]"
+                    style={{
+                      borderColor: activeTheme.cardBorder,
+                      borderRadius: activeTheme.cardRadius,
+                    }}
+                  >
+                    <img
+                      src={resolveSlideVisual(activeSlide.image_query, activeSlide.image_url)}
+                      alt={activeSlide.title}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {/* Bottom Caption & Live Image Query Editor */}
+                    <div className="relative z-10 p-3 flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-white font-mono flex-1 min-w-0">
+                        <ImageIcon className="w-3 h-3 text-[#FF5C00] shrink-0" />
+                        <input
+                          type="text"
+                          value={activeSlide.image_query || `${activeSlide.title} diagram`}
+                          onChange={(e) => handleUpdateSlideField('image_query', e.target.value)}
+                          className="bg-transparent border-none focus:outline-none text-[10px] text-white w-full truncate"
+                          title="Click to edit image search query"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const q = activeSlide.image_query || activeSlide.title;
+                          handleUpdateSlideField('image_url', `https://image.pollinations.ai/prompt/${encodeURIComponent(q)}%20${Date.now()}?width=800&height=600&nologo=true`);
+                        }}
+                        className="p-1 rounded-lg bg-black/60 hover:bg-[#FF5C00] text-white border border-white/10 transition-colors shadow-sm shrink-0"
+                        title="Regenerate / Refresh Image"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: DATA CHART HERO ── */}
+              {activeSlide?.archetype === 'chart_data' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1 items-stretch">
+                  {/* Left Column: 6 cols - Analytical Context */}
+                  <div
+                    className="lg:col-span-6 p-5 border flex flex-col justify-between transition-all"
+                    style={{
+                      backgroundColor: activeTheme.cardBg,
+                      borderColor: activeTheme.cardBorder,
+                      borderRadius: activeTheme.cardRadius,
+                      boxShadow: activeTheme.cardShadow,
+                    }}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono"
+                          style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}
+                        >
+                          Empirical Data Analysis
+                        </span>
+                        <div className="flex items-center gap-1 text-[11px] font-mono font-bold" style={{ color: activeTheme.accentColor }}>
+                          <BarChart3 className="w-3.5 h-3.5" />
+                          <span>Curriculum Benchmark</span>
+                        </div>
+                      </div>
+
+                      <textarea
+                        rows={1}
+                        value={activeSlide.cards?.[0]?.title || 'Rate of Reaction Comparison'}
+                        onChange={(e) => handleUpdateCardField(0, 'title', e.target.value)}
+                        className="w-full text-base font-bold bg-transparent border-none focus:outline-none mb-1.5 resize-none leading-snug"
+                        style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                      />
+
+                      <textarea
+                        rows={4}
+                        value={activeSlide.cards?.[0]?.body || activeSlide.bullets?.[0] || 'Quantitative evidence demonstrating variance across tested conditions.'}
+                        onChange={(e) => handleUpdateCardField(0, 'body', e.target.value)}
+                        className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                        style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Column: 6 cols - Interactive Data Chart */}
+                  <div
+                    className="lg:col-span-6 p-5 border flex flex-col justify-between transition-all"
+                    style={{
+                      backgroundColor: activeTheme.cardBg,
+                      borderColor: activeTheme.cardBorder,
+                      borderRadius: activeTheme.cardRadius,
+                      boxShadow: activeTheme.cardShadow,
+                    }}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-mono uppercase font-bold tracking-wider" style={{ color: activeTheme.subtitleColor }}>
+                          Relative Performance (%)
+                        </span>
+                        <span className="text-[10px] font-mono font-bold" style={{ color: activeTheme.accentColor }}>
+                          Target Index: 100
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(activeSlide.chart_data || activeSlide.cards?.[0]?.chartData || [
+                          { label: 'Wavelength 450nm (Blue)', value: 92 },
+                          { label: 'Wavelength 550nm (Green)', value: 18 },
+                          { label: 'Wavelength 680nm (Red)', value: 85 },
+                          { label: 'Dark Respiration Baseline', value: 24 },
+                        ]).map((pt: any, pIdx: number) => (
+                          <div key={pIdx} className="space-y-1">
+                            <div className="flex justify-between text-xs font-mono font-bold" style={{ color: activeTheme.cardTitleColor }}>
+                              <span>{pt.label}</span>
+                              <span style={{ color: activeTheme.accentColor }}>{pt.value}%</span>
+                            </div>
+                            <div className="w-full h-2.5 rounded-full bg-black/20 dark:bg-white/10 overflow-hidden relative">
+                              <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{
+                                  width: `${Math.min(100, Math.max(8, pt.value))}%`,
+                                  backgroundColor: activeTheme.accentColor,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-[10px] font-mono" style={{ color: activeTheme.subtitleColor }}>
+                      <span>Source: Textbook Empirical Data</span>
+                      <span>Variance: ±1.2%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: TIMELINE TRACK ── */}
+              {activeSlide?.archetype === 'timeline' && (
+                <div className="pt-2">
+                  <div className="relative mb-6 mx-4">
+                    <div className="absolute top-1/2 left-0 right-0 h-1 -translate-y-1/2 rounded-full" style={{ backgroundColor: activeTheme.badgeBg }} />
+                    <div
+                      className="absolute top-1/2 left-0 w-2/3 h-1 -translate-y-1/2 rounded-full"
+                      style={{ backgroundColor: activeTheme.accentColor }}
+                    />
+                    <div className="relative flex justify-between">
+                      {(activeSlide.cards || []).slice(0, 3).map((card: any, cIdx: number) => (
+                        <div key={cIdx} className="flex flex-col items-center">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-md border-2"
+                            style={{
+                              backgroundColor: cIdx <= 1 ? activeTheme.accentColor : activeTheme.cardBg,
+                              borderColor: activeTheme.accentColor,
+                              color: cIdx <= 1 ? '#FFFFFF' : activeTheme.accentColor,
+                              fontFamily: activeTheme.headingFont,
+                            }}
+                          >
+                            {cIdx + 1}
+                          </div>
+                          <span
+                            className="mt-1 text-[10px] font-mono font-bold uppercase tracking-wider"
+                            style={{ color: activeTheme.accentColor }}
+                          >
+                            {card.stat || `Phase ${cIdx + 1}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    {(activeSlide.cards || []).slice(0, 3).map((card: any, cIdx: number) => (
+                      <div
+                        key={cIdx}
+                        className="p-4 border flex flex-col justify-between transition-all"
+                        style={{
+                          backgroundColor: activeTheme.cardBg,
+                          borderColor: activeTheme.cardBorder,
+                          borderRadius: activeTheme.cardRadius,
+                          boxShadow: activeTheme.cardShadow,
+                        }}
+                      >
+                        <div>
+                          <span
+                            className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mb-1.5 font-mono"
+                            style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}
+                          >
+                            {card.badge || `Milestone 0${cIdx + 1}`}
+                          </span>
+                          <textarea
+                            rows={1}
+                            value={card.title || ''}
+                            onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                            className="w-full text-sm font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none"
+                            style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                          />
+                          <textarea
+                            rows={3}
+                            value={card.body || ''}
+                            onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                            className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                            style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: SEQUENCE CHEVRONS / STEPS ── */}
+              {activeSlide?.archetype === 'sequence_steps' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 items-stretch">
+                  {(activeSlide.cards || []).slice(0, 3).map((card: any, cIdx: number) => (
+                    <div
+                      key={cIdx}
+                      className="relative p-4 border flex flex-col justify-between transition-all"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                        borderRadius: activeTheme.cardRadius,
+                        boxShadow: activeTheme.cardShadow,
+                      }}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span
+                            className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs font-mono"
+                            style={{
+                              backgroundColor: activeTheme.accentColor,
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            {cIdx + 1}
+                          </span>
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono"
+                            style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}
+                          >
+                            {card.badge || `Step 0${cIdx + 1}`}
+                          </span>
+                        </div>
+
+                        <textarea
+                          rows={1}
+                          value={card.title || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                          className="w-full text-sm font-bold bg-transparent border-none focus:outline-none mb-1.5 leading-snug resize-none"
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                        />
+                        <textarea
+                          rows={4}
+                          value={card.body || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                          className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                          style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                        />
+                      </div>
+                      {cIdx < 2 && (
+                        <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full items-center justify-center shadow-sm"
+                             style={{ backgroundColor: activeTheme.accentColor, color: '#FFFFFF' }}>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: STAT CALLOUT / METRICS HERO ── */}
+              {activeSlide?.archetype === 'stat_callout' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  {(activeSlide.cards || []).slice(0, 2).map((card: any, cIdx: number) => (
+                    <div
+                      key={cIdx}
+                      className="p-6 border flex flex-col justify-between transition-all"
+                      style={{
+                        backgroundColor: activeTheme.cardBg,
+                        borderColor: activeTheme.cardBorder,
+                        borderRadius: activeTheme.cardRadius,
+                        boxShadow: activeTheme.cardShadow,
+                      }}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <span
+                            className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded font-mono"
+                            style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}
+                          >
+                            {card.badge || 'Benchmark Metric'}
+                          </span>
+                          <div className="flex items-center gap-1 text-[11px] font-mono font-bold" style={{ color: activeTheme.accentColor }}>
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            <span>Verified Focus</span>
+                          </div>
+                        </div>
+
+                        <div className="my-2">
+                          <textarea
+                            rows={1}
+                            value={card.stat || (cIdx === 0 ? '94.8%' : '3.2x')}
+                            onChange={(e) => handleUpdateCardField(cIdx, 'stat', e.target.value)}
+                            className="w-full text-4xl sm:text-5xl lg:text-6xl font-black bg-transparent border-none focus:outline-none resize-none tracking-tight leading-none"
+                            style={{ color: activeTheme.accentColor, fontFamily: activeTheme.headingFont }}
+                          />
+                        </div>
+
+                        <textarea
+                          rows={1}
+                          value={card.title || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                          className="w-full text-base font-bold bg-transparent border-none focus:outline-none mb-1.5 resize-none leading-snug"
+                          style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                        />
+
+                        <textarea
+                          rows={3}
+                          value={card.body || ''}
+                          onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                          className="w-full text-xs leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                          style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── PRESENTON SMART LAYOUT: PROCESS CYCLE ── */}
+              {activeSlide?.archetype === 'process_cycle' && (
+                <div className="pt-1">
+                  <div className="flex items-center justify-center gap-1.5 mb-2 text-xs font-mono font-bold" style={{ color: activeTheme.accentColor }}>
+                    <Repeat className="w-3.5 h-3.5 animate-spin-slow" />
+                    <span>CONTINUOUS INSTRUCTIONAL LOOP</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {(activeSlide.cards || []).slice(0, 4).map((card: any, cIdx: number) => (
+                      <div
+                        key={cIdx}
+                        className="relative p-3.5 border flex flex-col justify-between transition-all"
+                        style={{
+                          backgroundColor: activeTheme.cardBg,
+                          borderColor: activeTheme.cardBorder,
+                          borderRadius: activeTheme.cardRadius,
+                          boxShadow: activeTheme.cardShadow,
+                        }}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span
+                              className="w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] font-mono text-white"
+                              style={{ backgroundColor: activeTheme.accentColor }}
+                            >
+                              0{cIdx + 1}
+                            </span>
+                            <span
+                              className="text-[9px] font-mono font-bold uppercase tracking-wider"
+                              style={{ color: activeTheme.accentColor }}
+                            >
+                              {card.badge || `Stage ${cIdx + 1}`}
+                            </span>
+                          </div>
+
+                          <textarea
+                            rows={1}
+                            value={card.title || ''}
+                            onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
+                            className="w-full text-xs font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none"
+                            style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
+                          />
+                          <textarea
+                            rows={3}
+                            value={card.body || ''}
+                            onChange={(e) => handleUpdateCardField(cIdx, 'body', e.target.value)}
+                            className="w-full text-[11px] leading-relaxed bg-transparent border-none focus:outline-none resize-none"
+                            style={{ color: activeTheme.cardBodyColor, fontFamily: activeTheme.bodyFont }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── DYNAMIC ARCHETYPE: PRESENTON CARDS / BENTO GRID ── */}
+              {activeSlide?.archetype !== 'hero_visual_split' &&
+               activeSlide?.archetype !== 'chart_data' &&
+               activeSlide?.archetype !== 'hero_title' &&
+               activeSlide?.archetype !== 'hero_stat' &&
+               !(currentSlideIndex === 0 && !activeSlide?.archetype) &&
+               activeSlide?.archetype !== 'split_comparison' &&
+               activeSlide?.archetype !== 'bullet_list' &&
+               activeSlide?.archetype !== 'timeline' &&
+               activeSlide?.archetype !== 'sequence_steps' &&
+               activeSlide?.archetype !== 'stat_callout' &&
+               activeSlide?.archetype !== 'process_cycle' && (
                 <div>
                   <div className={`grid gap-3.5 pt-1 ${
                     (activeSlide?.cards?.length || 3) === 1
@@ -1459,7 +1843,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                             value={card.title || ''}
                             onChange={(e) => handleUpdateCardField(cIdx, 'title', e.target.value)}
                             className="w-full text-sm font-bold bg-transparent border-none focus:outline-none mb-1 leading-snug resize-none break-words"
-                            style={{ color: activeTheme.cardTitleColor }}
+                            style={{ color: activeTheme.cardTitleColor, fontFamily: activeTheme.headingFont }}
                           />
 
                           {card.isFormula ? (

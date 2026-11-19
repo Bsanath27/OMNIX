@@ -1,6 +1,7 @@
 import json
 import uuid
 import logging
+import urllib.parse
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -815,19 +816,26 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 f"You are a master presentation designer and curriculum author for {grade} learners.\n"
                 f"Convert the given approved presentation outline into a complete, presentation-ready slide deck.\n\n"
                 f"For each slide in the outline, synthesize rich, presentation-ready JSON:\n"
-                f"1. 'archetype': Select the most visually appropriate layout archetype:\n"
+                f"1. 'archetype': Select the most visually appropriate Presenton Smart Layout archetype:\n"
+                f"   - 'hero_visual_split' (Signature Presenton style: 60% structured insight on left + 40% high-res scientific photo/illustration on right)\n"
                 f"   - 'hero_title' (Slide 1: overarching title, thesis, and core inquiry)\n"
-                f"   - 'split_comparison' (when comparing two concepts, laws, or systems side-by-side)\n"
                 f"   - 'card_grid_3' (for 3 distinct components, principles, or mechanisms)\n"
-                f"   - 'bullet_list' (for sequential steps, formulas, or numbered laws)\n"
-                f"   - 'key_takeaways' (for summary & review slides)\n"
+                f"   - 'split_comparison' (when comparing two concepts, laws, or systems side-by-side)\n"
+                f"   - 'timeline' (for chronological phases, milestones, or historical progressions)\n"
+                f"   - 'sequence_steps' (for step-by-step processes, procedures, or sequential derivations)\n"
+                f"   - 'stat_callout' (for high-impact quantitative metrics, retention percentages, or physical constants)\n"
+                f"   - 'chart_data' (for empirical data, rate curves, or comparative measurements with chart bars)\n"
+                f"   - 'process_cycle' (for closed-loop cyclical systems, biological cycles, or feedback loops)\n"
+                f"   - 'bullet_list' (for structured enumerated principles or formulas)\n"
                 f"2. 'subtitle': A concise academic strand (e.g., '{subject.upper()} · {grade.upper()} · FOUNDATIONAL PRINCIPLES').\n"
                 f"3. 'standard': Relevant curriculum competency (e.g., '{subject} Core Standard').\n"
-                f"4. 'cards': A list of 2 or 3 distinct content cards. Each card must have:\n"
+                f"4. 'image_query': (REQUIRED for every slide): A concise 2-4 word search query for a scientific illustration, real photograph, or 3D diagram (e.g. 'chloroplast light absorption', 'archimedes principle fluid mechanics', 'mitochondria ATP synthesis').\n"
+                f"5. 'chart_data': (Optional, for comparative/experimental slides): A list of 2-4 points with 'label' and numeric 'value' (e.g. [{{\"label\": \"Blue (450nm)\", \"value\": 92}}, {{\"label\": \"Green (550nm)\", \"value\": 18}}, {{\"label\": \"Red (680nm)\", \"value\": 85}}]).\n"
+                f"6. 'cards': A list of 2 or 3 distinct content cards. Each card must have:\n"
                 f"   - 'badge': Concise 1-2 word tag (e.g. 'Law 01', 'Mechanism', 'Formula', 'Application').\n"
                 f"   - 'title': Short, punchy 2 to 4-word heading (e.g. 'Inertial Mass', 'Normal Contact Force'). NEVER slice sentences or use generic filler!\n"
                 f"   - 'body': Clear, substantive explanation (1-2 sentences) of the concept.\n"
-                f"5. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n\n"
+                f"7. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n\n"
                 f"Rules:\n"
                 f"- Return strictly a valid JSON object with key 'slides': a list of {len(req.outlines)} slide objects.\n"
                 f"- NEVER use placeholder text or boilerplate repetition."
@@ -877,6 +885,10 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                             b1 = orig_bullets[1] if len(orig_bullets) > 1 else "key observable mechanics"
                             notes = f"Introduce {title} by drawing students' attention to: {b0}. Contrast common student misconceptions against: {b1}."
 
+                        img_query = s.get("image_query") or f"{title} scientific illustration"
+                        img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(img_query)}?width=800&height=600&nologo=true"
+                        c_data = s.get("chart_data")
+
                         slide_obj = SlideContent(
                             slide_number=idx + 1,
                             title=title,
@@ -884,7 +896,10 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                             archetype=arch,
                             cards=cards,
                             bullets=orig_bullets,
-                            speaker_notes=notes
+                            speaker_notes=notes,
+                            image_query=img_query,
+                            image_url=img_url,
+                            chart_data=c_data
                         )
                         slides_data.append(slide_obj)
                         raw_slides_for_json.append(slide_obj.model_dump())
@@ -934,6 +949,9 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
             b1 = bullets[1] if len(bullets) > 1 else "governing observable mechanics"
             speaker_notes = f"Introduce {title} by drawing students' attention to {b0}. Contrast common student misconceptions against {b1}."
 
+            img_query = f"{title} scientific illustration"
+            img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(img_query)}?width=800&height=600&nologo=true"
+
             slide_obj = SlideContent(
                 slide_number=idx + 1,
                 title=title,
@@ -941,7 +959,9 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 archetype=archetype,
                 cards=cards,
                 bullets=bullets,
-                speaker_notes=speaker_notes
+                speaker_notes=speaker_notes,
+                image_query=img_query,
+                image_url=img_url
             )
             slides_data.append(slide_obj)
             raw_slides_for_json.append(slide_obj.model_dump())

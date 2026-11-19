@@ -227,17 +227,23 @@ class SlideCard(BaseModel):
     body: str = ""
     badge: Optional[str] = None
     stat: Optional[str] = None
+    isChart: Optional[bool] = False
+    chartData: Optional[List[Dict[str, Any]]] = None
+    image_url: Optional[str] = None
 
 
 class SlideContent(BaseModel):
     slide_number: int
     title: str
     subtitle: Optional[str] = None
-    archetype: str = "card_grid_3"  # "hero_stat", "card_grid_3", "split_comparison", "key_takeaways"
+    archetype: str = "card_grid_3"  # "hero_stat", "card_grid_3", "split_comparison", "timeline", "hero_visual_split", etc.
     cards: List[SlideCard] = Field(default_factory=list)
     bullets: List[str] = Field(default_factory=list)
     speaker_notes: str = ""
     grounding: Optional[GroundingRef] = None
+    image_query: Optional[str] = None
+    image_url: Optional[str] = None
+    chart_data: Optional[List[Dict[str, Any]]] = None
 
 
 class SlideBrief(ToolBrief):
