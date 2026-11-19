@@ -28,8 +28,6 @@ import {
   Save,
   Trash2,
   Copy,
-  Sun,
-  Moon,
   ArrowLeft,
   Columns,
   LayoutGrid,
@@ -512,7 +510,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   onBack,
   onArtifactUpdated,
 }) => {
-  const [isDarkMode, setIsDarkMode] = useState(initialDarkMode);
+  const [isDarkMode] = useState(initialDarkMode);
   // Resolve active theme from artifact source data or URL param with graceful fallback
   const [activeThemeKey, setActiveThemeKey] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -808,51 +806,32 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     <div className={`h-screen w-screen flex flex-col overflow-hidden select-none font-sans ${
       isDarkMode ? 'bg-[#151413] text-[#F5F2EB]' : 'bg-[#FAF7F2] text-[#18181B]'
     }`}>
-      {/* 1. TOP STUDIO HEADER (Identical to reference mockup) */}
+      {/* 1. TOP STUDIO HEADER */}
       <header className="h-14 px-4 sm:px-6 bg-[#181715] border-b border-[#2B2926] flex items-center justify-between shrink-0 z-20">
-        {/* Left: OMNIX STUDIO Badge & Breadcrumbs */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onBack}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-              title="Return to Home / Chapters"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-1.5 rounded-lg bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] text-slate-400 hover:text-white transition-colors"
-              title={isSidebarOpen ? "Collapse Filmstrip (⌘B)" : "Show Filmstrip"}
-            >
-              {isSidebarOpen ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5 text-[#FF5C00]" />}
-            </button>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FF5C00]/15 border border-[#FF5C00]/30 text-white font-bold text-xs tracking-tight">
-              <span className="w-2 h-2 rounded-full bg-[#FF5C00]" />
-              <span className="text-white font-black">OMNIX</span>
-              <span className="text-[#FF5C00] font-mono text-[10px] px-1 rounded bg-[#FF5C00]/20">STUDIO</span>
-            </div>
-          </div>
+        {/* Left: Navigation & Clean Title */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            title="Return to Home / Chapters"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-1.5 rounded-lg bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] text-slate-400 hover:text-white transition-colors"
+            title={isSidebarOpen ? "Collapse Filmstrip (⌘B)" : "Show Filmstrip"}
+          >
+            {isSidebarOpen ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5 text-[#FF5C00]" />}
+          </button>
 
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-400 font-medium">
-            <span className="hover:text-slate-200 cursor-pointer" onClick={onBack}>Library</span>
-            <span>›</span>
-            <span>{project?.outline?.subject || 'Curriculum'} · {project?.outline?.grade_level || 'Grade 10'}</span>
-            <span>›</span>
-            <span className="text-[#FF5C00] font-semibold truncate max-w-sm">
-              {activeSlide?.title || "Classroom Presentation"}
-            </span>
-          </div>
+          <span className="text-sm font-semibold text-slate-200 truncate max-w-md ml-1">
+            {activeSlide?.title || project?.outline?.title || "Presentation"}
+          </span>
         </div>
 
         {/* Center/Right Controls */}
         <div className="flex items-center gap-3">
-          {/* Live Sync Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Live Sync</span>
-          </div>
-
           {/* Save / Recompile Button */}
           <button
             onClick={handleSaveAndRecompile}
@@ -868,15 +847,6 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <Save className="w-3.5 h-3.5 text-[#FF5C00]" />
             )}
             <span className="hidden sm:inline">{isSaving ? 'Compiling...' : saveSuccess ? 'Saved' : 'Save'}</span>
-          </button>
-
-          {/* Dark / Light Mode Switch */}
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 rounded-xl bg-[#23211F] hover:bg-[#2F2C28] border border-[#32302C] text-slate-300 hover:text-white transition-colors"
-            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-300" />}
           </button>
 
           {/* Presenton Theme Selector */}
@@ -928,11 +898,6 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             <Download className="w-3.5 h-3.5" />
             <span>Download .pptx</span>
           </a>
-
-          {/* User Badge */}
-          <div className="w-7 h-7 rounded-full bg-amber-600/30 border border-amber-500/50 text-amber-400 text-xs font-bold flex items-center justify-center">
-            VK
-          </div>
         </div>
       </header>
 

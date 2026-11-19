@@ -679,15 +679,9 @@ export function RightToolDrawer({
         ============================================================== */}
         {activeToolPanel === 'copilot' && (
           <div className="space-y-4">
-            <div className="space-y-1 pb-2 border-b border-[#2B2926]">
-              <div className="flex items-center justify-between text-[10px] text-slate-500">
-                <span>Autosaved 12s ago</span>
-                <span className="hover:text-slate-300 cursor-pointer">Canvas Settings</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono pt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="truncate">Synced: Verified Primary Curriculum</span>
-              </div>
+            <div className="flex items-center justify-between pb-2 border-b border-[#2B2926] text-[10px] text-slate-500">
+              <span>Autosaved</span>
+              <span className="hover:text-slate-300 cursor-pointer">Canvas Settings</span>
             </div>
 
             {/* Quick Refinements 2x2 Grid */}
