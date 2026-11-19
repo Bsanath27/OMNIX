@@ -316,9 +316,15 @@ export async function generateSlideScript(
   return res.json();
 }
 
-
-
-
-
-
+export async function resolveImage(
+  query: string,
+  title: string = ''
+): Promise<{ url: string; file_path: string; source: string; query: string }> {
+  const params = new URLSearchParams({ query, title });
+  const res = await fetch(`/api/images/resolve?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error('Failed to resolve image');
+  }
+  return res.json();
+}
 

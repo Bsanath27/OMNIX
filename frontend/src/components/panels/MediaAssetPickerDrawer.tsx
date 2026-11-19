@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { resolveImage } from '../../api';
 import {
   X,
   Search,
@@ -337,10 +338,14 @@ export function MediaAssetPickerDrawer({
     }
   };
 
-  const handleGeneratePollinations = () => {
+  const handleGeneratePollinations = async () => {
     const q = customQueryInput.trim() || photoSearchQuery.trim() || 'scientific mechanism diagram';
-    const generatedUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(q)}%20${Date.now()}?width=800&height=600&nologo=true`;
-    onSelectImage(generatedUrl, q);
+    try {
+      const res = await resolveImage(q);
+      onSelectImage(res.url, q);
+    } catch {
+      onSelectImage(`/api/images/resolve?query=${encodeURIComponent(q)}`, q);
+    }
     onClose();
   };
 

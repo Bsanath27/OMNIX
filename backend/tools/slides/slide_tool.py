@@ -661,31 +661,65 @@ def build_presentation_file(slides: List[SlideContent], theme_name: str, output_
                 c_main = cards[0] if cards else SlideCard(title="Core Synthesis", body="Structured explanation with quantitative or photographic grounding.")
                 populate_card_text(left_shape, c_main, palette, title_size=Pt(20), body_size=Pt(13))
 
-                right_shape = add_card_box(slide, Inches(8.0), Inches(2.0), Inches(4.53), Inches(4.8), palette["card_bg"], palette["accent"], Pt(2))
-                rtf = right_shape.text_frame
-                rtf.word_wrap = True
-                rtf.margin_left = Inches(0.4)
-                rtf.margin_right = Inches(0.4)
-                rtf.margin_top = Inches(0.5)
+                # Check for cached or resolvable local picture
+                img_file = None
+                if slide_data.image_url and "/static/images/" in slide_data.image_url:
+                    img_filename = slide_data.image_url.split("/static/images/")[-1].split("?")[0]
+                    cand = settings.ROOT_DIR / "output" / "image_cache" / img_filename
+                    if cand.exists():
+                        img_file = cand
 
-                p_r_badge = rtf.paragraphs[0]
-                p_r_badge.text = "VISUAL MEDIA CONTAINER" if archetype == "hero_visual_split" else "QUANTITATIVE DATA CHART"
-                p_r_badge.font.size = Pt(11)
-                p_r_badge.font.bold = True
-                p_r_badge.font.color.rgb = palette["highlight"]
-                p_r_badge.space_after = Pt(8)
+                if not img_file and (slide_data.image_query or archetype == "hero_visual_split"):
+                    try:
+                        from backend.tools.slides.image_service import resolve_image
+                        q_str = slide_data.image_query or slide_data.title
+                        res = resolve_image(q_str, slide_data.title)
+                        cand = Path(res["file_path"])
+                        if cand.exists():
+                            img_file = cand
+                    except Exception as e:
+                        logger.debug(f"Image resolve error in PPTX compiler: {e}")
 
-                p_r_title = rtf.add_paragraph()
-                p_r_title.text = slide_data.image_query or "Curated Conceptual Diagram"
-                p_r_title.font.size = Pt(16)
-                p_r_title.font.bold = True
-                p_r_title.font.color.rgb = palette["primary"]
-                p_r_title.space_after = Pt(8)
+                picture_added = False
+                if img_file and img_file.exists():
+                    try:
+                        slide.shapes.add_picture(
+                            str(img_file),
+                            Inches(8.0),
+                            Inches(2.0),
+                            width=Inches(4.53),
+                            height=Inches(4.8)
+                        )
+                        picture_added = True
+                    except Exception as e:
+                        logger.debug(f"Could not add picture to slide: {e}")
 
-                p_r_desc = rtf.add_paragraph()
-                p_r_desc.text = "High-resolution diagram asset embedded for classroom projector display."
-                p_r_desc.font.size = Pt(12)
-                p_r_desc.font.color.rgb = palette["muted"]
+                if not picture_added:
+                    right_shape = add_card_box(slide, Inches(8.0), Inches(2.0), Inches(4.53), Inches(4.8), palette["card_bg"], palette["accent"], Pt(2))
+                    rtf = right_shape.text_frame
+                    rtf.word_wrap = True
+                    rtf.margin_left = Inches(0.4)
+                    rtf.margin_right = Inches(0.4)
+                    rtf.margin_top = Inches(0.5)
+
+                    p_r_badge = rtf.paragraphs[0]
+                    p_r_badge.text = "VISUAL MEDIA CONTAINER" if archetype == "hero_visual_split" else "QUANTITATIVE DATA CHART"
+                    p_r_badge.font.size = Pt(11)
+                    p_r_badge.font.bold = True
+                    p_r_badge.font.color.rgb = palette["highlight"]
+                    p_r_badge.space_after = Pt(8)
+
+                    p_r_title = rtf.add_paragraph()
+                    p_r_title.text = slide_data.image_query or "Curated Conceptual Diagram"
+                    p_r_title.font.size = Pt(16)
+                    p_r_title.font.bold = True
+                    p_r_title.font.color.rgb = palette["primary"]
+                    p_r_title.space_after = Pt(8)
+
+                    p_r_desc = rtf.add_paragraph()
+                    p_r_desc.text = "High-resolution diagram asset embedded for classroom projector display."
+                    p_r_desc.font.size = Pt(12)
+                    p_r_desc.font.color.rgb = palette["muted"]
 
             # ── 11. BULLET LIST ARCHETYPE ──
             elif archetype == "bullet_list":

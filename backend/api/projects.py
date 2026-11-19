@@ -13,6 +13,7 @@ from backend.tools.ingestion.extractor import extract_document
 from backend.tools.ingestion.grounding import build_passages, save_passages_to_json, load_passages_from_json
 from backend.tools.outline.outline_tool import extract_chapter_outline
 from backend.tools.slides.slide_tool import SlideContent, SlideCard, build_presentation_file
+from backend.tools.slides.image_service import resolve_image
 from backend.core.llm import call_llm, get_active_llm_provider, clean_topic_string, safe_json_loads
 
 logger = logging.getLogger(__name__)
@@ -1008,7 +1009,8 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                             notes = f"Introduce {title} by drawing students' attention to: {b0}. Contrast common student misconceptions against: {b1}."
 
                         img_query = s.get("image_query") or f"{title} scientific illustration"
-                        img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(img_query)}?width=800&height=600&nologo=true"
+                        img_res = resolve_image(img_query, title)
+                        img_url = img_res["url"]
                         c_data = s.get("chart_data")
 
                         slide_obj = SlideContent(
@@ -1088,7 +1090,8 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
             speaker_notes = f"Introduce {title} by drawing students' attention to {b0}. Contrast common student misconceptions against {b1}."
 
             img_query = f"{title} scientific illustration"
-            img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(img_query)}?width=800&height=600&nologo=true"
+            img_res = resolve_image(img_query, title)
+            img_url = img_res["url"]
 
             slide_obj = SlideContent(
                 slide_number=idx + 1,

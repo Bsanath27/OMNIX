@@ -30,6 +30,18 @@ app.include_router(doctor.router)
 app.include_router(projects.router)
 app.include_router(tools.router)
 
+# Mount local image cache directory
+image_cache_dir = settings.ROOT_DIR / "output" / "image_cache"
+image_cache_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/images", StaticFiles(directory=image_cache_dir), name="static_images")
+
+
+@app.get("/api/images/resolve")
+async def resolve_image_endpoint(query: str, title: str = ""):
+    """Resolve educational diagram or image from cache, Wikimedia, or DuckDuckGo."""
+    from backend.tools.slides.image_service import resolve_image_async
+    return await resolve_image_async(query, title)
+
 
 @app.get("/api/health")
 async def health_check():

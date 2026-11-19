@@ -9,6 +9,7 @@ import {
   SuggestEditsResponse,
   refineSingleCard,
   generateSlideScript,
+  resolveImage,
 } from '../api';
 import {
   Maximize2,
@@ -1791,12 +1792,17 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         <span>Asset Picker</span>
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           const q = activeSlide.image_query || activeSlide.title;
-                          handleUpdateSlideField('image_url', `https://image.pollinations.ai/prompt/${encodeURIComponent(q)}%20${Date.now()}?width=800&height=600&nologo=true`);
+                          try {
+                            const res = await resolveImage(q, activeSlide.title);
+                            handleUpdateSlideField('image_url', res.url);
+                          } catch {
+                            handleUpdateSlideField('image_url', `/api/images/resolve?query=${encodeURIComponent(q)}&title=${encodeURIComponent(activeSlide.title)}`);
+                          }
                         }}
                         className="p-1 rounded-lg bg-black/60 hover:bg-[#FF5C00] text-white border border-white/10 transition-colors shadow-sm shrink-0"
-                        title="Regenerate / Refresh Image"
+                        title="Regenerate / Refresh Image (Native High-Res Resolver)"
                       >
                         <RefreshCw className="w-3 h-3" />
                       </button>

@@ -270,8 +270,60 @@ def test_multi_archetype_pptx_compiler():
             out_path.unlink()
 
 
+def test_native_diagram_resolver_and_picture_embedding():
+    from backend.tools.slides.image_service import resolve_image
+    from backend.tools.slides.slide_tool import SlideContent, SlideCard, build_presentation_file
+    import tempfile
+
+    client = TestClient(app)
+
+    # 1. Test image resolution endpoint
+    res = client.get("/api/images/resolve?query=mitochondria+structure+diagram&title=Cell+Biology")
+    assert res.status_code == 200
+    data = res.json()
+    assert "url" in data
+    assert data["url"].startswith("/static/images/")
+    assert "source" in data
+
+    # 2. Test direct image resolver and local file caching
+    img_res = resolve_image("chloroplast thylakoid diagram", "Photosynthesis")
+    assert img_res["url"].startswith("/static/images/")
+    cache_path = Path(img_res["file_path"])
+    assert cache_path.exists()
+    assert cache_path.stat().st_size > 1000
+
+    # 3. Test PPTX picture embedding
+    split_slide = SlideContent(
+        slide_number=1,
+        title="Cellular Energy Center",
+        subtitle="Mitochondrial Respiration",
+        archetype="hero_visual_split",
+        image_query="mitochondria inner membrane diagram",
+        image_url=img_res["url"],
+        cards=[SlideCard(title="ATP Synthesis", body="Proton gradient driven phosphorylation.")]
+    )
+
+    with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as f:
+        out_path = Path(f.name)
+
+    try:
+        build_presentation_file([split_slide], "indigo", out_path)
+        assert out_path.exists()
+        prs = Presentation(out_path)
+        slide = prs.slides[0]
+        # Verify a picture shape was added
+        shape_types = [s.shape_type for s in slide.shapes]
+        # MSO_SHAPE_TYPE.PICTURE is 13
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+        assert any(s.shape_type == MSO_SHAPE_TYPE.PICTURE for s in slide.shapes)
+    finally:
+        if out_path.exists():
+            out_path.unlink()
+
+
 if __name__ == "__main__":
     test_slide_tool_direct_execution()
     test_slide_tool_api()
     test_suggest_slide_edits_and_refine_card()
     test_multi_archetype_pptx_compiler()
+    test_native_diagram_resolver_and_picture_embedding()
