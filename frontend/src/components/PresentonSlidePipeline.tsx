@@ -9,6 +9,7 @@ import {
   fetchSlideTemplates,
 } from '../api';
 import { SlideStudioView } from './SlideStudioView';
+import { MiniSlidePreview } from './MiniSlidePreview';
 import { themes, ThemeProperties } from '../lib/presentonThemes';
 import { loadGoogleFont } from '../lib/fontLoader';
 import {
@@ -128,6 +129,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('verdant');
   const [themeFilter, setThemeFilter] = useState<'all' | 'dark' | 'light'>('all');
   const [themeSearch, setThemeSearch] = useState<string>('');
+  const [useRealPreviewContent, setUseRealPreviewContent] = useState<boolean>(true);
 
   // Fetch dynamic templates from Presenton service
   useEffect(() => {
@@ -830,6 +832,21 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                   className="pl-8 pr-3 py-1.5 rounded-xl bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#FF5C00] w-48 sm:w-56"
                 />
               </div>
+
+              {/* Content Mode Toggle */}
+              <button
+                type="button"
+                onClick={() => setUseRealPreviewContent(!useRealPreviewContent)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                  useRealPreviewContent
+                    ? 'bg-[#FF5C00]/20 border-[#FF5C00]/60 text-[#FF5C00]'
+                    : 'bg-black/10 dark:bg-white/5 border-black/10 dark:border-white/10 text-slate-400 hover:text-white'
+                }`}
+                title="Toggle between live chapter content preview and theme style"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{useRealPreviewContent ? 'Preview: My Content' : 'Preview: Sample Style'}</span>
+              </button>
             </div>
           </div>
 
@@ -856,7 +873,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                 <div
                   key={tpl.id}
                   onClick={() => setSelectedTemplateId(tpl.id)}
-                  className={`group relative p-5 rounded-3xl border text-left cursor-pointer transition-all ${
+                  className={`group relative p-4 rounded-3xl border text-left cursor-pointer transition-all ${
                     isSelected
                       ? 'border-[#FF5C00] ring-2 ring-[#FF5C00] shadow-xl shadow-orange-950/20'
                       : isDarkMode
@@ -867,61 +884,21 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                     backgroundColor: isDarkMode ? '#181715' : '#FFFFFF',
                   }}
                 >
-                  {/* Authentic Presenton Dynamic Mini-Canvas Preview with Real Gradient and Fonts */}
-                  <div
-                    className="h-44 w-full rounded-2xl mb-3 border border-black/10 overflow-hidden shadow-inner p-4 flex flex-col justify-between relative transition-transform group-hover:scale-[1.02]"
-                    style={{
-                      background: tpl.previewBg,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full"
-                        style={{
-                          backgroundColor: `${tpl.accentColor}20`,
-                          color: tpl.accentColor,
-                        }}
-                      >
-                        {tpl.name}
-                      </span>
-                      <span
-                        className="text-[9px] font-mono px-2 py-0.5 rounded-md"
-                        style={{
-                          backgroundColor: tpl.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-                          color: tpl.textColor,
-                        }}
-                      >
-                        {tpl.isDark ? 'Dark' : 'Light'}
-                      </span>
-                    </div>
-
-                    <div className="my-auto space-y-1">
-                      <div
-                        className="text-base font-extrabold truncate"
-                        style={{
-                          color: tpl.textColor,
-                          fontFamily: tpl.headingFont,
-                        }}
-                      >
-                        {outlines[0]?.title || project?.name || 'Lesson Presentation'}
-                      </div>
-                      <div
-                        className="text-[11px] line-clamp-2 opacity-80"
-                        style={{
-                          color: tpl.textColor,
-                          fontFamily: tpl.bodyFont,
-                        }}
-                      >
-                        {tpl.description}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
-                      <div className="h-3 rounded-md" style={{ backgroundColor: `${tpl.accentColor}30` }} />
-                      <div className="h-3 rounded-md" style={{ backgroundColor: `${tpl.accentColor}30` }} />
-                      <div className="h-3 rounded-md" style={{ backgroundColor: `${tpl.accentColor}30` }} />
-                    </div>
-                  </div>
+                  {/* Authentic Presenton Dynamic Mini-Canvas Preview with Real Content and Fonts */}
+                  <MiniSlidePreview
+                    slideTitle={outlines[0]?.title || project?.name || 'Lesson Presentation'}
+                    slideSubtitle={project?.outline?.subject ? `${project.outline.subject.toUpperCase()} • GRADE 10` : 'FOUNDATIONAL PRINCIPLES • CURRICULUM MODULE'}
+                    bullets={outlines[0]?.bullets || []}
+                    themeProperties={(themes as Record<string, ThemeProperties>)[tpl.id]}
+                    themeName={tpl.name}
+                    previewBg={tpl.previewBg}
+                    accentColor={tpl.accentColor}
+                    headingFont={tpl.headingFont}
+                    bodyFont={tpl.bodyFont}
+                    textColor={tpl.textColor}
+                    isDark={tpl.isDark}
+                    useRealContent={useRealPreviewContent}
+                  />
 
                   {/* Template Meta Info */}
                   <div className="flex items-start justify-between">
