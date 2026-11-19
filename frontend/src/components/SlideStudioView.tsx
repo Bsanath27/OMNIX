@@ -49,9 +49,13 @@ import {
   ArrowUpRight,
   Triangle,
   Quote,
+  Mic,
 } from 'lucide-react';
-import { RightEditDock, RightToolDrawer, ActiveToolPanel } from './SlideEditPanels';
+import { RightEditPanel, ActiveRightPanel } from './RightEditPanel';
+import { RightPanelRenderer } from './RightPanelRenderer';
+import { SlideElementFloatingToolbar } from './SlideElementFloatingToolbar';
 import { SlideTemplateLibraryModal } from './SlideTemplateLibraryModal';
+import { ChartStudioPanel, MediaAssetPickerDrawer, SpeakerNotesDrawer } from './panels';
 import { themes, ThemeProperties, ThemeName } from '../lib/presentonThemes';
 import { useThemeFonts } from '../lib/fontLoader';
 
@@ -362,19 +366,32 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     }
     return true;
   });
-  const [activeToolPanel, setActiveToolPanel] = useState<ActiveToolPanel>(() => {
-    const p = new URLSearchParams(window.location.search).get('tool');
-    if (p && ['text', 'elements', 'charts', 'diagrams', 'theme', 'copilot'].includes(p)) {
-      return p as ActiveToolPanel;
+  const [activeToolPanel, setActiveToolPanel] = useState<ActiveRightPanel>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('tool');
+      if (p && ['text', 'elements', 'charts', 'diagrams', 'theme', 'copilot', 'templates', 'media', 'notes'].includes(p)) {
+        return p as ActiveRightPanel;
+      }
     }
-    return 'copilot';
+    return null;
   });
-  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [presentationTitle, setPresentationTitle] = useState<string>(() => {
+    return initialArtifact?.source_data?.title || project?.outline?.title || project?.name || 'Presentation';
+  });
   const [currentSlideIndex, setCurrentSlideIndex] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const s = parseInt(params.get('slide') || '0', 10);
     return isNaN(s) ? 0 : Math.max(0, s);
   });
+  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setSelectedCardIndex(null);
+  }, [currentSlideIndex]);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+  const [isSpeakerNotesDrawerOpen, setIsSpeakerNotesDrawerOpen] = useState(false);
+  const [isChartStudioOpen, setIsChartStudioOpen] = useState(false);
 
   // Slides data
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(initialArtifact);
@@ -616,6 +633,10 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     if (params.get('templateModal') === '1') {
       setIsTemplateModalOpen(true);
     }
+    const cardParam = params.get('card');
+    if (cardParam !== null) {
+      setSelectedCardIndex(parseInt(cardParam, 10));
+    }
     const layout = params.get('layout');
     if (layout) {
       const timer = setTimeout(() => {
@@ -817,6 +838,29 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     }
   };
 
+  const renderFloatingToolbar = (cIdx: number, card?: any) => {
+    if (selectedCardIndex !== cIdx) return null;
+    return (
+      <SlideElementFloatingToolbar
+        cardIndex={cIdx}
+        totalCards={activeSlide?.cards?.length || 1}
+        card={card}
+        currentArchetype={activeSlide?.archetype}
+        onSwitchLayout={(arch) => handleSwitchLayout(arch)}
+        onDuplicateCard={(idx) => handleDuplicateCard(idx)}
+        onDeleteCard={(idx) => {
+          handleDeleteCard(idx);
+          setSelectedCardIndex(null);
+        }}
+        onAIPromptRefine={(prompt, idx) => {
+          handleTriggerRefinement('custom', `For card ${(idx ?? 0) + 1}: ${prompt}`);
+        }}
+        onClose={() => setSelectedCardIndex(null)}
+        isDarkMode={isDarkMode}
+      />
+    );
+  };
+
   const pptxFile = currentArtifact?.files?.find((f) => f.endsWith('.pptx')) || 'slides/slides.pptx';
 
   return (
@@ -842,9 +886,17 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             {isSidebarOpen ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5 text-[#FF5C00]" />}
           </button>
 
-          <span className="text-sm font-semibold text-slate-200 truncate max-w-md ml-1">
-            {activeSlide?.title || project?.outline?.title || "Presentation"}
-          </span>
+          {/* Inline Editable Presentation Title (Presenton Header Parity) */}
+          <div className="flex items-center gap-1.5 ml-1">
+            <input
+              type="text"
+              value={presentationTitle}
+              onChange={(e) => setPresentationTitle(e.target.value)}
+              className="bg-transparent hover:bg-white/5 focus:bg-white/10 border border-transparent hover:border-[#383531] focus:border-[#FF5C00]/60 rounded-lg px-2.5 py-1 text-sm font-semibold text-slate-100 focus:outline-none transition-all max-w-xs sm:max-w-md truncate"
+              placeholder="Presentation Title"
+              title="Click to rename presentation"
+            />
+          </div>
         </div>
 
         {/* Center/Right Controls */}
@@ -1110,9 +1162,15 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
         {/* ========================================================
             PANE 2: 16:9 PRESENTATION STAGE & SPEAKER NOTES
         ======================================================== */}
-        <div className={`flex-1 min-w-0 flex flex-col justify-between overflow-y-auto overflow-x-auto p-3 sm:p-5 select-text transition-colors duration-200 ${
-          isDarkMode ? 'bg-[#121214]' : 'bg-[#EDEEEF]'
-        }`}>
+        <div
+          onClick={() => {
+            setSelectedCardIndex(null);
+            if (activeToolPanel) setActiveToolPanel(null);
+          }}
+          className={`flex-1 min-w-0 flex flex-col justify-between overflow-y-auto overflow-x-auto p-3 sm:p-5 select-text transition-colors duration-200 ${
+            isDarkMode ? 'bg-[#121214]' : 'bg-[#EDEEEF]'
+          }`}
+        >
           {/* Canvas Subheader Strip */}
           <div className="flex flex-wrap items-center justify-between gap-3 pb-2 mb-2 text-xs border-b border-black/5 dark:border-white/10">
             <div className="flex items-center gap-2">
@@ -1319,12 +1377,19 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               {(activeSlide?.archetype === 'hero_title' || activeSlide?.archetype === 'hero_stat' || (currentSlideIndex === 0 && !activeSlide?.archetype)) && (
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-stretch">
                   <div
-                    className="md:col-span-7 p-4 sm:p-5 rounded-2xl border flex flex-col justify-between shadow-xs transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedCardIndex(0);
+                    }}
+                    className={`relative md:col-span-7 p-4 sm:p-5 rounded-2xl border flex flex-col justify-between shadow-xs transition-colors cursor-pointer ${
+                      selectedCardIndex === 0 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                    }`}
                     style={{
                       backgroundColor: activeTheme.cardBg,
                       borderColor: activeTheme.cardBorder,
                     }}
                   >
+                    {renderFloatingToolbar(0, activeSlide?.cards?.[0])}
                     <div>
                       <span
                         className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono inline-block mb-1.5"
@@ -1349,9 +1414,16 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
                   <div className="md:col-span-5 flex flex-col gap-2 justify-between">
                     <div
-                      className="p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCardIndex(1);
+                      }}
+                      className={`relative p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs cursor-pointer ${
+                        selectedCardIndex === 1 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                      }`}
                       style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
                     >
+                      {renderFloatingToolbar(1, activeSlide?.cards?.[1])}
                       <span className="text-[10px] font-bold uppercase tracking-wider font-mono block" style={{ color: activeTheme.accentColor }}>
                         Learning Competency
                       </span>
@@ -1364,9 +1436,16 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                       />
                     </div>
                     <div
-                      className="p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCardIndex(2);
+                      }}
+                      className={`relative p-3 rounded-xl border flex-1 flex flex-col justify-between shadow-xs cursor-pointer ${
+                        selectedCardIndex === 2 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                      }`}
                       style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
                     >
+                      {renderFloatingToolbar(2, activeSlide?.cards?.[2])}
                       <span className="text-[10px] font-bold uppercase tracking-wider font-mono block" style={{ color: activeTheme.accentColor }}>
                         Key Application
                       </span>
@@ -1388,12 +1467,19 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   {(activeSlide.cards?.slice(0, 2) || []).map((card: any, cIdx: number) => (
                     <div
                       key={cIdx}
-                      className="p-5 rounded-2xl border flex flex-col justify-between transition-colors shadow-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCardIndex(cIdx);
+                      }}
+                      className={`relative p-5 rounded-2xl border flex flex-col justify-between transition-colors shadow-xs cursor-pointer ${
+                        selectedCardIndex === cIdx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                      }`}
                       style={{
                         backgroundColor: activeTheme.cardBg,
                         borderColor: activeTheme.cardBorder,
                       }}
                     >
+                      {renderFloatingToolbar(cIdx, card)}
                       <div>
                         <span
                           className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mb-2 font-mono"
@@ -1435,12 +1521,19 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   {(activeSlide.cards || []).slice(0, 4).map((card: any, cIdx: number) => (
                     <div
                       key={cIdx}
-                      className="p-3.5 rounded-xl border flex items-start gap-3 transition-colors shadow-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCardIndex(cIdx);
+                      }}
+                      className={`relative p-3.5 rounded-xl border flex items-start gap-3 transition-colors shadow-xs cursor-pointer ${
+                        selectedCardIndex === cIdx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                      }`}
                       style={{
                         backgroundColor: activeTheme.cardBg,
                         borderColor: activeTheme.cardBorder,
                       }}
                     >
+                      {renderFloatingToolbar(cIdx, card)}
                       <div
                         className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 font-mono"
                         style={{
@@ -1477,7 +1570,13 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   {/* Left Column: 7 cols (approx 60%) */}
                   <div className="lg:col-span-7 flex flex-col justify-between gap-2.5">
                     <div
-                      className="p-4 sm:p-5 border flex flex-col justify-between flex-1 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCardIndex(0);
+                      }}
+                      className={`relative p-4 sm:p-5 border flex flex-col justify-between flex-1 transition-all cursor-pointer ${
+                        selectedCardIndex === 0 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                      }`}
                       style={{
                         backgroundColor: activeTheme.cardBg,
                         borderColor: activeTheme.cardBorder,
@@ -1485,6 +1584,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         boxShadow: activeTheme.cardShadow,
                       }}
                     >
+                      {renderFloatingToolbar(0, activeSlide.cards?.[0])}
                       <div>
                         <span
                           className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono inline-block mb-1.5"
@@ -1510,7 +1610,13 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                     </div>
 
                     <div
-                      className="p-3.5 border flex flex-col justify-between transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCardIndex(1);
+                      }}
+                      className={`relative p-3.5 border flex flex-col justify-between transition-all cursor-pointer ${
+                        selectedCardIndex === 1 ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                      }`}
                       style={{
                         backgroundColor: activeTheme.cardBg,
                         borderColor: activeTheme.cardBorder,
@@ -1518,6 +1624,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         boxShadow: activeTheme.cardShadow,
                       }}
                     >
+                      {renderFloatingToolbar(1, activeSlide.cards?.[1])}
                       <span
                         className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono inline-block mb-1 w-max"
                         style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.badgeText }}
@@ -1563,6 +1670,14 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         />
                       </div>
                       <button
+                        onClick={() => setIsMediaPickerOpen(true)}
+                        className="px-2 py-1 rounded-lg bg-[#FF5C00] hover:bg-orange-600 text-white border border-orange-500/30 transition-colors shadow-sm shrink-0 flex items-center gap-1 text-[10px] font-semibold"
+                        title="Open Media Asset Picker (Unsplash & Lucide)"
+                      >
+                        <ImageIcon className="w-3 h-3" />
+                        <span>Asset Picker</span>
+                      </button>
+                      <button
                         onClick={() => {
                           const q = activeSlide.image_query || activeSlide.title;
                           handleUpdateSlideField('image_url', `https://image.pollinations.ai/prompt/${encodeURIComponent(q)}%20${Date.now()}?width=800&height=600&nologo=true`);
@@ -1598,9 +1713,19 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                         >
                           Empirical Data Analysis
                         </span>
-                        <div className="flex items-center gap-1 text-[11px] font-mono font-bold" style={{ color: activeTheme.accentColor }}>
-                          <BarChart3 className="w-3.5 h-3.5" />
-                          <span>Curriculum Benchmark</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setIsChartStudioOpen(true)}
+                            className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-[#FF5C00]/40 text-[#FF5C00] bg-[#FF5C00]/10 hover:bg-[#FF5C00] hover:text-white transition-all shadow-sm"
+                            title="Open Interactive Chart & Data Studio"
+                          >
+                            <BarChart3 className="w-3 h-3" />
+                            <span>Edit in Chart Studio</span>
+                          </button>
+                          <div className="flex items-center gap-1 text-[11px] font-mono font-bold" style={{ color: activeTheme.accentColor }}>
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            <span>Curriculum Benchmark</span>
+                          </div>
                         </div>
                       </div>
 
@@ -2366,9 +2491,16 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                   {(activeSlide?.cards || []).slice(0, 4).map((card: any, cIdx: number) => (
                     <div
                       key={cIdx}
-                      className="p-4 rounded-2xl border flex flex-col justify-between shadow-xs transition-all hover:shadow-md"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCardIndex(cIdx);
+                      }}
+                      className={`relative p-4 rounded-2xl border flex flex-col justify-between shadow-xs transition-all hover:shadow-md cursor-pointer ${
+                        selectedCardIndex === cIdx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                      }`}
                       style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.cardBorder }}
                     >
+                      {renderFloatingToolbar(cIdx, card)}
                       <div>
                         <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded inline-block mb-1.5" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.accentColor }}>
                           {card.badge || `Concept 0${cIdx + 1}`}
@@ -2482,12 +2614,19 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                     {(activeSlide?.cards || []).map((card: any, cIdx: number) => (
                       <div
                         key={cIdx}
-                        className="group relative p-4 rounded-2xl border flex flex-col justify-between transition-all shadow-xs hover:shadow-md"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCardIndex(cIdx);
+                        }}
+                        className={`group relative p-4 rounded-2xl border flex flex-col justify-between transition-all shadow-xs hover:shadow-md cursor-pointer ${
+                          selectedCardIndex === cIdx ? 'ring-2 ring-[#FF5C00] shadow-lg shadow-orange-500/10' : ''
+                        }`}
                         style={{
                           backgroundColor: activeTheme.cardBg,
                           borderColor: activeTheme.cardBorder,
                         }}
                       >
+                        {renderFloatingToolbar(cIdx, card)}
                         {/* Hover Quick Action Capsule */}
                         <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/60 backdrop-blur-md rounded-lg p-0.5 border border-white/10 z-10">
                           <button
@@ -2646,24 +2785,35 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 <ChevronUp className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isNotesOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              <button
-                disabled={isGeneratingScript}
-                onClick={handleGenerateLiveScript}
-                className="text-[10px] font-semibold text-[#FF5C00] hover:text-orange-400 disabled:opacity-50 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 transition-all cursor-pointer"
-                title="Use LLM to generate an authentic classroom teacher lecture script"
-              >
-                {isGeneratingScript ? (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin text-[#FF5C00]" />
-                    <span>Synthesizing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3 h-3 text-[#FF5C00]" />
-                    <span>AI Generate Script</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsSpeakerNotesDrawerOpen(true)}
+                  className="text-[10px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#252422] hover:bg-[#2e2d2a] border border-[#383531] transition-all cursor-pointer"
+                  title="Open Dedicated Presenter Delivery Guide Drawer"
+                >
+                  <Mic className="w-3 h-3 text-[#FF5C00]" />
+                  <span>Delivery Drawer</span>
+                </button>
+
+                <button
+                  disabled={isGeneratingScript}
+                  onClick={handleGenerateLiveScript}
+                  className="text-[10px] font-semibold text-[#FF5C00] hover:text-orange-400 disabled:opacity-50 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 transition-all cursor-pointer"
+                  title="Use LLM to generate an authentic classroom teacher lecture script"
+                >
+                  {isGeneratingScript ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-[#FF5C00]" />
+                      <span>Synthesizing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3 h-3 text-[#FF5C00]" />
+                      <span>AI Generate Script</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Expandable Notes Drawer */}
@@ -2695,25 +2845,20 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
         {/* ========================================================
             PANE 3: PRESENTON FLOATING TOOL DOCK & INTERACTIVE DRAWERS
         ======================================================== */}
-        <div className="flex shrink-0">
-          <RightEditDock
-            activeToolPanel={activeToolPanel}
-            setActiveToolPanel={setActiveToolPanel}
-            zoomLevel={zoomLevel}
-            setZoomLevel={setZoomLevel}
-          />
-          <RightToolDrawer
-            activeToolPanel={activeToolPanel}
-            setActiveToolPanel={setActiveToolPanel}
-            zoomLevel={zoomLevel}
-            setZoomLevel={setZoomLevel}
+        <div className="flex shrink-0 relative">
+          <RightPanelRenderer
+            activePanel={activeToolPanel}
+            setActivePanel={setActiveToolPanel}
             activeThemeKey={activeThemeKey}
             setActiveThemeKey={setActiveThemeKey}
             themes={PRESENTON_STUDIO_THEMES}
+            activeSlide={activeSlide}
+            onUpdateSlideField={handleUpdateSlideField}
             onAddCard={handleAddCardToActiveSlide}
-            onSetArchetype={(arch) => handleUpdateSlideField('archetype', arch)}
+            onSetArchetype={(arch) => handleSwitchLayout(arch)}
+            onOpenTemplateLibrary={() => setIsTemplateModalOpen(true)}
             isSuggesting={isSuggesting}
-            onTriggerRefinement={(type) => handleTriggerRefinement(type)}
+            onTriggerRefinement={(type, promptText) => handleTriggerRefinement(type, promptText)}
             coPilotPrompt={copilotPrompt}
             setCoPilotPrompt={setCopilotPrompt}
             onApplyCustomRefinement={() => {
@@ -2721,10 +2866,20 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 handleTriggerRefinement('custom', copilotPrompt.trim());
               }
             }}
-            activeSlide={activeSlide}
             activeSuggestion={activeSuggestion}
             onApplySuggestion={handleApplySuggestion}
             onDismissSuggestion={() => setActiveSuggestion(null)}
+            isGeneratingScript={isGeneratingScript}
+            onGenerateScript={handleGenerateLiveScript}
+            isDarkMode={isDarkMode}
+          />
+          <RightEditPanel
+            activePanel={activeToolPanel}
+            setActivePanel={setActiveToolPanel}
+            zoomLevel={zoomLevel}
+            setZoomLevel={setZoomLevel}
+            onResetZoom={() => setZoomLevel(100)}
+            isDarkMode={isDarkMode}
           />
         </div>
       </div>
@@ -2851,6 +3006,59 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
         }}
         isDarkMode={isDarkMode}
       />
+
+      {/* PRESENTON MEDIA & ICON ASSET PICKER DRAWER */}
+      <MediaAssetPickerDrawer
+        isOpen={isMediaPickerOpen}
+        onClose={() => setIsMediaPickerOpen(false)}
+        onSelectImage={(imageUrl, query) => {
+          handleUpdateSlideField('image_url', imageUrl);
+          if (query) handleUpdateSlideField('image_query', query);
+        }}
+        onSelectIcon={(iconName) => {
+          handleAddCardToActiveSlide({
+            badge: 'CONCEPT',
+            title: iconName,
+            body: `Curated vector iconography illustrating foundational ${iconName.toLowerCase()} concept.`,
+          });
+        }}
+        currentImageQuery={activeSlide?.image_query || activeSlide?.title}
+        currentImageUrl={activeSlide?.image_url}
+      />
+
+      {/* PRESENTON SPEAKER NOTES DELIVERY GUIDE DRAWER */}
+      <SpeakerNotesDrawer
+        isOpen={isSpeakerNotesDrawerOpen}
+        onClose={() => setIsSpeakerNotesDrawerOpen(false)}
+        activeSlide={activeSlide}
+        projectId={project?.project_id}
+        gradeLevel={project?.outline?.grade_level}
+        subject={project?.outline?.subject}
+        onUpdateNotes={(notes) => handleUpdateSlideField('speaker_notes', notes)}
+        onUpdateDiscussionPrompt={(prompt) => handleUpdateSlideField('discussion_prompt', prompt)}
+      />
+
+      {/* PRESENTON INTERACTIVE CHART & DATA STUDIO MODAL */}
+      {isChartStudioOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-xl animate-in zoom-in-95 duration-200">
+            <ChartStudioPanel
+              chartData={
+                activeSlide?.chart_data || [
+                  { label: 'Wavelength 450nm (Blue)', value: 92 },
+                  { label: 'Wavelength 550nm (Green)', value: 18 },
+                  { label: 'Wavelength 680nm (Red)', value: 85 },
+                  { label: 'Dark Respiration Baseline', value: 24 },
+                ]
+              }
+              chartType={(activeSlide?.chart_type as any) || 'horizontal_bars'}
+              onChangeChartData={(data) => handleUpdateSlideField('chart_data', data)}
+              onChangeChartType={(type) => handleUpdateSlideField('chart_type', type)}
+              onClose={() => setIsChartStudioOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
