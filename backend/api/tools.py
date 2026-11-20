@@ -1,6 +1,7 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 import json
+from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Query
 from backend.core.config import settings
 from backend.core.registry import registry, ExecutionContext
@@ -58,5 +59,80 @@ async def run_tool(
             pass
 
     return artifact
+
+
+@router.get("/presenton/status")
+async def get_presenton_status():
+    """Check Presenton container health and start if stopped."""
+    import httpx
+    import subprocess
+
+    try:
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            res = await client.get("http://localhost:5001")
+            if res.status_code == 200:
+                return {"status": "running", "url": "http://localhost:5001"}
+    except Exception:
+        pass
+
+    try:
+        subprocess.run(["docker", "start", "presenton"], capture_output=True, timeout=5)
+        return {"status": "starting", "url": "http://localhost:5001"}
+    except Exception as e:
+        return {"status": "offline", "error": str(e), "url": "http://localhost:5001"}
+
+
+class PresentonCreateRequest(BaseModel):
+    content: str
+    n_slides: Optional[int] = 5
+    language: Optional[str] = "en-US"
+    generation_mode: Optional[str] = "standard"
+
+
+@router.post("/presenton/create-presentation")
+async def create_presenton_presentation(req: PresentonCreateRequest):
+    """Creates a presentation on the local Presenton engine and returns the id and direct outline/theme url."""
+    import httpx
+    import subprocess
+
+    # Ensure container is alive
+    try:
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            await client.get("http://localhost:5001")
+    except Exception:
+        try:
+            subprocess.run(["docker", "start", "presenton"], capture_output=True, timeout=5)
+        except Exception:
+            pass
+
+    content = req.content.strip() if req.content else "Classroom Presentation"
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                "http://localhost:5001/api/v1/ppt/presentation/create",
+                json={
+                    "content": content,
+                    "version": "v2-standard",
+                    "n_slides": req.n_slides or 5,
+                    "language": req.language or "en-US",
+                    "generation_mode": req.generation_mode or "standard",
+                    "include_title_slide": True,
+                    "include_table_of_contents": False,
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                presentation_id = data.get("id")
+                return {
+                    "success": True,
+                    "presentation_id": presentation_id,
+                    "url": f"http://localhost:5001/outline?id={presentation_id}"
+                }
+            else:
+                return {"success": False, "error": resp.text}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 

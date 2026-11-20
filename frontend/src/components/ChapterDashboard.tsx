@@ -44,7 +44,7 @@ import {
   Loader2,
   Download,
 } from 'lucide-react';
-import { PresentonSlidePipeline } from './PresentonSlidePipeline';
+import { PresentonNativeEmbed } from './PresentonNativeEmbed';
 
 type NavView = 'home' | 'tools' | 'library' | 'settings' | 'studio';
 type CapabilityType = 'all' | 'slides' | 'video' | 'quizzes' | 'diagrams';
@@ -82,7 +82,7 @@ export const ChapterDashboard: React.FC = () => {
     return 'home';
   });
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [selectedSlideArtifact, setSelectedSlideArtifact] = useState<Artifact | null>(null);
+  const [_selectedSlideArtifact, setSelectedSlideArtifact] = useState<Artifact | null>(null);
 
   // Sync theme with document element
   useEffect(() => {
@@ -1337,20 +1337,14 @@ export const ChapterDashboard: React.FC = () => {
     </div>
   );
 
-  // Dedicated Full-Page Presenton 4-Step Presentation Pipeline (Prompt -> Outline -> Theme -> Studio)
+  // Seamless Full-App Presenton Integration (Themes -> Outline -> Studio)
   if (activeView === 'studio') {
     return (
-      <PresentonSlidePipeline
+      <PresentonNativeEmbed
         project={selectedProject}
         initialPrompt={promptText}
-        initialArtifact={selectedSlideArtifact || artifacts.find((a) => a.tool_name === 'slides') || null}
-        passages={passages}
         isDarkMode={isDarkMode}
         onBack={() => setActiveView('home')}
-        onArtifactUpdated={(updated) => {
-          setSelectedSlideArtifact(updated);
-          setArtifacts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-        }}
       />
     );
   }
