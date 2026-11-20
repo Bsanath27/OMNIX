@@ -64,6 +64,7 @@ import { SlideTemplateLibraryModal } from './SlideTemplateLibraryModal';
 import { ChartStudioPanel, MediaAssetPickerDrawer, SpeakerNotesDrawer, AIImageStudioModal } from './panels';
 import { themes, ThemeProperties, ThemeName } from '../lib/presentonThemes';
 import { useThemeFonts } from '../lib/fontLoader';
+import { ensureTailwindBrowserScript } from '../lib/tailwind-browser';
 
 interface SlideStudioViewProps {
   project: ProjectManifest | null;
@@ -394,6 +395,10 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   useEffect(() => {
     setSelectedCardIndex(null);
   }, [currentSlideIndex]);
+
+  useEffect(() => {
+    ensureTailwindBrowserScript();
+  }, []);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
@@ -1624,6 +1629,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             {slideViewMode === 'bespoke' && (activeSlide?.html_content || activeSlide?.raw_html) ? (
               <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black/5 dark:bg-black/20">
                 <div
+                  data-tailwind-runtime-scope="true"
                   style={{
                     width: 1280,
                     height: 720,
