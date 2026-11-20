@@ -12,8 +12,9 @@ import {
   compileSlideFromOutline,
 } from '../api';
 // @ts-ignore
-import { templateV2UiToHtml } from '../lib/presenton_renderer.mjs';
+import { templateV2UiToHtml, templateV2UiToHtmlFragment } from '../lib/presenton_renderer.mjs';
 import { hydrateTemplateLayout } from '../lib/templateHydration';
+import { loadTemplateFonts, useThemeFonts } from '../lib/fontLoader';
 import {
   Maximize2,
   Minimize2,
@@ -64,7 +65,6 @@ import { SlideElementFloatingToolbar } from './SlideElementFloatingToolbar';
 import { SlideTemplateLibraryModal } from './SlideTemplateLibraryModal';
 import { ChartStudioPanel, MediaAssetPickerDrawer, SpeakerNotesDrawer, AIImageStudioModal } from './panels';
 import { themes, ThemeProperties, ThemeName } from '../lib/presentonThemes';
-import { useThemeFonts } from '../lib/fontLoader';
 import { ensureTailwindBrowserScript } from '../lib/tailwind-browser';
 
 interface SlideStudioViewProps {
@@ -74,6 +74,21 @@ interface SlideStudioViewProps {
   isDarkMode?: boolean;
   onBack: () => void;
   onArtifactUpdated?: (art: Artifact) => void;
+}
+
+function cleanSlideHtml(html: string | undefined | null, themeKey = 'editorial'): string {
+  if (!html) return '';
+  let cleaned = html;
+  if (cleaned.includes('<body') && cleaned.includes('</body>')) {
+    const styleMatch = cleaned.match(/<style[^>]*>[\s\S]*?<\/style>/gi);
+    const styles = styleMatch ? styleMatch.join('\n') : '';
+    const bodyContent = cleaned.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+    cleaned = `${styles}\n${bodyContent}`;
+  }
+  cleaned = cleaned.replace(/http:\/\/127\.0\.0\.1:5001\/static\//g, `/templates/${themeKey}/static/`);
+  cleaned = cleaned.replace(/\/templates\/[a-zA-Z0-9_-]+\/templates\/[a-zA-Z0-9_-]+\/static\//g, `/templates/${themeKey}/static/`);
+  cleaned = cleaned.replace(/(?<!\/templates\/[a-zA-Z0-9_-]+)\/static\//g, `/templates/${themeKey}/static/`);
+  return cleaned;
 }
 
 function buildDynamicSlidesFromProject(proj: ProjectManifest | null, passages: Record<string, string> = {}) {
@@ -533,7 +548,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   }, [initialArtifact, project]);
 
   const rawTheme = resolvePresentonTheme(activeThemeKey);
-  useThemeFonts(rawTheme);
+  useThemeFonts(rawTheme, activeThemeKey);
 
   const themeTokens = useMemo(() => {
     const isDark = rawTheme.mode === 'dark';
@@ -740,8 +755,9 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   const handleApplyTemplate = (layoutIdOrArchetype: string, packId?: string, layoutObject?: any) => {
     if (layoutObject && packId) {
       try {
+        loadTemplateFonts(packId);
         const hydrated = hydrateTemplateLayout(layoutObject, activeSlide);
-        let html = templateV2UiToHtml(hydrated, { width: 1280, height: 720 });
+        let html = templateV2UiToHtmlFragment(hydrated, { width: 1280, height: 720 }) || templateV2UiToHtml(hydrated, { width: 1280, height: 720 });
         if (html) {
           html = html.replace(/http:\/\/127\.0\.0\.1:5001\/static\//g, `/templates/${packId}/static/`);
           html = html.replace(/\/templates\/[a-zA-Z0-9_-]+\/templates\/[a-zA-Z0-9_-]+\/static\//g, `/templates/${packId}/static/`);
@@ -1526,27 +1542,27 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-black/5 dark:border-white/5">
                 <button
                   onClick={() => setSlideViewMode('bespoke')}
-                  className={`px-2 py-0.5 rounded-md font-bold text-[11px] transition-all flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-md font-bold text-[11px] transition-all flex items-center gap-1.5 ${
                     slideViewMode === 'bespoke'
                       ? 'bg-[#FF5C00] text-white shadow-xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
                   }`}
-                  title="View Bespoke 1280x720 Direct HTML Layout"
+                  title="View authentic Presenton 1280x720 Direct Template HTML"
                 >
-                  <Sparkles className="w-3 h-3" />
-                  <span>Bespoke</span>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Bespoke HTML</span>
                 </button>
                 <button
                   onClick={() => setSlideViewMode('cards')}
-                  className={`px-2 py-0.5 rounded-md font-bold text-[11px] transition-all flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-md font-bold text-[11px] transition-all flex items-center gap-1.5 ${
                     slideViewMode === 'cards'
                       ? 'bg-[#FF5C00] text-white shadow-xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
                   }`}
-                  title="View Interactive Card Archetype Editor"
+                  title="View interactive card archetype layout editor"
                 >
-                  <LayoutGrid className="w-3 h-3" />
-                  <span>Cards</span>
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Interactive Cards</span>
                 </button>
               </div>
 
@@ -1609,7 +1625,9 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
           {/* 16:9 Center Slide Canvas (Presenton-Style Floating Card on Neutral Backdrop) */}
           <div
             ref={canvasCardRef}
-            className="my-auto w-full max-w-4xl xl:max-w-5xl min-w-[560px] md:min-w-[640px] aspect-video min-h-[360px] md:min-h-[400px] mx-auto p-5 sm:p-7 flex flex-col justify-between relative overflow-hidden transition-all duration-300 border"
+            className={`my-auto w-full max-w-4xl xl:max-w-5xl min-w-[560px] md:min-w-[640px] aspect-video min-h-[360px] md:min-h-[400px] mx-auto flex flex-col justify-between relative overflow-hidden transition-all duration-300 border ${
+              slideViewMode === 'cards' ? 'p-5 sm:p-7' : 'p-0'
+            }`}
             style={{
               background: activeTheme.canvasBg,
               borderColor: activeTheme.canvasBorder,
@@ -1619,26 +1637,22 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
             }}
           >
             {slideViewMode === 'bespoke' && (activeSlide?.html_content || activeSlide?.raw_html) ? (
-              <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black/5 dark:bg-black/20">
+              <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-transparent">
                 <div
-                  data-tailwind-runtime-scope="true"
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => {
-                    const newHtml = e.currentTarget.innerHTML;
-                    handleUpdateSlideField('html_content', newHtml);
-                  }}
                   style={{
                     width: 1280,
                     height: 720,
                     transform: `scale(${canvasScale})`,
                     transformOrigin: 'center center',
-                    pointerEvents: 'auto',
-                    outline: 'none',
-                    cursor: 'text',
+                    flexShrink: 0,
                   }}
-                  dangerouslySetInnerHTML={{ __html: activeSlide.html_content || activeSlide.raw_html }}
-                />
+                >
+                  <div
+                    data-tailwind-runtime-scope="true"
+                    className="w-full h-full relative overflow-hidden shadow-2xl"
+                    dangerouslySetInnerHTML={{ __html: cleanSlideHtml(activeSlide.html_content || activeSlide.raw_html, activeThemeKey) }}
+                  />
+                </div>
               </div>
             ) : (
               <>

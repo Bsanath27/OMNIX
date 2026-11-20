@@ -2,11 +2,27 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { templateV2UiToHtml } from '../../../frontend/src/lib/presenton_renderer.mjs';
+import { templateV2UiToHtmlFragment } from '../../../frontend/src/lib/presenton_renderer.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '../../..');
+
+export function buildTemplateFontFaceCss(templateId, fonts) {
+  if (!fonts) return '';
+  let css = '<style>\n';
+  for (const [fontFamily, fontUrl] of Object.entries(fonts)) {
+    if (fontUrl.startsWith('http://') || fontUrl.startsWith('https://')) {
+      css += `@import url('${fontUrl}');\n`;
+    } else {
+      const cleanUrl = fontUrl.startsWith('/') ? fontUrl : `/templates/${templateId}/${fontUrl}`;
+      const format = cleanUrl.endsWith('.otf') ? 'opentype' : 'truetype';
+      css += `@font-face {\n  font-family: '${fontFamily}';\n  src: url('${cleanUrl}') format('${format}');\n  font-display: swap;\n}\n`;
+    }
+  }
+  css += '</style>\n';
+  return css;
+}
 
 export function hydrateTemplateLayout(layout, slide) {
   const l = JSON.parse(JSON.stringify(layout));
@@ -55,11 +71,13 @@ export function renderSlideHtml(templateId, layoutId, slide) {
   }
   
   const hydrated = hydrateTemplateLayout(layout, slide);
-  let html = templateV2UiToHtml(hydrated, { width: 1280, height: 720 });
+  const fontCss = buildTemplateFontFaceCss(templateId, template.fonts);
+  let html = templateV2UiToHtmlFragment(hydrated, { width: 1280, height: 720 });
   if (html) {
     html = html.replace(/http:\/\/127\.0\.0\.1:5001\/static\//g, `/templates/${templateId}/static/`);
     html = html.replace(/\/templates\/[a-zA-Z0-9_-]+\/templates\/[a-zA-Z0-9_-]+\/static\//g, `/templates/${templateId}/static/`);
     html = html.replace(/(?<!\/templates\/[a-zA-Z0-9_-]+)\/static\//g, `/templates/${templateId}/static/`);
+    html = fontCss + html;
   }
   return { html, layoutId: layout.id };
 }
