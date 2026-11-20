@@ -43,16 +43,21 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
         }),
       });
 
+      const withCacheBust = (url: string) => {
+        const sep = url.includes('?') ? '&' : '?';
+        return `${url}${sep}_omnix=${Date.now()}`;
+      };
+
       const data = await res.json();
       if (data.success && data.presentation_id) {
-        setIframeUrl(data.url);
+        setIframeUrl(withCacheBust(data.url));
         setServiceStatus('running');
       } else {
-        setIframeUrl('http://localhost:5001/templates');
+        setIframeUrl(withCacheBust('http://localhost:5001/templates'));
         setServiceStatus('running');
       }
     } catch {
-      setIframeUrl('http://localhost:5001/templates');
+      setIframeUrl(`http://localhost:5001/templates?_omnix=${Date.now()}`);
       setServiceStatus('offline');
     }
   };
