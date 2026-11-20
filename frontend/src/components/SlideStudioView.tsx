@@ -425,7 +425,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   // Dual-Engine Slide Rendering State (Bespoke 1280x720 Direct HTML vs Structured Cards)
-  const [slideViewMode, setSlideViewMode] = useState<'bespoke' | 'cards'>('bespoke');
+  const [slideViewMode, setSlideViewMode] = useState<'bespoke' | 'cards'>('cards');
   const [isRegeneratingSlide, setIsRegeneratingSlide] = useState(false);
   const canvasCardRef = React.useRef<HTMLDivElement>(null);
   const [canvasCardWidth, setCanvasCardWidth] = useState<number>(960);
@@ -1451,22 +1451,10 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
                 {isLayoutMenuOpen && (
                   <div className="absolute left-0 top-full mt-2 w-64 max-h-96 overflow-y-auto rounded-2xl bg-white dark:bg-[#1C1B19] border border-black/10 dark:border-[#383531] shadow-2xl p-2 z-50 space-y-1">
-                    {/* Browse Full Library Button */}
-                    <button
-                      onClick={() => {
-                        setIsLayoutMenuOpen(false);
-                        setIsTemplateModalOpen(true);
-                      }}
-                      className="w-full flex items-center justify-between p-2 rounded-xl bg-[#FF5C00]/10 hover:bg-[#FF5C00]/20 text-[#FF5C00] font-bold text-xs border border-[#FF5C00]/30 transition-all mb-1"
-                    >
-                      <div className="flex items-center gap-2">
-                        <LayoutGrid className="w-4 h-4" />
-                        <span>Browse 105+ Template Library</span>
-                      </div>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-
-                    <div className="h-px bg-black/10 dark:bg-white/10 my-1" />
+                    <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
+                      Layout Archetypes
+                    </div>
+                    <div className="h-px bg-black/10 dark:bg-white/10 mb-1" />
 
                     {[
                       { id: 'hero_visual_split', label: 'Split Visual Hero', icon: ImageIcon, desc: '60% content + 40% photo visual' },
@@ -1630,12 +1618,20 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black/5 dark:bg-black/20">
                 <div
                   data-tailwind-runtime-scope="true"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    const newHtml = e.currentTarget.innerHTML;
+                    handleUpdateSlideField('html_content', newHtml);
+                  }}
                   style={{
                     width: 1280,
                     height: 720,
                     transform: `scale(${canvasScale})`,
                     transformOrigin: 'center center',
                     pointerEvents: 'auto',
+                    outline: 'none',
+                    cursor: 'text',
                   }}
                   dangerouslySetInnerHTML={{ __html: activeSlide.html_content || activeSlide.raw_html }}
                 />
@@ -1649,22 +1645,25 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 />
 
             <div className="relative z-10 space-y-2.5">
-              {/* Clean Editorial Kicker (Presenton Style - Uncluttered Canvas) */}
+              {/* Clean Editorial Kicker (Presenton Style - Uncluttered Canvas - Click to Edit) */}
               <div className="flex items-center justify-between text-xs font-mono">
-                <span
-                  className="font-bold uppercase tracking-widest text-[10px] font-mono opacity-80"
+                <input
+                  type="text"
+                  value={activeSlide?.subtitle || ''}
+                  placeholder={`${(project?.outline?.subject || 'Curriculum').toUpperCase()} · ${(project?.outline?.grade_level || 'Grade 10').toUpperCase()}`}
+                  onChange={(e) => handleUpdateSlideField('subtitle', e.target.value)}
+                  className="font-bold uppercase tracking-widest text-[10px] font-mono opacity-80 bg-transparent border-none focus:outline-none focus:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 transition-colors w-full cursor-text"
                   style={{ color: activeTheme.accentColor }}
-                >
-                  {activeSlide?.subtitle || `${(project?.outline?.subject || 'Curriculum').toUpperCase()} · ${(project?.outline?.grade_level || 'Grade 10').toUpperCase()}`}
-                </span>
+                />
               </div>
 
-              {/* Large Bold Slide Title (Clean Editorial Typography, No Form Borders) */}
+              {/* Large Bold Slide Title (Clean Editorial Typography, Click to Edit) */}
               <textarea
                 rows={activeSlide?.title && activeSlide.title.length > 40 ? 2 : 1}
                 value={activeSlide?.title || ''}
                 onChange={(e) => handleUpdateSlideField('title', e.target.value)}
-                className="w-full text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight bg-transparent border-none focus:outline-none resize-none leading-tight"
+                placeholder="Enter slide title..."
+                className="w-full text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight bg-transparent border-none focus:outline-none resize-none leading-tight hover:bg-black/5 dark:hover:bg-white/5 rounded-lg px-1 transition-colors cursor-text"
                 style={{ color: activeTheme.titleColor, fontFamily: activeTheme.headingFont }}
               />
 
