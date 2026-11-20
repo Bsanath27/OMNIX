@@ -74,6 +74,8 @@ async def list_projects() -> List[ProjectManifest]:
     return projects
 
 
+from backend.services.template_renderer import get_template_catalog_info, render_template_layout_html
+
 PRESENTON_API_URL = "http://localhost:5001"
 
 DEFAULT_TEMPLATES_FALLBACK = [
@@ -82,7 +84,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Verdant",
         "description": "Refined, organic layouts with expressive serif typography and flowing green accents for life science and nature concepts.",
         "layout_count": 27,
-        "thumbnail": "http://localhost:5001/app_data/templates/verdant/static/thumbnail.png",
+        "thumbnail": "/templates/verdant/static/thumbnail.png",
         "themeKey": "verdant",
         "tags": ["Life Sciences", "Forest Green", "Organic"]
     },
@@ -91,7 +93,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Nova",
         "description": "Futuristic, high-contrast layouts with luminous blue gradients and bold typography for technology and physics.",
         "layout_count": 28,
-        "thumbnail": "http://localhost:5001/app_data/templates/nova/static/thumbnail.png",
+        "thumbnail": "/templates/nova/static/thumbnail.png",
         "themeKey": "nova",
         "tags": ["Physics", "Tech", "High Contrast"]
     },
@@ -100,7 +102,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Pulse",
         "description": "Clean, clinical layouts with crisp typography, calming blue accents, and structured compositions for healthcare and lab research.",
         "layout_count": 28,
-        "thumbnail": "http://localhost:5001/app_data/templates/pulse/static/thumbnail.png",
+        "thumbnail": "/templates/pulse/static/thumbnail.png",
         "themeKey": "pulse",
         "tags": ["Healthcare", "Clinical", "Clean Blue"]
     },
@@ -109,7 +111,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Signal",
         "description": "Bold, warm-toned layouts with strong typography and dynamic framing for high-impact STEM lectures.",
         "layout_count": 24,
-        "thumbnail": "http://localhost:5001/app_data/templates/signal/static/thumbnail.png",
+        "thumbnail": "/templates/signal/static/thumbnail.png",
         "themeKey": "signal",
         "tags": ["High Impact", "Warm Amber", "Dynamic"]
     },
@@ -118,7 +120,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Solar Obsidian",
         "description": "Deep obsidian dark surfaces with high-visibility solar orange accents and modern bento cards.",
         "layout_count": 24,
-        "thumbnail": "http://localhost:5001/app_data/templates/dynamic/static/thumbnail.png",
+        "thumbnail": "/templates/dynamic/static/thumbnail.png",
         "themeKey": "solar_obsidian",
         "tags": ["Dark Mode", "Bento Cards", "High Contrast"]
     },
@@ -127,7 +129,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Academic Clean",
         "description": "Crisp white canvas with classic Oxford blue headings and structured textbook sectioning.",
         "layout_count": 20,
-        "thumbnail": "http://localhost:5001/app_data/templates/editorial/static/thumbnail.png",
+        "thumbnail": "/templates/editorial/static/thumbnail.png",
         "themeKey": "academic_clean",
         "tags": ["Textbook Standard", "Light Canvas", "Oxford Blue"]
     },
@@ -136,7 +138,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Mosaic",
         "description": "Vibrant, modular layouts with bold color blocking and playful editorial compositions for visual diagrams.",
         "layout_count": 34,
-        "thumbnail": "http://localhost:5001/app_data/templates/mosaic/static/thumbnail.png",
+        "thumbnail": "/templates/mosaic/static/thumbnail.png",
         "themeKey": "mosaic",
         "tags": ["Modular", "Color Blocking", "Diagrams"]
     },
@@ -145,7 +147,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Momentum",
         "description": "Polished high-energy layouts for strategy, performance, and quantitative data storytelling.",
         "layout_count": 28,
-        "thumbnail": "http://localhost:5001/app_data/templates/momentum/static/thumbnail.png",
+        "thumbnail": "/templates/momentum/static/thumbnail.png",
         "themeKey": "momentum",
         "tags": ["Data Story", "Quantitative", "Leadership"]
     },
@@ -154,7 +156,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Modern",
         "description": "Clean contemporary layouts with generous whitespace and confident typography.",
         "layout_count": 10,
-        "thumbnail": "http://localhost:5001/app_data/templates/modern/static/thumbnail.png",
+        "thumbnail": "/templates/modern/static/thumbnail.png",
         "themeKey": "modern",
         "tags": ["Whitespace", "Contemporary", "Lecture"]
     },
@@ -163,7 +165,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Standard",
         "description": "Balanced, adaptable layouts that keep classroom curriculum organized and easy to follow.",
         "layout_count": 11,
-        "thumbnail": "http://localhost:5001/app_data/templates/standard/static/thumbnail.png",
+        "thumbnail": "/templates/standard/static/thumbnail.png",
         "themeKey": "standard",
         "tags": ["Classroom", "Textbook Standard", "Clean"]
     },
@@ -172,7 +174,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Swift",
         "description": "Bright, energetic layouts with crisp structure and visual momentum for concise, fast-paced recaps.",
         "layout_count": 9,
-        "thumbnail": "http://localhost:5001/app_data/templates/swift/static/thumbnail.png",
+        "thumbnail": "/templates/swift/static/thumbnail.png",
         "themeKey": "swift",
         "tags": ["Fast Paced", "Revision", "Concise"]
     },
@@ -181,7 +183,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "General",
         "description": "General purpose template best for simple presentations, great spacing, and structured cards.",
         "layout_count": 12,
-        "thumbnail": "http://localhost:5001/app_data/templates/general/static/thumbnail.png",
+        "thumbnail": "/templates/general/static/thumbnail.png",
         "themeKey": "general",
         "tags": ["Everyday", "Structured", "Simple"]
     },
@@ -190,7 +192,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Executive",
         "description": "Leadership-ready layouts with bold typography, crisp structure, and subtle violet accents.",
         "layout_count": 32,
-        "thumbnail": "http://localhost:5001/app_data/templates/executive/static/thumbnail.png",
+        "thumbnail": "/templates/executive/static/thumbnail.png",
         "themeKey": "executive",
         "tags": ["Violet", "Deep Contrast", "Executive"]
     },
@@ -199,7 +201,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Editorial",
         "description": "Magazine-inspired layouts with refined typography and polished compositions for narrative insights.",
         "layout_count": 24,
-        "thumbnail": "http://localhost:5001/app_data/templates/editorial/static/thumbnail.png",
+        "thumbnail": "/templates/editorial/static/thumbnail.png",
         "themeKey": "editorial",
         "tags": ["Editorial", "Narrative", "Oxford"]
     },
@@ -208,7 +210,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Dynamic",
         "description": "Bold high-contrast layouts with dark textured backgrounds and warm accents for story-driven lectures.",
         "layout_count": 32,
-        "thumbnail": "http://localhost:5001/app_data/templates/dynamic/static/thumbnail.png",
+        "thumbnail": "/templates/dynamic/static/thumbnail.png",
         "themeKey": "dynamic",
         "tags": ["Dark Mode", "High Contrast", "Solar"]
     },
@@ -217,7 +219,7 @@ DEFAULT_TEMPLATES_FALLBACK = [
         "name": "Civic",
         "description": "Modern monochrome layouts with bold typography and structured compositions for research and policy.",
         "layout_count": 29,
-        "thumbnail": "http://localhost:5001/app_data/templates/civic/static/thumbnail.png",
+        "thumbnail": "/templates/civic/static/thumbnail.png",
         "themeKey": "civic",
         "tags": ["Monochrome", "Academic", "Structured"]
     }
@@ -226,29 +228,28 @@ DEFAULT_TEMPLATES_FALLBACK = [
 
 @router.get("/slides/templates")
 async def get_slide_templates():
-    """Retrieve all available slide design templates from Presenton service or fallback."""
-    try:
-        import requests
-        res = requests.get(f"{PRESENTON_API_URL}/api/v1/ppt/template/all", timeout=2)
-        if res.status_code == 200:
-            data = res.json()
-            items = data.get("items", [])
-            if items:
-                formatted = []
-                for it in items:
-                    t_id = it.get("id")
-                    formatted.append({
-                        "id": t_id,
-                        "name": it.get("name", t_id.title()),
-                        "description": it.get("description", ""),
-                        "layout_count": it.get("layout_count", 20),
-                        "thumbnail": f"{PRESENTON_API_URL}/app_data/templates/{t_id}/static/thumbnail.png",
-                        "themeKey": t_id,
-                        "tags": [f"{it.get('layout_count', 20)} Layouts", "Presenton Native"]
+    """Retrieve all available slide design templates from local catalog or fallback."""
+    templates_dir = settings.ROOT_DIR / "backend" / "templates" / "catalog"
+    if templates_dir.exists():
+        results = []
+        for tpath in sorted(templates_dir.iterdir()):
+            if tpath.is_dir() and (tpath / "template.json").exists():
+                try:
+                    with open(tpath / "template.json", "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    results.append({
+                        "id": tpath.name,
+                        "name": data.get("name", tpath.name.title()),
+                        "description": data.get("description", ""),
+                        "layout_count": len(data.get("layouts", [])),
+                        "thumbnail": f"/templates/{tpath.name}/static/thumbnail.png",
+                        "themeKey": tpath.name,
+                        "tags": [f"{len(data.get('layouts', []))} Layouts", "Presenton Native"]
                     })
-                return {"templates": formatted, "source": "presenton_live"}
-    except Exception as e:
-        logger.warning(f"Could not reach Presenton on port 5001 ({e}), returning default templates.")
+                except Exception:
+                    pass
+        if results:
+            return {"templates": results, "source": "local_catalog"}
 
     return {"templates": DEFAULT_TEMPLATES_FALLBACK, "source": "presenton_cached"}
 
@@ -913,7 +914,21 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
     slides_data: List[SlideContent] = []
     raw_slides_for_json: List[Dict[str, Any]] = []
 
-    # 1. LIVE LLM SLIDE SYNTHESIS (Archetypes, rich cards, tailored teacher notes)
+    # Resolve active template & design system
+    raw_theme_or_tpl = (req.template_id or req.theme or "editorial").lower()
+    tpl_info = get_template_catalog_info(raw_theme_or_tpl)
+    if not tpl_info:
+        tpl_info = get_template_catalog_info("editorial")
+    
+    tpl_name = tpl_info["name"] if tpl_info else raw_theme_or_tpl.title()
+    tpl_colors = tpl_info["colors"] if tpl_info else {}
+    bg_color = tpl_colors.get("background", "#1D242D")
+    accent_color = tpl_colors.get("primary", "#155F99")
+    card_color = tpl_colors.get("card", "#1DA1F2")
+    text_color = tpl_colors.get("background_text") or tpl_colors.get("primary_text") or "#FFFFFF"
+    available_layouts = tpl_info["layouts"] if tpl_info else []
+
+    # 1. LIVE LLM SLIDE SYNTHESIS (Template-Driven Layout Selection & Rich Content)
     llm_provider = get_active_llm_provider()
     compiled_by_llm = False
     if llm_provider != "none":
@@ -930,40 +945,36 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                     "bullets": b_list
                 })
 
+            layout_choices_text = "\n".join([f"- '{l['id']}': {l['description']}" for l in available_layouts[:16]])
+
             compiler_prompt = (
                 f"You are a master presentation designer and curriculum author for {grade} learners.\n"
-                f"Convert the given approved presentation outline into a complete, presentation-ready slide deck.\n\n"
+                f"Convert the given approved presentation outline into a complete, presentation-ready slide deck.\n"
+                f"You MUST design the slide deck strictly adhering to the '{tpl_name}' ({raw_theme_or_tpl}) design system.\n\n"
+                f"DESIGN SYSTEM PALETTE:\n"
+                f"- Background Canvas: {bg_color}\n"
+                f"- Primary Accent: {accent_color}\n"
+                f"- Card / Surface: {card_color}\n"
+                f"- Text / Headings: {text_color}\n\n"
+                f"AVAILABLE PRESENTON TEMPLATE LAYOUTS IN '{raw_theme_or_tpl}':\n"
+                f"{layout_choices_text}\n\n"
                 f"For each slide in the outline, synthesize rich, presentation-ready JSON:\n"
-                f"1. 'archetype': Select the most visually appropriate Presenton Smart Layout archetype.\n"
-                f"   STRICT RULE: Every slide MUST have a distinct archetype — NEVER repeat the same archetype consecutively!\n"
-                f"   Choose from:\n"
-                f"   - 'hero_visual_split' (60% structured insight on left + 40% high-res scientific photo/illustration on right)\n"
-                f"   - 'hero_title' (Slide 1: overarching title, thesis, and core inquiry)\n"
-                f"   - 'before_after' (High-contrast problem vs transformed solution with checkmarks)\n"
-                f"   - 'pros_cons' (Structured decision matrix with green pros vs alert cons)\n"
-                f"   - 'pyramid_hierarchy' (3-tier ascending funnel / hierarchy pyramid: foundation to peak mastery)\n"
-                f"   - 'staircase_progression' (Ascending elevation steps moving upward: 01 to 03)\n"
-                f"   - 'snake_roadmap' (S-curve serpentine roadmap path with alternating milestone nodes)\n"
-                f"   - 'circular_hub' (Center core thesis disk surrounded by 4 satellite pillars)\n"
-                f"   - 'chart_data' (Empirical measurements and quantitative horizontal benchmark bars)\n"
-                f"   - 'stats_grid' (3 to 4 oversized KPI metric figures with retention progress bars)\n"
-                f"   - 'timeline' (Chronological milestones and phase track)\n"
-                f"   - 'sequence_steps' (Step-by-step procedural derivation with connecting arrows)\n"
-                f"   - 'editorial_quote' (Massive pullquote typography with author citation)\n"
-                f"   - 'bento_4' (2x2 quad bento cards for dense conceptual breakdown)\n"
-                f"   - 'process_cycle' (Closed-loop continuous cyclical workflow)\n"
-                f"   - 'card_grid_3' (Balanced 3 concept cards)\n"
-                f"2. 'subtitle': A concise academic strand (e.g., '{subject.upper()} · {grade.upper()} · FOUNDATIONAL PRINCIPLES').\n"
-                f"3. 'standard': Relevant curriculum competency (e.g., '{subject} Core Standard').\n"
-                f"4. 'has_visual': Boolean. True ONLY for slides whose archetype visually features an image (like 'hero_visual_split' or 'image_hero_full'). For all other archetypes, set to false.\n"
-                f"5. 'image_query': If 'has_visual' is true, provide a concise 2-4 word search query for a scientific illustration, real photograph, or 3D diagram (e.g. 'chloroplast light absorption', 'archimedes principle fluid mechanics'). For non-visual slides, omit or set to null.\n"
-                f"6. 'chart_data': (Optional, for comparative/experimental slides): A list of 2-4 points with 'label' and numeric 'value' (e.g. [{{\"label\": \"Blue (450nm)\", \"value\": 92}}, {{\"label\": \"Green (550nm)\", \"value\": 18}}, {{\"label\": \"Red (680nm)\", \"value\": 85}}]).\n"
-                f"7. 'cards': A list of 2 or 3 distinct content cards. Each card must have:\n"
+                f"1. 'template_layout_id': You MUST select the most fitting layout ID from the available template layouts list above.\n"
+                f"   - Slide 1 MUST select a title / cover layout (e.g. 'title_slide_...').\n"
+                f"   - Subsequent slides MUST select distinct layouts (two-column list, callouts, cards, process, or metrics).\n"
+                f"   - STRICT RULE: NEVER repeat the same layout consecutively! Ensure diverse layout rhythm across the deck.\n"
+                f"2. 'archetype': Corresponding Presenton smart archetype for fallback cards canvas ('hero_title', 'hero_visual_split', 'staircase_progression', 'sequence_steps', 'editorial_quote', 'card_grid_3', 'bento_4', 'before_after', 'pros_cons').\n"
+                f"3. 'subtitle': A concise academic strand (e.g., '{subject.upper()} · {grade.upper()} · {tpl_name.upper()}').\n"
+                f"4. 'standard': Relevant curriculum competency (e.g., '{subject} Core Standard').\n"
+                f"5. 'has_visual': Boolean. True ONLY for slides whose archetype visually features an image (like 'hero_visual_split' or 'image_hero_full'). For all other archetypes, set to false.\n"
+                f"6. 'image_query': If 'has_visual' is true, provide a concise 2-4 word search query for a scientific illustration, real photograph, or 3D diagram (e.g. 'chloroplast light absorption', 'archimedes principle fluid mechanics'). For non-visual slides, omit or set to null.\n"
+                f"7. 'chart_data': (Optional, for comparative/experimental slides): A list of 2-4 points with 'label' and numeric 'value' (e.g. [{{\"label\": \"Blue (450nm)\", \"value\": 92}}, {{\"label\": \"Green (550nm)\", \"value\": 18}}, {{\"label\": \"Red (680nm)\", \"value\": 85}}]).\n"
+                f"8. 'cards': A list of 2 or 3 distinct content cards. Each card must have:\n"
                 f"   - 'badge': Concise 1-2 word tag (e.g. 'Law 01', 'Mechanism', 'Formula', 'Application').\n"
                 f"   - 'title': Short, punchy 2 to 4-word heading (e.g. 'Inertial Mass', 'Normal Contact Force'). NEVER slice sentences or use generic filler!\n"
                 f"   - 'body': Clear, substantive explanation (1-2 sentences) of the concept.\n"
-                f"8. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n"
-                f"9. 'html_content': (Recommended) A bespoke, visually diverse 1280x720 Tailwind HTML section string starting with `<section data-slide-title=\"...\" class=\"relative h-[720px] w-[1280px] overflow-hidden bg-[#090D16] text-white p-12 flex flex-col justify-between\">`. Design an asymmetric layout with bold metrics, staggered cards, or diagrams that fits 1280x720 without overflow.\n\n"
+                f"9. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n"
+                f"10. 'html_content': (Optional) Bespoke 1280x720 Tailwind HTML section string reflecting {bg_color} background and {text_color} text.\n\n"
                 f"Rules:\n"
                 f"- Return strictly a valid JSON object with key 'slides': a list of {len(req.outlines)} slide objects.\n"
                 f"- NEVER use placeholder text or boilerplate repetition."
@@ -1025,21 +1036,34 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
 
                         c_data = s.get("chart_data")
 
-                        html_c = s.get("html_content")
+                        slide_dict = {
+                            "title": title,
+                            "subtitle": s.get("subtitle") or f"{subject} • Level: {grade}",
+                            "cards": [c.model_dump() for c in cards],
+                            "bullets": orig_bullets,
+                            "slide_number": idx + 1
+                        }
+
+                        # Render authentic template layout HTML
+                        chosen_layout = s.get("template_layout_id")
+                        rendered_html, rendered_layout_id = render_template_layout_html(raw_theme_or_tpl, chosen_layout, slide_dict)
+                        html_c = rendered_html or s.get("html_content")
                         if not html_c or len(html_c) < 50:
                             html_c = generate_default_slide_html(
                                 title=title,
                                 archetype=arch,
                                 cards=cards,
                                 image_url=img_url,
-                                subtitle=s.get("subtitle") or f"{subject} • Level: {grade}",
-                                theme_name=req.theme or "solar_obsidian"
+                                subtitle=slide_dict["subtitle"],
+                                theme_name=raw_theme_or_tpl
                             )
+
+                        final_layout_id = rendered_layout_id or chosen_layout
 
                         slide_obj = SlideContent(
                             slide_number=idx + 1,
                             title=title,
-                            subtitle=s.get("subtitle") or f"{subject} • Level: {grade}",
+                            subtitle=slide_dict["subtitle"],
                             archetype=arch,
                             cards=cards,
                             bullets=orig_bullets,
@@ -1048,12 +1072,12 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                             image_url=img_url,
                             chart_data=c_data,
                             html_content=html_c,
-                            template_layout_id=s.get("template_layout_id")
+                            template_layout_id=final_layout_id
                         )
                         slides_data.append(slide_obj)
                         raw_slides_for_json.append(slide_obj.model_dump())
                     compiled_by_llm = True
-                    logger.info(f"Successfully compiled {len(slides_data)} slides via live LLM")
+                    logger.info(f"Successfully compiled {len(slides_data)} slides via live LLM with template '{raw_theme_or_tpl}'")
         except Exception as e:
             logger.error(f"Live LLM slide compilation failed: {e}. Using intelligent fallback.")
             slides_data = []
@@ -1124,50 +1148,53 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 img_query = None
                 img_url = None
 
-            html_c = generate_default_slide_html(
-                title=title,
-                archetype=archetype,
-                cards=cards,
-                image_url=img_url,
-                subtitle=f"{subject} • Level: {grade}",
-                theme_name=req.theme or "solar_obsidian"
-            )
+            slide_dict = {
+                "title": title,
+                "subtitle": f"{subject} • Level: {grade}",
+                "cards": [c.model_dump() for c in cards],
+                "bullets": bullets,
+                "slide_number": idx + 1
+            }
+
+            # Select layout from template catalog
+            layout_id = None
+            if available_layouts:
+                if idx == 0:
+                    layout_id = available_layouts[0]["id"]
+                else:
+                    rem = available_layouts[1:] if len(available_layouts) > 1 else available_layouts
+                    layout_id = rem[(idx - 1) % len(rem)]["id"]
+
+            rendered_html, rendered_layout_id = render_template_layout_html(raw_theme_or_tpl, layout_id, slide_dict)
+            html_c = rendered_html
+            if not html_c or len(html_c) < 50:
+                html_c = generate_default_slide_html(
+                    title=title,
+                    archetype=archetype,
+                    cards=cards,
+                    image_url=img_url,
+                    subtitle=slide_dict["subtitle"],
+                    theme_name=raw_theme_or_tpl
+                )
 
             slide_obj = SlideContent(
                 slide_number=idx + 1,
                 title=title,
-                subtitle=f"{subject} • Level: {grade}",
+                subtitle=slide_dict["subtitle"],
                 archetype=archetype,
                 cards=cards,
                 bullets=bullets,
                 speaker_notes=speaker_notes,
                 image_query=img_query,
                 image_url=img_url,
-                html_content=html_c
+                html_content=html_c,
+                template_layout_id=rendered_layout_id or layout_id
             )
             slides_data.append(slide_obj)
             raw_slides_for_json.append(slide_obj.model_dump())
 
     # Build PPTX with requested theme
-    theme_raw = (req.theme or "solar_obsidian").lower()
-    known_themes = [
-        "verdant", "nova", "pulse", "signal", "solar_obsidian", "academic_clean",
-        "standard", "dynamic", "executive", "general", "col_blue",
-        "momentum", "swift", "mosaic", "editorial", "civic", "landmark", "modern", "horizon"
-    ]
-    if theme_raw in known_themes:
-        theme_name = theme_raw
-    elif theme_raw in ("solar", "solar_obsidian", "tpl-solar"):
-        theme_name = "solar_obsidian"
-    elif theme_raw in ("midnight", "midnight_tech", "tpl-midnight"):
-        theme_name = "midnight_tech"
-    elif theme_raw in ("academic", "academic_clean", "tpl-academic"):
-        theme_name = "academic_clean"
-    elif theme_raw in ("col", "col_blue", "tpl-col"):
-        theme_name = "col_blue"
-    else:
-        theme_name = "verdant"
-
+    theme_name = raw_theme_or_tpl
     build_presentation_file(slides_data, theme_name, pptx_path)
 
     preview_data = {

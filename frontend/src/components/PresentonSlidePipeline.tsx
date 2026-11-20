@@ -199,7 +199,9 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
         project.project_id,
         outlines,
         themeKey,
-        currentArtifact?.id
+        currentArtifact?.id,
+        'smart_dual',
+        themeKey
       );
       setCurrentArtifact(compiled);
       if (onArtifactUpdated) onArtifactUpdated(compiled);
@@ -905,21 +907,34 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                     backgroundColor: isDarkMode ? '#181715' : '#FFFFFF',
                   }}
                 >
-                  {/* Authentic Presenton Dynamic Mini-Canvas Preview with Real Content and Fonts */}
-                  <MiniSlidePreview
-                    slideTitle={outlines[0]?.title || project?.name || 'Lesson Presentation'}
-                    slideSubtitle={project?.outline?.subject ? `${project.outline.subject.toUpperCase()} • GRADE 10` : 'FOUNDATIONAL PRINCIPLES • CURRICULUM MODULE'}
-                    bullets={outlines[0]?.bullets || []}
-                    themeProperties={(themes as Record<string, ThemeProperties>)[tpl.id]}
-                    themeName={tpl.name}
-                    previewBg={tpl.previewBg}
-                    accentColor={tpl.accentColor}
-                    headingFont={tpl.headingFont}
-                    bodyFont={tpl.bodyFont}
-                    textColor={tpl.textColor}
-                    isDark={tpl.isDark}
-                    useRealContent={useRealPreviewContent}
-                  />
+                  {/* Official Rendered Design System Thumbnail or Dynamic Mini-Canvas */}
+                  {isMasterPack ? (
+                    <div className="w-full aspect-video rounded-2xl mb-3 border overflow-hidden relative shadow-md bg-black/40 border-black/10 dark:border-white/10 group-hover:scale-[1.02] transition-transform">
+                      <img
+                        src={`/templates/${tpl.id}/static/thumbnail.png`}
+                        alt={tpl.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-[10px] font-mono font-bold text-[#FF5C00]">
+                        🏛️ 16:9 Design System
+                      </div>
+                    </div>
+                  ) : (
+                    <MiniSlidePreview
+                      slideTitle={outlines[0]?.title || project?.name || 'Lesson Presentation'}
+                      slideSubtitle={project?.outline?.subject ? `${project.outline.subject.toUpperCase()} • GRADE 10` : 'FOUNDATIONAL PRINCIPLES • CURRICULUM MODULE'}
+                      bullets={outlines[0]?.bullets || []}
+                      themeProperties={(themes as Record<string, ThemeProperties>)[tpl.id]}
+                      themeName={tpl.name}
+                      previewBg={tpl.previewBg}
+                      accentColor={tpl.accentColor}
+                      headingFont={tpl.headingFont}
+                      bodyFont={tpl.bodyFont}
+                      textColor={tpl.textColor}
+                      isDark={tpl.isDark}
+                      useRealContent={useRealPreviewContent}
+                    />
+                  )}
 
                   {/* Template Meta Info */}
                   <div className="flex items-start justify-between">

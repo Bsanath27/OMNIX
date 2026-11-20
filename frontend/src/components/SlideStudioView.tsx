@@ -13,6 +13,7 @@ import {
 } from '../api';
 // @ts-ignore
 import { templateV2UiToHtml } from '../lib/presenton_renderer.mjs';
+import { hydrateTemplateLayout } from '../lib/templateHydration';
 import {
   Maximize2,
   Minimize2,
@@ -523,7 +524,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
     if (initialArtifact?.source_data?.slides?.length) {
       setCurrentArtifact(initialArtifact);
       setEditableSlides(JSON.parse(JSON.stringify(initialArtifact.source_data.slides)));
-      if (initialArtifact.source_data.theme && !new URLSearchParams(window.location.search).get('theme')) {
+      if (initialArtifact.source_data.theme) {
         setActiveThemeKey(initialArtifact.source_data.theme);
       }
     } else if (project) {
@@ -739,10 +740,12 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   const handleApplyTemplate = (layoutIdOrArchetype: string, packId?: string, layoutObject?: any) => {
     if (layoutObject && packId) {
       try {
-        let html = templateV2UiToHtml(layoutObject, { width: 1280, height: 720 });
+        const hydrated = hydrateTemplateLayout(layoutObject, activeSlide);
+        let html = templateV2UiToHtml(hydrated, { width: 1280, height: 720 });
         if (html) {
           html = html.replace(/http:\/\/127\.0\.0\.1:5001\/static\//g, `/templates/${packId}/static/`);
-          html = html.replace(/\/static\//g, `/templates/${packId}/static/`);
+          html = html.replace(/\/templates\/[a-zA-Z0-9_-]+\/templates\/[a-zA-Z0-9_-]+\/static\//g, `/templates/${packId}/static/`);
+          html = html.replace(/(?<!\/templates\/[a-zA-Z0-9_-]+)\/static\//g, `/templates/${packId}/static/`);
           setEditableSlides((prev) => {
             const updated = [...prev];
             updated[currentSlideIndex] = {
@@ -781,7 +784,8 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
         [outlineItem],
         activeThemeKey,
         currentArtifact?.id,
-        'smart_dual'
+        'smart_dual',
+        activeThemeKey
       );
       const newSlide = res?.source_data?.slides?.[0];
       if (newSlide) {
