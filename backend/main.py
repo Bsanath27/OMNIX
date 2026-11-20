@@ -35,6 +35,54 @@ image_cache_dir = settings.ROOT_DIR / "output" / "image_cache"
 image_cache_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/images", StaticFiles(directory=image_cache_dir), name="static_images")
 
+# Mount Presenton 16-theme template catalog static assets
+templates_catalog_dir = settings.ROOT_DIR / "backend" / "templates" / "catalog"
+if templates_catalog_dir.exists():
+    app.mount("/static/templates", StaticFiles(directory=templates_catalog_dir), name="static_templates")
+    app.mount("/templates", StaticFiles(directory=templates_catalog_dir), name="templates_direct")
+
+
+@app.get("/api/templates/catalog")
+async def list_templates_catalog():
+    """List all 16 official Presenton template design systems with layout counts."""
+    import json
+    templates_dir = settings.ROOT_DIR / "backend" / "templates" / "catalog"
+    if not templates_dir.exists():
+        return {"templates": []}
+
+    results = []
+    for tpath in sorted(templates_dir.iterdir()):
+        if tpath.is_dir() and (tpath / "template.json").exists():
+            try:
+                with open(tpath / "template.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                layouts = data.get("layouts", [])
+                results.append({
+                    "id": tpath.name,
+                    "name": data.get("name") or tpath.name.capitalize(),
+                    "description": data.get("description", ""),
+                    "layout_count": len(layouts),
+                    "theme": data.get("theme", {}),
+                    "fonts": data.get("fonts", {}),
+                    "thumbnail": f"/templates/{tpath.name}/static/thumbnail.png"
+                })
+            except Exception as e:
+                continue
+    return {"templates": results, "total_layouts": sum(r["layout_count"] for r in results)}
+
+
+@app.get("/api/templates/catalog/{template_id}")
+async def get_template_details(template_id: str):
+    """Get full template definition including all 20-35 layouts and components."""
+    import json
+    from fastapi import HTTPException
+    template_file = settings.ROOT_DIR / "backend" / "templates" / "catalog" / template_id / "template.json"
+    if not template_file.exists():
+        raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+    with open(template_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data
+
 
 @app.get("/api/images/resolve")
 async def resolve_image_endpoint(query: str, title: str = ""):

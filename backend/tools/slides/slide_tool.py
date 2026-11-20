@@ -302,6 +302,8 @@ class SlideContent(BaseModel):
     image_query: Optional[str] = None
     image_url: Optional[str] = None
     chart_data: Optional[List[Dict[str, Any]]] = None
+    html_content: Optional[str] = None
+    template_layout_id: Optional[str] = None
 
 
 class SlideBrief(ToolBrief):
@@ -310,6 +312,151 @@ class SlideBrief(ToolBrief):
     theme: str = Field(default="col_blue", description="Theme name: col_blue, academic_clean, midnight_tech, etc.")
     include_speaker_notes: bool = Field(default=True, description="Embed teaching notes for educator")
     include_passage_citations: bool = Field(default=True, description="Include [Pxx-Sxx] grounding citations")
+
+
+def generate_default_slide_html(
+    title: str,
+    archetype: str,
+    cards: List[SlideCard],
+    image_url: Optional[str] = None,
+    subtitle: str = "",
+    theme_name: str = "solar_obsidian"
+) -> str:
+    """Generate high-contrast, presentation-ready 1280x720 Tailwind HTML section."""
+    bg_gradient = "bg-gradient-to-br from-[#0B0F19] via-[#111827] to-[#1E293B]"
+    c0 = cards[0] if cards else SlideCard(title="Core Principle", body="Theoretical foundation.")
+    c1 = cards[1] if len(cards) > 1 else SlideCard(title="Mechanism", body="Observable phenomenon.")
+    c2 = cards[2] if len(cards) > 2 else SlideCard(title="Synthesis", body="Curriculum takeaway.")
+
+    if archetype in ("hero_title", "hero_stat"):
+        return f"""<section data-slide-title="{title}" class="relative h-[720px] w-[1280px] overflow-hidden {bg_gradient} text-white p-16 flex flex-col justify-between font-sans">
+  <div class="absolute -top-32 -left-32 w-96 h-96 bg-[#FF5C00]/15 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="flex items-center justify-between z-10">
+    <span class="px-3.5 py-1.5 rounded-full bg-[#FF5C00]/20 border border-[#FF5C00]/40 text-[#FF5C00] text-xs font-mono font-bold tracking-wider uppercase">Instructional Unit</span>
+    <span class="text-xs font-mono text-slate-500">16:9 CURRICULUM PRESENTATION</span>
+  </div>
+  <div class="space-y-6 z-10 max-w-4xl my-auto">
+    <div class="text-xs font-mono tracking-widest text-[#FF5C00] uppercase">{subtitle or 'CORE FOUNDATION'}</div>
+    <h1 class="text-6xl font-black tracking-tight leading-tight bg-gradient-to-r from-white via-slate-100 to-[#FF5C00] bg-clip-text text-transparent">{title}</h1>
+    <p class="text-xl text-slate-300 max-w-2xl leading-relaxed">{c0.body}</p>
+  </div>
+  <div class="flex items-center justify-between border-t border-white/10 pt-4 text-xs font-mono text-slate-500 z-10">
+    <span>OMNIX MULTIMODAL ACADEMIC DECK</span>
+    <span>CONFIRMED GROUNDING</span>
+  </div>
+</section>"""
+
+    if archetype in ("hero_visual_split", "image_hero_full") and image_url:
+        return f"""<section data-slide-title="{title}" class="relative h-[720px] w-[1280px] overflow-hidden {bg_gradient} text-white p-12 flex flex-col justify-between font-sans">
+  <div class="flex items-center justify-between z-10">
+    <div>
+      <span class="text-xs font-mono text-[#FF5C00] tracking-wider uppercase">{subtitle or 'ACADEMIC STRAND'}</span>
+      <h2 class="text-3xl font-black tracking-tight text-white mt-1">{title}</h2>
+    </div>
+    <span class="px-3 py-1 rounded-lg bg-white/10 text-xs font-mono text-slate-300">SPLIT VISUAL HERO</span>
+  </div>
+  <div class="grid grid-cols-12 gap-8 items-stretch my-auto z-10 h-[480px]">
+    <div class="col-span-7 flex flex-col justify-between space-y-4">
+      <div class="p-6 rounded-2xl bg-white/[0.04] border border-white/10 flex-1 flex flex-col justify-center">
+        <span class="text-xs font-mono font-bold text-[#FF5C00] uppercase mb-1">{c0.badge or 'Point 01'}</span>
+        <h3 class="text-xl font-bold text-white mb-2">{c0.title}</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">{c0.body}</p>
+      </div>
+      <div class="p-6 rounded-2xl bg-white/[0.04] border border-white/10 flex-1 flex flex-col justify-center">
+        <span class="text-xs font-mono font-bold text-emerald-400 uppercase mb-1">{c1.badge or 'Point 02'}</span>
+        <h3 class="text-xl font-bold text-white mb-2">{c1.title}</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">{c1.body}</p>
+      </div>
+    </div>
+    <div class="col-span-5 relative rounded-2xl overflow-hidden border border-white/15 shadow-2xl">
+      <img src="{image_url}" alt="{title}" class="absolute inset-0 w-full h-full object-cover" />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+      <div class="absolute bottom-4 left-4 right-4 p-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs text-slate-300 font-mono">
+        Scientific Visual Observation: {title}
+      </div>
+    </div>
+  </div>
+  <div class="flex justify-between items-center text-xs font-mono text-slate-500 border-t border-white/10 pt-3 z-10">
+    <span>PEDAGOGICAL VISUAL FRAME</span>
+    <span>1280x720 WIDESCREEN</span>
+  </div>
+</section>"""
+
+    if archetype == "staircase_progression":
+        return f"""<section data-slide-title="{title}" class="relative h-[720px] w-[1280px] overflow-hidden {bg_gradient} text-white p-12 flex flex-col justify-between font-sans">
+  <div class="z-10">
+    <span class="text-xs font-mono text-[#FF5C00] tracking-wider uppercase">{subtitle or 'ELEVATION ROADMAP'}</span>
+    <h2 class="text-3xl font-black tracking-tight text-white mt-1">{title}</h2>
+  </div>
+  <div class="grid grid-cols-3 gap-6 items-end my-auto z-10 h-[460px]">
+    <div class="p-6 rounded-2xl bg-white/[0.04] border border-white/10 h-[260px] flex flex-col justify-between shadow-lg">
+      <span class="text-4xl font-black font-mono text-slate-500">01</span>
+      <div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 uppercase">{c0.badge or 'Foundation'}</span>
+        <h3 class="text-lg font-bold text-white mt-1">{c0.title}</h3>
+        <p class="text-xs text-slate-300 mt-2 line-clamp-4 leading-relaxed">{c0.body}</p>
+      </div>
+    </div>
+    <div class="p-6 rounded-2xl bg-white/[0.06] border border-[#FF5C00]/30 h-[340px] flex flex-col justify-between shadow-xl ring-1 ring-[#FF5C00]/20">
+      <span class="text-4xl font-black font-mono text-[#FF5C00]">02</span>
+      <div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#FF5C00]/20 text-[#FF5C00] uppercase">{c1.badge or 'Advancement'}</span>
+        <h3 class="text-lg font-bold text-white mt-1">{c1.title}</h3>
+        <p class="text-xs text-slate-300 mt-2 line-clamp-5 leading-relaxed">{c1.body}</p>
+      </div>
+    </div>
+    <div class="p-6 rounded-2xl bg-white/[0.08] border border-emerald-500/30 h-[420px] flex flex-col justify-between shadow-2xl ring-1 ring-emerald-500/20">
+      <span class="text-4xl font-black font-mono text-emerald-400">03</span>
+      <div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 uppercase">{c2.badge or 'Mastery'}</span>
+        <h3 class="text-lg font-bold text-white mt-1">{c2.title}</h3>
+        <p class="text-xs text-slate-300 mt-2 line-clamp-6 leading-relaxed">{c2.body}</p>
+      </div>
+    </div>
+  </div>
+  <div class="flex justify-between items-center text-xs font-mono text-slate-500 border-t border-white/10 pt-3 z-10">
+    <span>PROGRESSION METRIC</span>
+    <span>ASCENDING MASTERY HIERARCHY</span>
+  </div>
+</section>"""
+
+    # Default 3-Card Balanced Grid
+    return f"""<section data-slide-title="{title}" class="relative h-[720px] w-[1280px] overflow-hidden {bg_gradient} text-white p-12 flex flex-col justify-between font-sans">
+  <div class="z-10">
+    <span class="text-xs font-mono text-[#FF5C00] tracking-wider uppercase">{subtitle or 'INSTRUCTIONAL PRINCIPLES'}</span>
+    <h2 class="text-3xl font-black tracking-tight text-white mt-1">{title}</h2>
+  </div>
+  <div class="grid grid-cols-3 gap-6 items-stretch my-auto z-10 h-[440px]">
+    <div class="p-6 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between hover:border-white/20 transition-all">
+      <span class="text-xs font-mono font-bold text-cyan-400 uppercase">{c0.badge or 'Phase 01'}</span>
+      <div class="my-auto">
+        <h3 class="text-xl font-bold text-white mb-2">{c0.title}</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">{c0.body}</p>
+      </div>
+      <div class="h-1 w-12 bg-cyan-400/50 rounded-full"></div>
+    </div>
+    <div class="p-6 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between hover:border-white/20 transition-all">
+      <span class="text-xs font-mono font-bold text-amber-400 uppercase">{c1.badge or 'Phase 02'}</span>
+      <div class="my-auto">
+        <h3 class="text-xl font-bold text-white mb-2">{c1.title}</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">{c1.body}</p>
+      </div>
+      <div class="h-1 w-12 bg-amber-400/50 rounded-full"></div>
+    </div>
+    <div class="p-6 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between hover:border-white/20 transition-all">
+      <span class="text-xs font-mono font-bold text-emerald-400 uppercase">{c2.badge or 'Phase 03'}</span>
+      <div class="my-auto">
+        <h3 class="text-xl font-bold text-white mb-2">{c2.title}</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">{c2.body}</p>
+      </div>
+      <div class="h-1 w-12 bg-emerald-400/50 rounded-full"></div>
+    </div>
+  </div>
+  <div class="flex justify-between items-center text-xs font-mono text-slate-500 border-t border-white/10 pt-3 z-10">
+    <span>STRUCTURED CORE CONCEPTS</span>
+    <span>CONFIRMED GROUNDING</span>
+  </div>
+</section>"""
 
 
 def add_card_box(

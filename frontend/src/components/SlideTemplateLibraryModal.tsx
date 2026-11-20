@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Search,
@@ -8,7 +8,11 @@ import {
   Repeat,
   Plus,
   Check,
+  ArrowLeft,
+  Loader2,
+  Layers,
 } from 'lucide-react';
+import { fetchPresentonCatalog, fetchTemplateDetails, PresentonCatalogTemplate } from '../api';
 
 export interface TemplateItem {
   id: string;
@@ -491,7 +495,7 @@ interface SlideTemplateLibraryModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeArchetype?: string;
-  onSelectTemplate: (archetype: string) => void;
+  onSelectTemplate: (archetype: string, templatePackId?: string, layoutObject?: any) => void;
   onInsertNewSlideWithTemplate?: (archetype: string) => void;
   isDarkMode?: boolean;
 }
@@ -504,8 +508,34 @@ export const SlideTemplateLibraryModal: React.FC<SlideTemplateLibraryModalProps>
   onInsertNewSlideWithTemplate,
   isDarkMode = true,
 }) => {
+  const [mainTab, setMainTab] = useState<'packs' | 'archetypes'>('packs');
+  const [catalogPacks, setCatalogPacks] = useState<PresentonCatalogTemplate[]>([]);
+  const [selectedPack, setSelectedPack] = useState<PresentonCatalogTemplate | null>(null);
+  const [selectedPackData, setSelectedPackData] = useState<any | null>(null);
+  const [isLoadingPack, setIsLoadingPack] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchPresentonCatalog()
+        .then((res) => setCatalogPacks(res.templates || []))
+        .catch((err) => console.warn('Could not fetch catalog:', err));
+    }
+  }, [isOpen]);
+
+  const handleSelectPack = async (pack: PresentonCatalogTemplate) => {
+    setSelectedPack(pack);
+    setIsLoadingPack(true);
+    try {
+      const data = await fetchTemplateDetails(pack.id);
+      setSelectedPackData(data);
+    } catch (e) {
+      console.warn('Failed to load pack details:', e);
+    } finally {
+      setIsLoadingPack(false);
+    }
+  };
 
   const filteredTemplates = useMemo(() => {
     return TEMPLATE_LIBRARY.filter((item) => {
@@ -532,7 +562,7 @@ export const SlideTemplateLibraryModal: React.FC<SlideTemplateLibraryModalProps>
       >
         {/* Modal Header */}
         <div
-          className={`h-16 px-6 border-b flex items-center justify-between shrink-0 ${
+          className={`h-16 px-6 border-b flex items-center justify-between shrink-0 gap-4 ${
             isDarkMode ? 'border-[#2B2926] bg-[#141312]' : 'border-[#E8E2D8] bg-[#FAF7F2]'
           }`}
         >
@@ -544,22 +574,48 @@ export const SlideTemplateLibraryModal: React.FC<SlideTemplateLibraryModalProps>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold tracking-tight">Presenton Template Library</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#FF5C00] text-white">
-                  105+ Templates
+                  383+ Layouts
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Choose a smart layout archetype to apply to the active slide or insert as a new slide.
+                Choose an official design pack or smart layout archetype for the active slide.
               </p>
             </div>
           </div>
 
+          {/* Engine Tabs */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-black/20 dark:bg-white/5 border border-white/10 text-xs">
+            <button
+              onClick={() => { setMainTab('packs'); setSelectedPack(null); }}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                mainTab === 'packs'
+                  ? 'bg-[#FF5C00] text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>16 Design Packs (383 Layouts)</span>
+            </button>
+            <button
+              onClick={() => setMainTab('archetypes')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                mainTab === 'archetypes'
+                  ? 'bg-[#FF5C00] text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Smart Archetypes (105+)</span>
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             {/* Search Input */}
-            <div className="relative w-48 sm:w-64">
+            <div className="relative w-40 sm:w-52">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search templates..."
+                placeholder="Search layouts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full pl-8 pr-3 py-1.5 rounded-xl text-xs border focus:outline-none transition-colors ${
@@ -591,7 +647,156 @@ export const SlideTemplateLibraryModal: React.FC<SlideTemplateLibraryModalProps>
           </div>
         </div>
 
-        {/* Modal Body: Sidebar Categories + Grid */}
+        {/* Modal Body: Either Official Design Packs OR Smart Archetypes */}
+        {mainTab === 'packs' ? (
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {selectedPack ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => { setSelectedPack(null); setSelectedPackData(null); }}
+                      className="px-3 py-1.5 rounded-xl border border-white/10 hover:bg-white/10 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back to All Packs</span>
+                    </button>
+                    <div>
+                      <h3 className="text-base font-bold flex items-center gap-2">
+                        <span>{selectedPack.name}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-[#FF5C00]/20 text-[#FF5C00] font-mono">
+                          {selectedPack.layout_count} Layouts
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">{selectedPack.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {isLoadingPack ? (
+                  <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#FF5C00]" />
+                    <span className="text-xs">Loading {selectedPack.name} layout geometries...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(selectedPackData?.layouts || []).map((layout: any, idx: number) => (
+                      <div
+                        key={layout.id || idx}
+                        className="rounded-2xl border border-white/10 p-4 bg-white/[0.03] hover:border-[#FF5C00]/50 hover:bg-white/[0.05] transition-all flex flex-col justify-between space-y-3 group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="font-mono text-[#FF5C00] text-[10px] uppercase font-bold">
+                              Layout 0{idx + 1}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {layout.components?.length || 0} components
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-xs text-white leading-snug truncate">
+                            {layout.name || layout.id.replace(/_/g, ' ')}
+                          </h4>
+                          <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                            {layout.description || 'Pre-engineered Presenton coordinate layout.'}
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => {
+                              onSelectTemplate(layout.id, selectedPack?.id, layout);
+                              onClose();
+                            }}
+                            className="flex-1 py-1.5 px-3 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Apply Layout</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+                  <span>Official Presenton Design Systems (16 packs, 383 pre-engineered layouts)</span>
+                  <span className="text-[11px] font-mono">Click any pack to explore and apply its layouts</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {catalogPacks.map((pack) => (
+                    <div
+                      key={pack.id}
+                      onClick={() => handleSelectPack(pack)}
+                      className="group cursor-pointer rounded-2xl border border-white/10 bg-white/[0.03] hover:border-[#FF5C00]/60 hover:bg-white/[0.06] p-4 flex flex-col justify-between transition-all shadow-lg hover:shadow-2xl"
+                    >
+                      <div className="space-y-2.5">
+                        {/* Thumbnail / Header Preview */}
+                        <div className="w-full h-28 rounded-xl overflow-hidden bg-black/40 border border-white/10 relative flex items-center justify-center group-hover:scale-[1.02] transition-transform">
+                          <img
+                            src={pack.thumbnail}
+                            alt={pack.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback colored card
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-[#FF5C00]">
+                            {pack.layout_count} Layouts
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="font-bold text-sm text-white group-hover:text-[#FF5C00] transition-colors">
+                            {pack.name}
+                          </h3>
+                          <p className="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-snug">
+                            {pack.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/10 mt-3 flex items-center justify-between">
+                        {/* Color Swatches */}
+                        <div className="flex items-center -space-x-1">
+                          {pack.theme?.colors?.primary && (
+                            <div
+                              className="w-4 h-4 rounded-full border border-black/40"
+                              style={{ backgroundColor: pack.theme.colors.primary }}
+                              title="Primary"
+                            />
+                          )}
+                          {pack.theme?.colors?.card && (
+                            <div
+                              className="w-4 h-4 rounded-full border border-black/40"
+                              style={{ backgroundColor: pack.theme.colors.card }}
+                              title="Card"
+                            />
+                          )}
+                          {pack.theme?.colors?.background && (
+                            <div
+                              className="w-4 h-4 rounded-full border border-black/40"
+                              style={{ backgroundColor: pack.theme.colors.background }}
+                              title="Background"
+                            />
+                          )}
+                        </div>
+                        <span className="text-[10px] font-semibold text-[#FF5C00] group-hover:underline flex items-center gap-1">
+                          <span>Explore</span>
+                          <span>→</span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+        /* Modal Body: Smart Archetypes Sidebar Categories + Grid */
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar: Categories */}
           <div
@@ -720,6 +925,7 @@ export const SlideTemplateLibraryModal: React.FC<SlideTemplateLibraryModalProps>
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

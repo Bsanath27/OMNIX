@@ -9,7 +9,10 @@ import {
   SuggestEditsResponse,
   refineSingleCard,
   generateSlideScript,
+  compileSlideFromOutline,
 } from '../api';
+// @ts-ignore
+import { templateV2UiToHtml } from '../lib/presenton_renderer.mjs';
 import {
   Maximize2,
   Minimize2,
@@ -416,6 +419,27 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
   const [zoomLevel, setZoomLevel] = useState(85);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
+  // Dual-Engine Slide Rendering State (Bespoke 1280x720 Direct HTML vs Structured Cards)
+  const [slideViewMode, setSlideViewMode] = useState<'bespoke' | 'cards'>('bespoke');
+  const [isRegeneratingSlide, setIsRegeneratingSlide] = useState(false);
+  const canvasCardRef = React.useRef<HTMLDivElement>(null);
+  const [canvasCardWidth, setCanvasCardWidth] = useState<number>(960);
+
+  useEffect(() => {
+    if (!canvasCardRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width) {
+          setCanvasCardWidth(entry.contentRect.width);
+        }
+      }
+    });
+    ro.observe(canvasCardRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const canvasScale = Math.min(1, Math.max(0.2, (canvasCardWidth || 960) / 1280));
+
   // Free-form Drag and Drop positioning state
   const [draggingCardIndex, setDraggingCardIndex] = useState<number | null>(null);
   const [cardOffsets, setCardOffsets] = useState<Record<string, { x: number; y: number }>>({});
@@ -704,6 +728,75 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
       return updated;
     });
     setIsLayoutMenuOpen(false);
+  };
+
+  // Apply a template (either from 16 Design Packs or smart archetype)
+  const handleApplyTemplate = (layoutIdOrArchetype: string, packId?: string, layoutObject?: any) => {
+    if (layoutObject && packId) {
+      try {
+        let html = templateV2UiToHtml(layoutObject, { width: 1280, height: 720 });
+        if (html) {
+          html = html.replace(/http:\/\/127\.0\.0\.1:5001\/static\//g, `/templates/${packId}/static/`);
+          html = html.replace(/\/static\//g, `/templates/${packId}/static/`);
+          setEditableSlides((prev) => {
+            const updated = [...prev];
+            updated[currentSlideIndex] = {
+              ...updated[currentSlideIndex],
+              template_layout_id: layoutIdOrArchetype,
+              html_content: html,
+            };
+            return updated;
+          });
+          setSlideViewMode('bespoke');
+          setIsLayoutMenuOpen(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed to render layout to HTML:', e);
+      }
+    }
+    handleSwitchLayout(layoutIdOrArchetype);
+  };
+
+  // Regenerate current slide with Dual-Engine (Direct HTML + Structured Cards)
+  const handleRegenerateActiveSlide = async () => {
+    if (!project?.project_id) return;
+    setIsRegeneratingSlide(true);
+    try {
+      const outlineBullets = (activeSlide?.cards?.map((c: any) => c.body || c.title) || activeSlide?.bullets || ['Core thesis', 'Observable evidence', 'Synthesis']).slice(0, 4);
+      const outlineItem = {
+        id: `slide_${currentSlideIndex}`,
+        slide_number: currentSlideIndex + 1,
+        title: activeSlide?.title || 'Slide',
+        content: activeSlide?.title || 'Slide',
+        bullets: outlineBullets,
+      };
+      const res = await compileSlideFromOutline(
+        project.project_id,
+        [outlineItem],
+        activeThemeKey,
+        currentArtifact?.id,
+        'smart_dual'
+      );
+      const newSlide = res?.source_data?.slides?.[0];
+      if (newSlide) {
+        setEditableSlides((prev) => {
+          const updated = [...prev];
+          updated[currentSlideIndex] = {
+            ...updated[currentSlideIndex],
+            ...newSlide,
+          };
+          return updated;
+        });
+        if (newSlide.html_content) {
+          setSlideViewMode('bespoke');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to regenerate slide:', err);
+    } finally {
+      setIsRegeneratingSlide(false);
+    }
   };
 
   useEffect(() => {
@@ -1432,6 +1525,49 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
               <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
 
+              {/* View Mode Toggle: Bespoke (HTML) vs Cards (Interactive) */}
+              <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-black/5 dark:border-white/5">
+                <button
+                  onClick={() => setSlideViewMode('bespoke')}
+                  className={`px-2 py-0.5 rounded-md font-bold text-[11px] transition-all flex items-center gap-1 ${
+                    slideViewMode === 'bespoke'
+                      ? 'bg-[#FF5C00] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                  }`}
+                  title="View Bespoke 1280x720 Direct HTML Layout"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>Bespoke</span>
+                </button>
+                <button
+                  onClick={() => setSlideViewMode('cards')}
+                  className={`px-2 py-0.5 rounded-md font-bold text-[11px] transition-all flex items-center gap-1 ${
+                    slideViewMode === 'cards'
+                      ? 'bg-[#FF5C00] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                  }`}
+                  title="View Interactive Card Archetype Editor"
+                >
+                  <LayoutGrid className="w-3 h-3" />
+                  <span>Cards</span>
+                </button>
+              </div>
+
+              <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
+
+              {/* Regenerate Slide Button */}
+              <button
+                onClick={handleRegenerateActiveSlide}
+                disabled={isRegeneratingSlide}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-[#FF5C00]/15 text-slate-700 dark:text-slate-300 hover:text-[#FF5C00] text-xs font-semibold border border-black/5 dark:border-white/5 transition-all"
+                title="Regenerate full slide with Dual-Engine (Direct HTML + Structured Cards)"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRegeneratingSlide ? 'animate-spin text-[#FF5C00]' : ''}`} />
+                <span>{isRegeneratingSlide ? 'Regen...' : 'Regen'}</span>
+              </button>
+
+              <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
+
               <button
                 onClick={() => setIsAIStudioOpen(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#FF5C00]/15 to-amber-500/15 hover:from-[#FF5C00]/25 hover:to-amber-500/25 text-[#FF5C00] font-semibold text-xs border border-[#FF5C00]/25 transition-all shadow-xs"
@@ -1475,6 +1611,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
 
           {/* 16:9 Center Slide Canvas (Presenton-Style Floating Card on Neutral Backdrop) */}
           <div
+            ref={canvasCardRef}
             className="my-auto w-full max-w-4xl xl:max-w-5xl min-w-[560px] md:min-w-[640px] aspect-video min-h-[360px] md:min-h-[400px] mx-auto p-5 sm:p-7 flex flex-col justify-between relative overflow-hidden transition-all duration-300 border"
             style={{
               background: activeTheme.canvasBg,
@@ -1484,11 +1621,26 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
               fontFamily: activeTheme.bodyFont,
             }}
           >
-            {/* Corner Ambient Glow */}
-            <div
-              className="absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20 opacity-25"
-              style={{ backgroundColor: activeTheme.accentColor }}
-            />
+            {slideViewMode === 'bespoke' && (activeSlide?.html_content || activeSlide?.raw_html) ? (
+              <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black/5 dark:bg-black/20">
+                <div
+                  style={{
+                    width: 1280,
+                    height: 720,
+                    transform: `scale(${canvasScale})`,
+                    transformOrigin: 'center center',
+                    pointerEvents: 'auto',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: activeSlide.html_content || activeSlide.raw_html }}
+                />
+              </div>
+            ) : (
+              <>
+                {/* Corner Ambient Glow */}
+                <div
+                  className="absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20 opacity-25"
+                  style={{ backgroundColor: activeTheme.accentColor }}
+                />
 
             <div className="relative z-10 space-y-2.5">
               {/* Clean Editorial Kicker (Presenton Style - Uncluttered Canvas) */}
@@ -3092,6 +3244,8 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
                 </div>
               )}
             </div>
+              </>
+            )}
 
             {/* Bottom Slide Paging Dots */}
             <div className="relative z-10 pt-3 flex items-center justify-between text-xs" style={{ color: activeTheme.subtitleColor }}>
@@ -3354,7 +3508,7 @@ export const SlideStudioView: React.FC<SlideStudioViewProps> = ({
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
         activeArchetype={activeSlide?.archetype}
-        onSelectTemplate={(newArch) => handleSwitchLayout(newArch)}
+        onSelectTemplate={(newArch, packId, layout) => handleApplyTemplate(newArch, packId, layout)}
         onInsertNewSlideWithTemplate={(newArch) => {
           handleAddNewSlide();
           setTimeout(() => {

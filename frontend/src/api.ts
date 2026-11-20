@@ -246,16 +246,44 @@ export async function compileSlideFromOutline(
   projectId: string,
   outlines: SlideOutlineItem[],
   theme: string = 'solar',
-  artifactId?: string
+  artifactId?: string,
+  mode: 'smart_dual' | 'direct_html' | 'cards' = 'smart_dual',
+  templateId?: string
 ): Promise<Artifact> {
   const res = await fetch(`/api/projects/${projectId}/slides/compile-from-outline`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ outlines, theme, artifact_id: artifactId }),
+    body: JSON.stringify({ outlines, theme, artifact_id: artifactId, mode, template_id: templateId }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed to compile slides from outline' }));
     throw new Error(err.detail || 'Failed to compile slides from outline');
+  }
+  return res.json();
+}
+
+export interface PresentonCatalogTemplate {
+  id: string;
+  name: string;
+  description: string;
+  layout_count: number;
+  theme: Record<string, any>;
+  fonts: Record<string, any>;
+  thumbnail: string;
+}
+
+export async function fetchPresentonCatalog(): Promise<{ templates: PresentonCatalogTemplate[]; total_layouts: number }> {
+  const res = await fetch('/api/templates/catalog');
+  if (!res.ok) {
+    throw new Error('Failed to fetch template catalog');
+  }
+  return res.json();
+}
+
+export async function fetchTemplateDetails(templateId: string): Promise<any> {
+  const res = await fetch(`/api/templates/catalog/${templateId}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch template ${templateId}`);
   }
   return res.json();
 }

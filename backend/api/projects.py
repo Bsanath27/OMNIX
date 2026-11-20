@@ -12,7 +12,7 @@ from backend.core.models import ProjectManifest, Artifact, ChapterOutline, Artif
 from backend.tools.ingestion.extractor import extract_document
 from backend.tools.ingestion.grounding import build_passages, save_passages_to_json, load_passages_from_json
 from backend.tools.outline.outline_tool import extract_chapter_outline
-from backend.tools.slides.slide_tool import SlideContent, SlideCard, build_presentation_file
+from backend.tools.slides.slide_tool import SlideContent, SlideCard, build_presentation_file, generate_default_slide_html
 from backend.tools.slides.image_service import resolve_image
 from backend.core.llm import call_llm, get_active_llm_provider, clean_topic_string, safe_json_loads
 
@@ -685,6 +685,9 @@ class CompileSlideFromOutlineRequest(BaseModel):
     outlines: List[Dict[str, Any]]
     theme: str = "solar"
     artifact_id: Optional[str] = None
+    mode: Optional[str] = "smart_dual"  # "smart_dual", "direct_html", "catalog_template", "cards"
+    template_id: Optional[str] = None   # e.g. "editorial", "verdant", "nova", "dynamic"
+
 
 
 class GenerateSlideScriptRequest(BaseModel):
@@ -959,7 +962,8 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 f"   - 'badge': Concise 1-2 word tag (e.g. 'Law 01', 'Mechanism', 'Formula', 'Application').\n"
                 f"   - 'title': Short, punchy 2 to 4-word heading (e.g. 'Inertial Mass', 'Normal Contact Force'). NEVER slice sentences or use generic filler!\n"
                 f"   - 'body': Clear, substantive explanation (1-2 sentences) of the concept.\n"
-                f"8. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n\n"
+                f"8. 'speaker_notes': Authentic, realistic teacher notes (3-4 sentences): how to explain the slide to students, what analogy or chalkboard diagram to use, common student pitfalls to clarify, and a discussion question to ask.\n"
+                f"9. 'html_content': (Recommended) A bespoke, visually diverse 1280x720 Tailwind HTML section string starting with `<section data-slide-title=\"...\" class=\"relative h-[720px] w-[1280px] overflow-hidden bg-[#090D16] text-white p-12 flex flex-col justify-between\">`. Design an asymmetric layout with bold metrics, staggered cards, or diagrams that fits 1280x720 without overflow.\n\n"
                 f"Rules:\n"
                 f"- Return strictly a valid JSON object with key 'slides': a list of {len(req.outlines)} slide objects.\n"
                 f"- NEVER use placeholder text or boilerplate repetition."
@@ -1021,6 +1025,17 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
 
                         c_data = s.get("chart_data")
 
+                        html_c = s.get("html_content")
+                        if not html_c or len(html_c) < 50:
+                            html_c = generate_default_slide_html(
+                                title=title,
+                                archetype=arch,
+                                cards=cards,
+                                image_url=img_url,
+                                subtitle=s.get("subtitle") or f"{subject} • Level: {grade}",
+                                theme_name=req.theme or "solar_obsidian"
+                            )
+
                         slide_obj = SlideContent(
                             slide_number=idx + 1,
                             title=title,
@@ -1031,7 +1046,9 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                             speaker_notes=notes,
                             image_query=img_query,
                             image_url=img_url,
-                            chart_data=c_data
+                            chart_data=c_data,
+                            html_content=html_c,
+                            template_layout_id=s.get("template_layout_id")
                         )
                         slides_data.append(slide_obj)
                         raw_slides_for_json.append(slide_obj.model_dump())
@@ -1107,6 +1124,15 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 img_query = None
                 img_url = None
 
+            html_c = generate_default_slide_html(
+                title=title,
+                archetype=archetype,
+                cards=cards,
+                image_url=img_url,
+                subtitle=f"{subject} • Level: {grade}",
+                theme_name=req.theme or "solar_obsidian"
+            )
+
             slide_obj = SlideContent(
                 slide_number=idx + 1,
                 title=title,
@@ -1116,7 +1142,8 @@ async def compile_slide_from_outline(project_id: str, req: CompileSlideFromOutli
                 bullets=bullets,
                 speaker_notes=speaker_notes,
                 image_query=img_query,
-                image_url=img_url
+                image_url=img_url,
+                html_content=html_c
             )
             slides_data.append(slide_obj)
             raw_slides_for_json.append(slide_obj.model_dump())
