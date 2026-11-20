@@ -57,6 +57,12 @@ export interface TemplateOption {
   tags: string[];
 }
 
+const MASTER_DESIGN_SYSTEMS = new Set([
+  'editorial', 'verdant', 'horizon', 'nova', 'civic', 'executive',
+  'landmark', 'momentum', 'dynamic', 'mosaic', 'pulse', 'signal',
+  'standard', 'swift', 'modern', 'general'
+]);
+
 export const TEMPLATE_OPTIONS: TemplateOption[] = (Object.entries(themes) as [string, ThemeProperties][]).map(([key, t]) => ({
   id: key,
   name: t.name,
@@ -127,7 +133,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   // Step 3: Theme selection with 16 Presenton templates
   const [templates, setTemplates] = useState<SlideTemplateItem[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('verdant');
-  const [themeFilter, setThemeFilter] = useState<'all' | 'dark' | 'light'>('all');
+  const [themeFilter, setThemeFilter] = useState<'all' | 'packs' | 'palettes' | 'dark' | 'light'>('all');
   const [themeSearch, setThemeSearch] = useState<string>('');
   const [useRealPreviewContent, setUseRealPreviewContent] = useState<boolean>(true);
 
@@ -806,19 +812,31 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                   onClick={() => setThemeFilter('all')}
                   className={`px-3 py-1 rounded-lg transition-colors ${themeFilter === 'all' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
                 >
-                  All (38)
+                  All ({TEMPLATE_OPTIONS.length})
+                </button>
+                <button
+                  onClick={() => setThemeFilter('packs')}
+                  className={`px-3 py-1 rounded-lg transition-colors flex items-center gap-1 ${themeFilter === 'packs' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <span>🏛️ Design Systems (16)</span>
+                </button>
+                <button
+                  onClick={() => setThemeFilter('palettes')}
+                  className={`px-3 py-1 rounded-lg transition-colors ${themeFilter === 'palettes' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  🎨 Palettes
                 </button>
                 <button
                   onClick={() => setThemeFilter('dark')}
                   className={`px-3 py-1 rounded-lg transition-colors ${themeFilter === 'dark' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
                 >
-                  Dark (20)
+                  Dark
                 </button>
                 <button
                   onClick={() => setThemeFilter('light')}
                   className={`px-3 py-1 rounded-lg transition-colors ${themeFilter === 'light' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
                 >
-                  Light (18)
+                  Light
                 </button>
               </div>
 
@@ -850,9 +868,11 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
             </div>
           </div>
 
-          {/* Template Cards Grid: All 38 Official Presenton Production Themes */}
+          {/* Template Cards Grid: All 53 Master Design Systems and Palettes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {TEMPLATE_OPTIONS.filter((t) => {
+              if (themeFilter === 'packs' && !MASTER_DESIGN_SYSTEMS.has(t.id)) return false;
+              if (themeFilter === 'palettes' && MASTER_DESIGN_SYSTEMS.has(t.id)) return false;
               if (themeFilter === 'dark' && !t.isDark) return false;
               if (themeFilter === 'light' && t.isDark) return false;
               if (themeSearch.trim()) {
@@ -865,6 +885,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
               return true;
             }).map((tpl) => {
               const isSelected = selectedTemplateId === tpl.id;
+              const isMasterPack = MASTER_DESIGN_SYSTEMS.has(tpl.id);
               // Preload Google Fonts for preview
               loadGoogleFont(tpl.headingFont);
               loadGoogleFont(tpl.bodyFont);
@@ -905,6 +926,11 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                     <div>
                       <h4 className="text-base font-bold flex items-center gap-2">
                         <span>{tpl.name}</span>
+                        {isMasterPack && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 text-[9px] font-mono font-bold">
+                            🏛️ Design System
+                          </span>
+                        )}
                         {isSelected && (
                           <span className="px-2 py-0.5 rounded-full bg-[#FF5C00]/20 text-[#FF5C00] text-[10px] font-mono font-bold">
                             Selected
