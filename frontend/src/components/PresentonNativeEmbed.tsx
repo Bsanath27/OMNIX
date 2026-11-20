@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ArrowLeft,
   AlertCircle,
   Loader2,
 } from 'lucide-react';
@@ -63,6 +62,16 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
   };
 
   useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OMNIX_NAVIGATE_BACK') {
+        onBack();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onBack]);
+
+  useEffect(() => {
     const promptToCarry = initialPrompt.trim() || project?.name || 'Classroom Presentation';
     if (lastPromptRef.current === promptToCarry) return;
     lastPromptRef.current = promptToCarry;
@@ -78,17 +87,6 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
 
   return (
     <div className="relative h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
-      {/* Minimal Floating OMNIX Return Button */}
-      <button
-        type="button"
-        onClick={onBack}
-        className="absolute top-2.5 left-2.5 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-900 text-slate-200 hover:text-white text-xs font-medium border border-slate-700/70 shadow-lg backdrop-blur-md transition-all group"
-        title="Return to OMNIX Home"
-      >
-        <ArrowLeft className="w-3.5 h-3.5 text-[#FF5C00] group-hover:-translate-x-0.5 transition-transform" />
-        <span className="font-semibold text-[11px] tracking-tight">OMNIX</span>
-      </button>
-
       {/* Main Full-App Embed Frame (100% Height & Width) */}
       <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden">
         {/* Loading Overlay */}
