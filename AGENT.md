@@ -188,3 +188,12 @@ Before marking any ticket `done` and committing:
 7. MuonTickets board must validate clean (`python3 muontickets/mt.py validate`).
 8. **All changes are committed to Git immediately after completion** with the ticket ID in the commit message.
 9. **If the completed ticket crosses a 10-ticket milestone boundary ($N \times 10$), a consolidated review file `tickets/REVIEW-XXXXXX-YYYYYY.md` must be created and committed.**
+
+---
+
+## 8. Slide Studio Integration (Presenton Engine White-Labeling)
+
+When working on or continuing the Presentation / Slide Creation workflow:
+* **Canonical Integration Guide**: Read [docs/SLIDES_INTEGRATION_ARCHITECTURE.md](docs/SLIDES_INTEGRATION_ARCHITECTURE.md).
+* **Strict White-Labeling**: No "Presenton" branding, purple colors (`#7A5AF8`), Discord/GitHub widgets, or `/dashboard` redirects may ever be visible to educators. Everything must match OMNIX design tokens (`#FF5C00`, Syne font, rounded pills).
+* **Do NOT Patch Minified Chunks**: Do not regex-replace `.js` chunks inside `.next-build`. Use Nginx CSS/JS injection and asset mounting as documented in `docs/SLIDES_INTEGRATION_ARCHITECTURE.md`.
