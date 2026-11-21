@@ -31,12 +31,12 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
     setIsLoading(true);
     setServiceStatus('checking');
     try {
-      const res = await fetch('/api/tools/presenton/create-presentation', {
+      const res = await fetch('/api/tools/slides/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: promptToUse,
-          n_slides: 5,
+          n_slides: 7,
           language: 'en-US',
           generation_mode: 'standard',
         }),

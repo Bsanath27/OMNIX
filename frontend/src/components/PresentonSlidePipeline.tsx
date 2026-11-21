@@ -9,6 +9,7 @@ import {
   fetchSlideTemplates,
 } from '../api';
 import { SlideStudioView } from './SlideStudioView';
+import { PresentonSlideStudio } from './PresentonSlideStudio';
 import { MiniSlidePreview } from './MiniSlidePreview';
 import { themes, ThemeProperties } from '../lib/presentonThemes';
 import { loadGoogleFont } from '../lib/fontLoader';
@@ -57,29 +58,40 @@ export interface TemplateOption {
   tags: string[];
 }
 
+const EDU_DESIGN_SYSTEMS = new Set(['edu-stem', 'edu-whitepaper', 'edu-chalk']);
+
 const MASTER_DESIGN_SYSTEMS = new Set([
+  'edu-stem', 'edu-whitepaper', 'edu-chalk',
   'editorial', 'verdant', 'horizon', 'nova', 'civic', 'executive',
   'landmark', 'momentum', 'dynamic', 'mosaic', 'pulse', 'signal',
   'standard', 'swift', 'modern', 'general'
 ]);
 
-export const TEMPLATE_OPTIONS: TemplateOption[] = (Object.entries(themes) as [string, ThemeProperties][]).map(([key, t]) => ({
-  id: key,
-  name: t.name,
-  description: t.description,
-  themeKey: key,
-  previewBg: t.background?.override || t.colors.background,
-  accentColor: t.colors.accent || t.colors.primary,
-  textColor: t.colors.text,
-  headingFont: t.fonts.heading,
-  bodyFont: t.fonts.body,
-  isDark: t.mode === 'dark',
-  tags: [
-    t.mode === 'dark' ? 'Dark Mode' : 'Light Canvas',
-    `${t.fonts.heading} / ${t.fonts.body}`,
-    'Presenton Native',
-  ],
-}));
+export const TEMPLATE_OPTIONS: TemplateOption[] = (Object.entries(themes) as [string, ThemeProperties][])
+  .sort(([a], [b]) => {
+    const aEdu = EDU_DESIGN_SYSTEMS.has(a);
+    const bEdu = EDU_DESIGN_SYSTEMS.has(b);
+    if (aEdu && !bEdu) return -1;
+    if (!aEdu && bEdu) return 1;
+    return 0;
+  })
+  .map(([key, t]) => ({
+    id: key,
+    name: t.name,
+    description: t.description,
+    themeKey: key,
+    previewBg: t.background?.override || t.colors.background,
+    accentColor: t.colors.accent || t.colors.primary,
+    textColor: t.colors.text,
+    headingFont: t.fonts.heading,
+    bodyFont: t.fonts.body,
+    isDark: t.mode === 'dark',
+    tags: [
+      key.startsWith('edu-') ? 'OMNIX Education' : (t.mode === 'dark' ? 'Dark Mode' : 'Light Canvas'),
+      `${t.fonts.heading} / ${t.fonts.body}`,
+      key.startsWith('edu-') ? 'Classroom Optimized' : 'OMNIX Master',
+    ],
+  }));
 
 export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
   project,
@@ -110,6 +122,10 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
     return 'input';
   });
 
+  // Studio View Mode: 'pro' (PresentonSlideStudio) vs 'classic' (SlideStudioView)
+  // Defaults to 'pro' for immediate interactive block testing
+  const [studioMode, setStudioMode] = useState<'pro' | 'classic'>('pro');
+
   // Step 1: Input & Configuration states
   const [promptText, setPromptText] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -132,8 +148,8 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
 
   // Step 3: Theme selection with 16 Presenton templates
   const [templates, setTemplates] = useState<SlideTemplateItem[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('verdant');
-  const [themeFilter, setThemeFilter] = useState<'all' | 'packs' | 'palettes' | 'dark' | 'light'>('all');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('edu-stem');
+  const [themeFilter, setThemeFilter] = useState<'all' | 'edu' | 'packs' | 'palettes' | 'dark' | 'light'>('all');
   const [themeSearch, setThemeSearch] = useState<string>('');
   const [useRealPreviewContent, setUseRealPreviewContent] = useState<boolean>(true);
 
@@ -343,6 +359,35 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Studio Mode Switcher in Pipeline Subheader */}
+            <div className="flex items-center bg-[#1c1b18] border border-[#3b3834] rounded-md p-0.5">
+              <button
+                type="button"
+                onClick={() => setStudioMode('pro')}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                  studioMode === 'pro'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Switch to Studio Pro (OMNIX Interactive Blocks)"
+              >
+                <Sparkles className="w-3 h-3 text-emerald-300" />
+                <span>Studio Pro (OMNIX)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStudioMode('classic')}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                  studioMode === 'classic'
+                    ? 'bg-slate-700 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Switch to Classic Studio"
+              >
+                <span>Classic Studio</span>
+              </button>
+            </div>
+
             <button
               onClick={() => setCurrentStep('outline')}
               className="text-[#FF5C00] hover:underline flex items-center gap-1 font-semibold"
@@ -353,17 +398,33 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <SlideStudioView
-            project={project}
-            artifact={currentArtifact}
-            passages={passages}
-            isDarkMode={isDarkMode}
-            onBack={onBack}
-            onArtifactUpdated={(updated) => {
-              setCurrentArtifact(updated);
-              if (onArtifactUpdated) onArtifactUpdated(updated);
-            }}
-          />
+          {studioMode === 'pro' ? (
+            <PresentonSlideStudio
+              project={project}
+              artifact={currentArtifact}
+              passages={passages}
+              isDarkMode={isDarkMode}
+              onBack={onBack}
+              onArtifactUpdated={(updated) => {
+                setCurrentArtifact(updated);
+                if (onArtifactUpdated) onArtifactUpdated(updated);
+              }}
+              currentMode={studioMode}
+              onSwitchMode={setStudioMode}
+            />
+          ) : (
+            <SlideStudioView
+              project={project}
+              artifact={currentArtifact}
+              passages={passages}
+              isDarkMode={isDarkMode}
+              onBack={onBack}
+              onArtifactUpdated={(updated) => {
+                setCurrentArtifact(updated);
+                if (onArtifactUpdated) onArtifactUpdated(updated);
+              }}
+            />
+          )}
         </div>
       </div>
     );
@@ -804,7 +865,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
               Select Your <span className="text-[#FF5C00]">Visual Palette</span>
             </h2>
             <p className={`text-sm max-w-lg mx-auto ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              38 official Presenton production themes with paired Google Web Fonts, custom radial gradients, and smart layout palettes.
+              Select an educator-optimized visual theme with paired Google Web Fonts, custom typography, and smart layout palettes.
             </p>
 
             {/* Filter Pills and Search */}
@@ -817,10 +878,16 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                   All ({TEMPLATE_OPTIONS.length})
                 </button>
                 <button
+                  onClick={() => setThemeFilter('edu')}
+                  className={`px-3 py-1 rounded-lg transition-colors flex items-center gap-1 ${themeFilter === 'edu' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <span>🎓 Education ({EDU_DESIGN_SYSTEMS.size})</span>
+                </button>
+                <button
                   onClick={() => setThemeFilter('packs')}
                   className={`px-3 py-1 rounded-lg transition-colors flex items-center gap-1 ${themeFilter === 'packs' ? 'bg-[#FF5C00] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
                 >
-                  <span>🏛️ Design Systems (16)</span>
+                  <span>🏛️ Master Layouts (16)</span>
                 </button>
                 <button
                   onClick={() => setThemeFilter('palettes')}
@@ -873,7 +940,8 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
           {/* Template Cards Grid: All 53 Master Design Systems and Palettes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {TEMPLATE_OPTIONS.filter((t) => {
-              if (themeFilter === 'packs' && !MASTER_DESIGN_SYSTEMS.has(t.id)) return false;
+              if (themeFilter === 'edu' && !EDU_DESIGN_SYSTEMS.has(t.id)) return false;
+              if (themeFilter === 'packs' && (!MASTER_DESIGN_SYSTEMS.has(t.id) || EDU_DESIGN_SYSTEMS.has(t.id))) return false;
               if (themeFilter === 'palettes' && MASTER_DESIGN_SYSTEMS.has(t.id)) return false;
               if (themeFilter === 'dark' && !t.isDark) return false;
               if (themeFilter === 'light' && t.isDark) return false;
@@ -916,7 +984,7 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-[10px] font-mono font-bold text-[#FF5C00]">
-                        🏛️ 16:9 Design System
+                        {EDU_DESIGN_SYSTEMS.has(tpl.id) ? '🎓 Classroom Ready' : '🏛️ 16:9 Design System'}
                       </div>
                     </div>
                   ) : (
@@ -941,11 +1009,15 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
                     <div>
                       <h4 className="text-base font-bold flex items-center gap-2">
                         <span>{tpl.name}</span>
-                        {isMasterPack && (
+                        {EDU_DESIGN_SYSTEMS.has(tpl.id) ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[9px] font-mono font-bold">
+                            🎓 OMNIX Education
+                          </span>
+                        ) : isMasterPack ? (
                           <span className="px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 text-[9px] font-mono font-bold">
                             🏛️ Design System
                           </span>
-                        )}
+                        ) : null}
                         {isSelected && (
                           <span className="px-2 py-0.5 rounded-full bg-[#FF5C00]/20 text-[#FF5C00] text-[10px] font-mono font-bold">
                             Selected

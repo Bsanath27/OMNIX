@@ -84,11 +84,12 @@ async def get_presenton_status():
 
 class PresentonCreateRequest(BaseModel):
     content: str
-    n_slides: Optional[int] = 5
+    n_slides: Optional[int] = 7
     language: Optional[str] = "en-US"
     generation_mode: Optional[str] = "standard"
 
 
+@router.post("/slides/create")
 @router.post("/presenton/create-presentation")
 async def create_presenton_presentation(req: PresentonCreateRequest):
     """Creates a presentation on the local Presenton engine and returns the id and direct outline/theme url."""
@@ -114,11 +115,21 @@ async def create_presenton_presentation(req: PresentonCreateRequest):
                 json={
                     "content": content,
                     "version": "v2-standard",
-                    "n_slides": req.n_slides or 5,
+                    "n_slides": req.n_slides or 7,
                     "language": req.language or "en-US",
                     "generation_mode": req.generation_mode or "standard",
                     "include_title_slide": True,
                     "include_table_of_contents": False,
+                    "instructions": (
+                        "Structure this as a classroom lesson, not a business pitch. "
+                        "Start with a learning objective slide ('By the end of this, learners will be able to...'). "
+                        "Include a concept explanation slide with an analogy or real-world example. "
+                        "Add a worked example or step-by-step demonstration slide. "
+                        "Include a common misconception or 'Did you know?' slide if relevant. "
+                        "End with a summary and 1-2 reflection questions. "
+                        "Use plain, direct academic language. Avoid business jargon (ROI, stakeholders, leverage, pipeline). "
+                        "Do not include presenter bios, company overviews, or sales calls-to-action."
+                    ),
                 }
             )
             if resp.status_code == 200:

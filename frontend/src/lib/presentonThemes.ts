@@ -54,7 +54,10 @@ export type ThemeName =
   | "coral"
   | "magma"
   | "lavender"
-  | "velvet";
+  | "velvet"
+  | "edu-stem"
+  | "edu-whitepaper"
+  | "edu-chalk";
 
 export interface ThemeColors {
   primary: string;
@@ -144,6 +147,62 @@ export type Themes = keyof typeof themes;
  */
 
 export const themes: { [key in ThemeName]: ThemeProperties } = {
+  // ==================== OMNIX EDUCATIONAL THEMES ====================
+  "edu-stem": {
+    name: "EDU: STEM & Lab",
+    description: "Sharp minimal theme for physics, mathematics, chemistry and lab experiments",
+    mode: "light",
+    colors: {
+      primary: "#0284C7",
+      accent: "#0EA5E9",
+      background: "#FFFFFF",
+      text: "#0C4A6E",
+      heading: "#0C4A6E",
+      smartLayout: "#BAE6FD",
+      cardBackground: "#F0F9FF",
+    },
+    fonts: { heading: "IBM Plex Sans", body: "IBM Plex Sans" },
+    borderRadius: { card: "0.75rem", button: "0.25rem", slide: "0.75rem" },
+    transitions: { default: "all 0.2s ease-in-out" },
+    shadows: { card: "0 4px 6px -1px rgba(0, 0, 0, 0.05)", button: "0 2px 4px -1px rgba(0, 0, 0, 0.05)", slide: "0 10px 15px -3px rgba(0, 0, 0, 0.05)" },
+  },
+  "edu-whitepaper": {
+    name: "EDU: Academic Light",
+    description: "High-readability academic light theme for NCERT and textbook content",
+    mode: "light",
+    colors: {
+      primary: "#1D4ED8",
+      accent: "#3B82F6",
+      background: "#F8FAFC",
+      text: "#0F172A",
+      heading: "#0F172A",
+      smartLayout: "#CBD5E1",
+      cardBackground: "#FFFFFF",
+    },
+    fonts: { heading: "Merriweather", body: "DM Sans" },
+    borderRadius: { card: "0.75rem", button: "0.25rem", slide: "0.75rem" },
+    transitions: { default: "all 0.2s ease-in-out" },
+    shadows: { card: "0 4px 6px -1px rgba(0, 0, 0, 0.05)", button: "0 2px 4px -1px rgba(0, 0, 0, 0.05)", slide: "0 10px 15px -3px rgba(0, 0, 0, 0.05)" },
+  },
+  "edu-chalk": {
+    name: "EDU: Chalkboard",
+    description: "High-contrast dark chalkboard theme for large classroom projection and lab demos",
+    mode: "dark",
+    colors: {
+      primary: "#4ADE80",
+      accent: "#86EFAC",
+      background: "#1A2A1A",
+      text: "#F0FDF4",
+      heading: "#F0FDF4",
+      smartLayout: "#86EFAC",
+      cardBackground: "#243824",
+    },
+    fonts: { heading: "Lato", body: "Lato" },
+    borderRadius: { card: "0.75rem", button: "0.25rem", slide: "0.75rem" },
+    transitions: { default: "all 0.2s ease-in-out" },
+    shadows: { card: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", button: "0 2px 4px -1px rgba(0, 0, 0, 0.06)", slide: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" },
+  },
+
   // ==================== PRESENTON MASTER DESIGN SYSTEMS (16 PACKS) ====================
   editorial: {
     name: "Editorial",

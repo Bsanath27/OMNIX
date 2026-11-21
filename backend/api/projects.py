@@ -237,6 +237,12 @@ async def get_slide_templates():
                 try:
                     with open(tpath / "template.json", "r", encoding="utf-8") as f:
                         data = json.load(f)
+                    tags = [f"{len(data.get('layouts', []))} Layouts"]
+                    if tpath.name.startswith("edu-"):
+                        tags.append("OMNIX Education")
+                    else:
+                        tags.append("OMNIX Master")
+
                     results.append({
                         "id": tpath.name,
                         "name": data.get("name", tpath.name.title()),
@@ -244,7 +250,7 @@ async def get_slide_templates():
                         "layout_count": len(data.get("layouts", [])),
                         "thumbnail": f"/templates/{tpath.name}/static/thumbnail.png",
                         "themeKey": tpath.name,
-                        "tags": [f"{len(data.get('layouts', []))} Layouts", "Presenton Native"]
+                        "tags": tags
                     })
                 except Exception:
                     pass
