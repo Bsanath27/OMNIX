@@ -27,7 +27,6 @@ import {
   Sun,
   Moon,
   Copy,
-  ChevronDown,
   ChevronRight,
   Presentation,
   Video,
@@ -38,11 +37,11 @@ import {
   ShieldCheck,
   Cpu,
   Palette,
-  Check,
   ArrowRight,
   Sparkles,
   Loader2,
   Download,
+  Paperclip,
 } from 'lucide-react';
 import { PresentonNativeEmbed } from './PresentonNativeEmbed';
 
@@ -115,8 +114,8 @@ export const ChapterDashboard: React.FC = () => {
   const [promptText, setPromptText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-  // Capsule '+' attachment popover state
-  const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
+  // File attached for current creation prompt
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   // Cycle placeholder text every 3.5s when textarea is empty
   useEffect(() => {
@@ -132,7 +131,7 @@ export const ChapterDashboard: React.FC = () => {
   const [registeredTools, setRegisteredTools] = useState<ToolMetadata[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const attachmentPopoverRef = useRef<HTMLDivElement | null>(null);
+  const libraryFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load projects and dynamic tools on startup
   useEffect(() => {
@@ -160,31 +159,6 @@ export const ChapterDashboard: React.FC = () => {
     }
   }, [selectedProject?.project_id]);
 
-  // Click outside or Escape to close attachment popover
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        attachmentPopoverRef.current &&
-        !attachmentPopoverRef.current.contains(e.target as Node)
-      ) {
-        setIsAttachmentOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsAttachmentOpen(false);
-      }
-    };
-    if (isAttachmentOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isAttachmentOpen]);
-
   const loadProjects = async () => {
     try {
       const data = await fetchProjects();
@@ -198,10 +172,11 @@ export const ChapterDashboard: React.FC = () => {
         setIsDarkMode(true);
       }
 
-      let matchedProj = data.find((p) => p.project_id === projParam);
-      if (!matchedProj && data.length > 0) {
-        // prefer a project that already has slides if view is studio
-        matchedProj = (viewParam === 'studio' && data.find((p) => Object.values(p.artifacts || {}).some(a => a.tool_name === 'slides'))) || data[0];
+      // Do NOT auto-bind to a legacy chapter on home page:
+      // Only select a project if explicitly requested in URL query params or if directly opening studio
+      let matchedProj = data.find((p) => p.project_id === projParam) || null;
+      if (!matchedProj && viewParam === 'studio') {
+        matchedProj = data.find((p) => Object.values(p.artifacts || {}).some(a => a.tool_name === 'slides')) || null;
       }
 
       if (matchedProj) {
@@ -216,6 +191,8 @@ export const ChapterDashboard: React.FC = () => {
             );
           if (slideArts[0]) setSelectedSlideArtifact(slideArts[0]);
         }
+      } else {
+        setSelectedProject(null);
       }
 
       if (viewParam === 'studio') {
@@ -255,11 +232,16 @@ export const ChapterDashboard: React.FC = () => {
         setSelectedProject(updated);
         const newPassages = await fetchPassages(targetProj.project_id);
         setPassages(newPassages);
-        setIsAttachmentOpen(false);
       }
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (libraryFileInputRef.current) libraryFileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setAttachedFile(e.target.files[0]);
     }
   };
 
@@ -269,14 +251,14 @@ export const ChapterDashboard: React.FC = () => {
     setTimeout(() => setCopiedPassageId(null), 1500);
   };
 
-  const handleSendPrompt = async () => {
-    const rawPrompt = promptText.trim();
-    if (!rawPrompt && !selectedProject) {
+  const handleSendPrompt = async (forcedTopic?: string) => {
+    const rawPrompt = (forcedTopic || promptText).trim();
+    if (!rawPrompt && !attachedFile && !selectedProject) {
       alert('Please type what you would like to teach or ask OMNIX.');
       return;
     }
 
-    const inputToRoute = rawPrompt || selectedProject?.name || 'Classroom Presentation';
+    const inputToRoute = rawPrompt || attachedFile?.name.replace(/\.[^/.]+$/, '') || selectedProject?.name || 'Classroom Presentation';
     setIsGenerating(true);
 
     try {
@@ -295,8 +277,18 @@ export const ChapterDashboard: React.FC = () => {
         currentProj = await handleCreateProject(topicToUse.slice(0, 40));
       }
 
+      if (attachedFile && currentProj) {
+        await uploadChapterFile(currentProj.project_id, attachedFile);
+        const updated = await fetchProject(currentProj.project_id);
+        setSelectedProject(updated);
+        const newPassages = await fetchPassages(currentProj.project_id);
+        setPassages(newPassages);
+        setAttachedFile(null);
+      }
+
       // 3. Intelligently route to the target capability engine
       if (decision.capability === 'slides') {
+        setSelectedProject(currentProj);
         setPromptText(topicToUse);
         setActiveView('studio');
         return;
@@ -356,92 +348,17 @@ export const ChapterDashboard: React.FC = () => {
             isDarkMode ? "bg-[#111318]/80 border-slate-800/60 backdrop-blur-md" : "bg-[#F8FAFC]/80 border-slate-200/80 backdrop-blur-md"
           }`}
         >
-          {/* Left: Active Chapter Chip & Dropdown */}
+          {/* Left: Clean System Status */}
           <div className="flex items-center gap-3">
-            <div className="relative" ref={attachmentPopoverRef}>
-              <button
-                onClick={() => setIsAttachmentOpen(!isAttachmentOpen)}
-                className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                  isDarkMode
-                    ? "bg-slate-800/80 border-slate-700 text-slate-200 hover:border-slate-500"
-                    : "bg-white border-slate-200 text-slate-800 hover:border-slate-300 shadow-sm"
-                }`}
-                title="Switch Chapter Project"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-[#FF5C00]" />
-                <span className="truncate max-w-[180px] sm:max-w-xs font-bold">
-                  {selectedProject ? selectedProject.name : "Select Chapter"}
-                </span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
-
-              {/* Chapter Switcher Popover */}
-              {isAttachmentOpen && (
-                <div
-                  className={`absolute top-11 left-0 w-80 sm:w-96 rounded-2xl shadow-2xl z-40 p-4 border text-left space-y-3 ${
-                    isDarkMode ? "bg-slate-900 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                  }`}
-                >
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#FF5C00]">Curriculum Chapters</span>
-                    <button onClick={() => setIsAttachmentOpen(false)} className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
-                    {filteredProjects.map((p) => {
-                      const isSelected = selectedProject?.project_id === p.project_id;
-                      return (
-                        <div
-                          key={p.project_id}
-                          onClick={() => {
-                            setSelectedProject(p);
-                            setIsAttachmentOpen(false);
-                          }}
-                          className={`p-2.5 rounded-xl text-xs cursor-pointer flex items-center justify-between transition-all ${
-                            isSelected
-                              ? "bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] font-semibold"
-                              : isDarkMode
-                              ? "hover:bg-slate-800 text-slate-300"
-                              : "hover:bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          <div className="truncate pr-2">
-                            <p className="font-semibold truncate">{p.name}</p>
-                            <p className="text-[10px] text-slate-400 truncate">
-                              {p.outline?.subject ? `${p.outline.subject} • ${p.outline.grade_level || "Grade 10"}` : "Curriculum Chapter"}
-                            </p>
-                          </div>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-[#FF5C00] shrink-0" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      fileInputRef.current?.click();
-                      setIsAttachmentOpen(false);
-                    }}
-                    className="w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#FF5C00] text-xs font-semibold flex items-center justify-center gap-1.5 text-[#FF5C00] transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Upload New Chapter (PDF / DOCX)</span>
-                  </button>
-                </div>
-              )}
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="font-semibold tracking-tight text-slate-700 dark:text-slate-300">OMNIX Studio</span>
+              <span className="text-slate-300 dark:text-slate-700">/</span>
+              <span className="text-[11px] text-slate-400">Autonomous Pedagogical Studio</span>
             </div>
-
-            {selectedProject?.source_filename && (
-              <span className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                <span>Grounded ({Object.keys(passages).length} Passages)</span>
-              </span>
-            )}
           </div>
 
-          {/* Right Header Controls (Gemini pill removed per feedback) */}
+          {/* Right Header Controls */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
@@ -452,14 +369,14 @@ export const ChapterDashboard: React.FC = () => {
               }`}
               title="Toggle Light/Dark Theme"
             >
-              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
             </button>
 
             <input
               type="file"
               ref={fileInputRef}
               accept=".pdf,.docx,.txt"
-              onChange={handleFileUpload}
+              onChange={handleFileSelected}
               className="hidden"
             />
           </div>
@@ -512,20 +429,30 @@ export const ChapterDashboard: React.FC = () => {
 
               {/* Bottom Capsule Control Row */}
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 gap-2">
-                {/* Left Attachment & Context Badge */}
+                {/* Left Attachment Button & Attached Document Badge */}
                 <div className="flex items-center gap-1.5">
                   <button
-                    onClick={() => setIsAttachmentOpen(true)}
+                    onClick={() => fileInputRef.current?.click()}
                     className="p-2 rounded-xl text-slate-400 hover:text-[#FF5C00] hover:bg-orange-50 dark:hover:bg-slate-800 transition-colors"
-                    title="Attach Chapter / Passages"
+                    title="Attach Reference Document (PDF / DOCX)"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
 
-                  {selectedProject && (
-                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                      <BookOpen className="w-3 h-3 text-[#FF5C00]" />
-                      <span className="truncate max-w-[140px]">{selectedProject.name}</span>
+                  {attachedFile && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-[#FF5C00]/30 text-[11px] font-medium text-[#FF5C00]">
+                      <Paperclip className="w-3 h-3" />
+                      <span className="truncate max-w-[140px]">{attachedFile.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAttachedFile(null);
+                        }}
+                        className="hover:text-red-500 p-0.5 rounded"
+                        title="Remove attached file"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -616,15 +543,13 @@ export const ChapterDashboard: React.FC = () => {
                 </p>
               </div>
 
-              {selectedProject && (
-                <button
-                  onClick={() => setActiveView("studio")}
-                  className="text-xs font-semibold text-[#FF5C00] hover:underline flex items-center gap-1"
-                >
-                  <span>Open Full Slide Studio</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button
+                onClick={() => setActiveView("studio")}
+                className="text-xs font-semibold text-[#FF5C00] hover:underline flex items-center gap-1"
+              >
+                <span>Open Full Slide Studio</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             {/* Single-column horizontal template list (Linear / GitHub Copilot style) */}
@@ -979,12 +904,19 @@ export const ChapterDashboard: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => libraryFileInputRef.current?.click()}
             className="text-xs px-4 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>{isUploading ? 'Extracting File...' : 'Upload Chapter Document'}</span>
           </button>
+          <input
+            type="file"
+            ref={libraryFileInputRef}
+            accept=".pdf,.docx,.txt"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
         </div>
       </div>
 
@@ -1424,43 +1356,15 @@ export const ChapterDashboard: React.FC = () => {
           </nav>
         </div>
 
-        {/* Bottom: Active Chapter Status & Quick Controls */}
+        {/* Bottom: Engine Status & Theme Controls */}
         <div className="space-y-3 pt-4 border-t" style={{ borderColor: isDarkMode ? '#32302C' : '#E8E2D8' }}>
-          {/* Active Chapter Status Pill */}
-          {selectedProject ? (
-            <div
-              onClick={() => setActiveView('library')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                isDarkMode
-                  ? 'bg-[#151413]/70 border-[#32302C] hover:border-[#FF5C00]/50'
-                  : 'bg-[#FAF7F2] border-[#E8E2D8] hover:border-[#FF5C00]/50 shadow-sm'
-              }`}
-              title="Active Chapter: Click to inspect in Library"
-            >
-              <div className="flex items-center justify-between text-[10px] mb-1">
-                <span className="font-bold text-[#FF5C00] flex items-center gap-1">
-                  <BookOpen className="w-3 h-3" /> Active Chapter
-                </span>
-                {selectedProject.source_filename && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono flex items-center gap-0.5">
-                    <CheckCircle2 className="w-2.5 h-2.5" /> Grounded
-                  </span>
-                )}
-              </div>
-              <p className="text-xs font-semibold truncate">{selectedProject.name}</p>
+          <div className="flex items-center justify-between px-1 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className={`text-[11px] font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Presenton 5001</span>
             </div>
-          ) : (
-            <button
-              onClick={() => setActiveView('library')}
-              className={`w-full p-2.5 rounded-xl border border-dashed text-xs text-center transition-all ${
-                isDarkMode
-                  ? 'border-[#32302C] text-[#9CA3AF] hover:border-[#FF5C00]/50'
-                  : 'border-[#E8E2D8] text-[#716D64] hover:border-[#FF5C00]/50'
-              }`}
-            >
-              + Select Chapter in Library
-            </button>
-          )}
+            <span className="text-[10px] font-mono text-slate-500">v0.5.0</span>
+          </div>
 
           {/* Theme & Status Controls */}
           <div className="flex items-center justify-between px-1 text-xs">

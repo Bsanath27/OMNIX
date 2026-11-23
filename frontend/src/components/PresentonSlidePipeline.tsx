@@ -487,13 +487,13 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
               isDarkMode ? 'bg-[#181715] border-[#2B2926]' : 'bg-white border-[#E8E2D8]'
             }`}
           >
-            {/* Chapter context badge */}
-            {project && (
+            {/* Chapter context badge - only shown when document is attached */}
+            {project?.source_filename && (
               <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 text-xs">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="font-semibold text-emerald-400">Grounded in Chapter:</span>
-                  <span className="font-medium text-slate-300 truncate max-w-xs">{project.name}</span>
+                  <span className="font-semibold text-emerald-400">Grounded Document:</span>
+                  <span className="font-medium text-slate-300 truncate max-w-xs">{project.source_filename}</span>
                 </div>
                 <span className="text-[10px] font-mono text-emerald-500">
                   {Object.keys(passages).length} Passages Extracted
