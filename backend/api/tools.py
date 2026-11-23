@@ -227,14 +227,17 @@ class PresentonCreateRequest(BaseModel):
     n_slides: Optional[int] = 7
     language: Optional[str] = "en-US"
     generation_mode: Optional[str] = "standard"
+    project_id: Optional[str] = None
 
 
 @router.post("/slides/create")
 @router.post("/presenton/create-presentation")
 async def create_presenton_presentation(req: PresentonCreateRequest):
-    """Creates a presentation on the local Presenton engine and returns the id and direct outline/theme url."""
+    """Creates a presentation on the local Presenton engine and attaches it as an artifact to a project manifest."""
     import httpx
     import subprocess
+    from backend.api.projects import load_manifest, save_manifest, create_project
+    from backend.core.models import Artifact, ArtifactStatus
 
     # Ensure container is alive
     try:
@@ -275,9 +278,45 @@ async def create_presenton_presentation(req: PresentonCreateRequest):
             if resp.status_code == 200:
                 data = resp.json()
                 presentation_id = data.get("id")
+
+                # Attach or auto-provision project manifest
+                target_project_id = req.project_id
+                manifest = None
+                if target_project_id:
+                    try:
+                        manifest = load_manifest(target_project_id)
+                    except Exception:
+                        manifest = None
+
+                if not manifest:
+                    title_name = content[:40].strip() or "Slide Presentation"
+                    manifest = await create_project(title_name)
+                    target_project_id = manifest.project_id
+
+                art_id = f"art-slides-{presentation_id[:8]}"
+                if not manifest.artifacts:
+                    manifest.artifacts = {}
+
+                manifest.artifacts[art_id] = Artifact(
+                    id=art_id,
+                    tool_name="slides",
+                    project_id=target_project_id,
+                    status=ArtifactStatus.APPROVED,
+                    files=[f"http://localhost:5001/presentation?id={presentation_id}"],
+                    source_data={
+                        "title": content,
+                        "presentation_id": presentation_id,
+                        "presenton_url": f"http://localhost:5001/presentation?id={presentation_id}",
+                        "outline_url": f"http://localhost:5001/outline?id={presentation_id}",
+                        "n_slides": req.n_slides or 7
+                    }
+                )
+                save_manifest(manifest)
+
                 return {
                     "success": True,
                     "presentation_id": presentation_id,
+                    "project_id": target_project_id,
                     "url": f"http://localhost:5001/outline?id={presentation_id}"
                 }
             else:

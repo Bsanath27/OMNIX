@@ -41,6 +41,7 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
           n_slides: 7,
           language: 'en-US',
           generation_mode: 'standard',
+          project_id: project?.project_id || undefined,
         }),
       });
 
@@ -74,6 +75,21 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
   }, [onBack]);
 
   useEffect(() => {
+    // If opening an existing project with an active presentation and no new prompt was typed:
+    const existingSlideArt = project?.artifacts
+      ? Object.values(project.artifacts).find(
+          (a) => a.tool_name === 'slides' && a.source_data?.presentation_id
+        )
+      : null;
+
+    if (existingSlideArt?.source_data?.presentation_id && !initialPrompt.trim()) {
+      const presId = existingSlideArt.source_data.presentation_id;
+      setIframeUrl(`http://localhost:5001/presentation?id=${presId}&_omnix=${Date.now()}`);
+      setServiceStatus('running');
+      setIsLoading(false);
+      return;
+    }
+
     const promptToCarry = initialPrompt.trim() || project?.name || 'Classroom Presentation';
     if (lastPromptRef.current === promptToCarry) return;
     lastPromptRef.current = promptToCarry;

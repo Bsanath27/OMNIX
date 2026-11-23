@@ -97,6 +97,14 @@ export async function createProject(name: string): Promise<ProjectManifest> {
   return res.json();
 }
 
+export async function deleteProject(projectId: string): Promise<boolean> {
+  const res = await fetch(`/api/projects/${projectId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete project');
+  return true;
+}
+
 export async function uploadChapterFile(projectId: string, file: File): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);

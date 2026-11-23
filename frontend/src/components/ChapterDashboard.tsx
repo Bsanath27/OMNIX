@@ -3,6 +3,7 @@ import {
   fetchProjects,
   fetchProject,
   createProject,
+  deleteProject,
   uploadChapterFile,
   fetchPassages,
   fetchTools,
@@ -42,6 +43,7 @@ import {
   Loader2,
   Download,
   Paperclip,
+  Trash2,
 } from 'lucide-react';
 import { PresentonNativeEmbed } from './PresentonNativeEmbed';
 
@@ -102,6 +104,7 @@ export const ChapterDashboard: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<ProjectManifest | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [projectSearch, setProjectSearch] = useState('');
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'slides' | 'grounded' | 'quizzes'>('all');
   const [isUploading, setIsUploading] = useState(false);
 
   // Passages & search states
@@ -318,10 +321,27 @@ export const ChapterDashboard: React.FC = () => {
       const newArtifact = await runTool(decision.capability, currentProj.project_id, brief);
       setArtifacts((prev) => [newArtifact, ...prev]);
       setPromptText('');
+      loadProjects();
     } catch (err: any) {
       alert(`Generation failed: ${err.message}`);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    try {
+      await deleteProject(projectId);
+      setProjects((prev) => prev.filter((p) => p.project_id !== projectId));
+      if (selectedProject?.project_id === projectId) {
+        setSelectedProject(null);
+        setArtifacts([]);
+        setPassages({});
+      }
+    } catch (err: any) {
+      alert(`Failed to delete project: ${err.message}`);
     }
   };
 
@@ -332,7 +352,22 @@ export const ChapterDashboard: React.FC = () => {
 
   const filteredProjects = projects.filter((p) => {
     const q = projectSearch.toLowerCase();
-    return p.name.toLowerCase().includes(q) || (p.source_filename && p.source_filename.toLowerCase().includes(q));
+    const matchesSearch = p.name.toLowerCase().includes(q) || (p.source_filename && p.source_filename.toLowerCase().includes(q));
+    if (!matchesSearch) return false;
+
+    if (libraryFilter === 'slides') {
+      return (
+        p.project_id.startsWith('pres-') ||
+        (p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'slides'))
+      );
+    }
+    if (libraryFilter === 'grounded') {
+      return Boolean(p.source_filename);
+    }
+    if (libraryFilter === 'quizzes') {
+      return Boolean(p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'quizzes'));
+    }
+    return true;
   });
 
   // Render Home View: Replit / Lovable / Bolt AI-First Hero Creator
@@ -885,89 +920,146 @@ export const ChapterDashboard: React.FC = () => {
     );
   };
 
-  // Render Library View: Dedicated 2-Column Pedagogical Workspace for Chapter Projects & Passage Explorer
-  const renderLibraryView = () => (
-    <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 flex-1 flex flex-col">
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b" style={{ borderColor: isDarkMode ? '#32302C' : '#E8E2D8' }}>
-        <div>
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-[#FF5C00]" />
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Chapter <span className="text-[#FF5C00]">Library</span> & Grounding Hub
-            </h2>
-          </div>
-          <p className={`text-xs sm:text-sm mt-1 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-            Manage textbook chapters, extract deterministic passages, and review generated classroom deliverables.
-          </p>
-        </div>
+  // Render Library View: Dedicated 2-Column Pedagogical Workspace for Projects & Deliverables
+  const renderLibraryView = () => {
+    const slideArtifact = selectedProject ? (
+      artifacts.find(a => a.tool_name === 'slides') ||
+      (selectedProject.artifacts && Object.values(selectedProject.artifacts).find(a => a.tool_name === 'slides'))
+    ) : null;
+    const presentonUrl = slideArtifact?.source_data?.presenton_url || (
+      slideArtifact?.source_data?.presentation_id
+        ? `http://localhost:5001/presentation?id=${slideArtifact.source_data.presentation_id}`
+        : null
+    );
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => libraryFileInputRef.current?.click()}
-            className="text-xs px-4 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{isUploading ? 'Extracting File...' : 'Upload Chapter Document'}</span>
-          </button>
-          <input
-            type="file"
-            ref={libraryFileInputRef}
-            accept=".pdf,.docx,.txt"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        </div>
-      </div>
-
-      {/* 2-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-start">
-        {/* Column 1: Chapter Projects Management (Left 4 cols) */}
-        <div className={`lg:col-span-4 rounded-2xl border p-5 space-y-5 ${
-          isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-              Chapter Projects ({projects.length})
-            </span>
+    return (
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 flex-1 flex flex-col">
+        {/* Header bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b" style={{ borderColor: isDarkMode ? '#32302C' : '#E8E2D8' }}>
+          <div>
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-[#FF5C00]" />
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                Projects & <span className="text-[#FF5C00]">Deliverables Library</span>
+              </h2>
+            </div>
+            <p className={`text-xs sm:text-sm mt-1 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+              Keep track of all created projects, launch slide presentations, inspect passages, and review learning materials.
+            </p>
           </div>
 
-          {/* New Chapter Input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Create new chapter title..."
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleCreateProject(newProjectName);
-                  setNewProjectName('');
-                }
-              }}
-              className={`flex-1 text-xs px-3 py-2 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
-                isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
-              }`}
-            />
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                handleCreateProject(newProjectName);
-                setNewProjectName('');
-              }}
-              className="px-3 py-2 bg-[#FF5C00] text-white rounded-xl hover:bg-[#e05200] transition-colors"
-              title="Create Chapter"
+              onClick={() => libraryFileInputRef.current?.click()}
+              className="text-xs px-4 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
             >
               <Plus className="w-4 h-4" />
+              <span>{isUploading ? 'Extracting File...' : 'Attach Document'}</span>
             </button>
+            <input
+              type="file"
+              ref={libraryFileInputRef}
+              accept=".pdf,.docx,.txt"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
           </div>
+        </div>
 
-          {/* Projects Search Filter */}
-          {projects.length > 3 && (
+        {/* 2-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-start">
+          {/* Column 1: Projects Management (Left 4 cols) */}
+          <div className={`lg:col-span-4 rounded-2xl border p-5 space-y-4 ${
+            isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                All Projects ({projects.length})
+              </span>
+            </div>
+
+            {/* Quick Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-semibold">
+              <button
+                onClick={() => setLibraryFilter('all')}
+                className={`flex-1 py-1 rounded-lg transition-all ${
+                  libraryFilter === 'all'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setLibraryFilter('slides')}
+                className={`flex-1 py-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  libraryFilter === 'slides'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Presentation className="w-3 h-3" />
+                <span>Slides</span>
+              </button>
+              <button
+                onClick={() => setLibraryFilter('grounded')}
+                className={`flex-1 py-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  libraryFilter === 'grounded'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-3 h-3" />
+                <span>Docs</span>
+              </button>
+              <button
+                onClick={() => setLibraryFilter('quizzes')}
+                className={`flex-1 py-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  libraryFilter === 'quizzes'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <FileQuestion className="w-3 h-3" />
+                <span>Quiz</span>
+              </button>
+            </div>
+
+            {/* New Project Title Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Create new project title..."
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateProject(newProjectName);
+                    setNewProjectName('');
+                  }
+                }}
+                className={`flex-1 text-xs px-3 py-2 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
+                  isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
+                }`}
+              />
+              <button
+                onClick={() => {
+                  handleCreateProject(newProjectName);
+                  setNewProjectName('');
+                }}
+                className="px-3 py-2 bg-[#FF5C00] text-white rounded-xl hover:bg-[#e05200] transition-colors"
+                title="Create Project"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Projects Search Filter */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search chapters..."
+                placeholder="Search projects..."
                 value={projectSearch}
                 onChange={(e) => setProjectSearch(e.target.value)}
                 className={`w-full text-xs pl-8 pr-2.5 py-1.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
@@ -975,178 +1067,262 @@ export const ChapterDashboard: React.FC = () => {
                 }`}
               />
             </div>
-          )}
 
-          {/* Projects List */}
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-            {filteredProjects.map((p) => {
-              const isSelected = selectedProject?.project_id === p.project_id;
-              return (
-                <div
-                  key={p.project_id}
-                  onClick={() => setSelectedProject(p)}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-[#FF5C00]/10 border-[#FF5C00] shadow-sm'
-                      : isDarkMode
-                      ? 'bg-[#151413]/50 border-[#32302C] hover:border-slate-500'
-                      : 'bg-[#FAF7F2]/60 border-[#E8E2D8] hover:border-slate-400'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className={`text-xs font-bold truncate max-w-[200px] ${
-                      isSelected ? 'text-[#FF5C00]' : ''
-                    }`}>
-                      {p.name}
-                    </h4>
-                    {p.source_filename && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono flex items-center gap-0.5">
-                        <CheckCircle2 className="w-2.5 h-2.5" /> Grounded
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="truncate max-w-[150px] font-mono">{p.source_filename || 'No document uploaded'}</span>
-                    <span>{new Date(p.created_at).toLocaleDateString()}</span>
-                  </div>
+            {/* Projects List */}
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              {filteredProjects.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400 border border-dashed rounded-xl">
+                  No projects match the selected filter.
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              ) : (
+                filteredProjects.map((p) => {
+                  const isSelected = selectedProject?.project_id === p.project_id;
+                  const hasSlides = p.project_id.startsWith('pres-') || (p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'slides'));
+                  const hasQuizzes = p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'quizzes');
 
-        {/* Column 2: Selected Chapter Summary, Passages Explorer & Deliverables (Right 8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
-          {selectedProject ? (
-            <>
-              {/* Selected Chapter Header Card */}
-              <div className={`p-5 rounded-2xl border ${
-                isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
-              }`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold tracking-tight">{selectedProject.name}</h3>
-                      {selectedProject.source_filename && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Indexed & Grounded
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 font-mono">
-                      <span>Source: {selectedProject.source_filename || 'Pending Document Upload'}</span>
-                      <span>·</span>
-                      <span>{Object.keys(passages).length} Indexed Passages</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setPromptText(`Generate complete classroom deliverables for ${selectedProject.name}`);
-                        setActiveView('home');
-                      }}
-                      className="text-xs px-3.5 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-medium flex items-center gap-1.5 transition-transform active:scale-95 shadow-sm"
-                    >
-                      <span>Use in Prompt</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Searchable Passages Explorer */}
-              <div className={`p-5 rounded-2xl border space-y-4 ${
-                isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
-              }`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-sm font-bold tracking-tight flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-[#FF5C00]" />
-                      <span>Deterministic Grounded Passages</span>
-                    </h4>
-                    <p className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-                      Passage citations cite exact sentences with zero vector-database overhead.
-                    </p>
-                  </div>
-
-                  {/* Passage Search */}
-                  <div className="relative w-full sm:w-64">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Filter passages by text or ID..."
-                      value={passageSearch}
-                      onChange={(e) => setPassageSearch(e.target.value)}
-                      className={`w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
-                        isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
+                  return (
+                    <div
+                      key={p.project_id}
+                      onClick={() => setSelectedProject(p)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all group ${
+                        isSelected
+                          ? 'bg-[#FF5C00]/10 border-[#FF5C00] shadow-sm'
+                          : isDarkMode
+                          ? 'bg-[#151413]/50 border-[#32302C] hover:border-slate-500'
+                          : 'bg-[#FAF7F2]/60 border-[#E8E2D8] hover:border-slate-400'
                       }`}
-                    />
-                  </div>
-                </div>
-
-                {Object.keys(passages).length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
-                    {filteredPassages.map(([pId, text]) => (
-                      <div
-                        key={pId}
-                        onClick={() => copyPassageRef(pId)}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                          isDarkMode
-                            ? 'bg-[#151413]/60 border-[#32302C] hover:border-[#FF5C00]'
-                            : 'bg-[#FAF7F2]/60 border-[#E8E2D8] hover:border-[#FF5C00]'
-                        }`}
-                        title="Click to copy citation tag [Pxx-Sxx]"
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-mono text-[11px] text-[#FF5C00] font-bold">{pId}</span>
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                            <Copy className="w-3 h-3" />
-                            {copiedPassageId === pId ? 'Copied Citation!' : 'Copy Tag'}
-                          </span>
-                        </div>
-                        <p className={`text-xs line-clamp-3 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-slate-600'}`}>
-                          {text}
-                        </p>
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <h4 className={`text-xs font-bold truncate flex-1 ${
+                          isSelected ? 'text-[#FF5C00]' : ''
+                        }`}>
+                          {p.name}
+                        </h4>
+                        <button
+                          onClick={(e) => handleDeleteProject(p.project_id, e)}
+                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity p-0.5 rounded"
+                          title="Delete Project"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-xs text-slate-400 border border-dashed rounded-xl">
-                    No passages extracted yet. Upload a PDF or DOCX file to extract grounded passages.
-                  </div>
-                )}
-              </div>
 
-              {/* Deliverables Section for Selected Chapter */}
-              {artifacts.length > 0 && (
-                <div className={`p-5 rounded-2xl border space-y-4 ${
+                      {/* Content Badges */}
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                        {hasSlides && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-[#FF5C00] border border-[#FF5C00]/20 font-semibold flex items-center gap-0.5">
+                            <Presentation className="w-2.5 h-2.5" /> Slides
+                          </span>
+                        )}
+                        {p.source_filename && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono flex items-center gap-0.5">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Grounded
+                          </span>
+                        )}
+                        {hasQuizzes && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 font-semibold flex items-center gap-0.5">
+                            <FileQuestion className="w-2.5 h-2.5" /> Quiz
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="truncate max-w-[150px] font-mono">
+                          {p.source_filename ? p.source_filename : hasSlides ? 'Slide Deck' : 'Curriculum Project'}
+                        </span>
+                        <span>{new Date(p.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Column 2: Selected Project Summary, Passages Explorer & Deliverables (Right 8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            {selectedProject ? (
+              <>
+                {/* Selected Project Header Card */}
+                <div className={`p-5 rounded-2xl border ${
                   isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
                 }`}>
-                  <h4 className="text-sm font-bold tracking-tight">
-                    Chapter Deliverables ({artifacts.length})
-                  </h4>
-                  <div className="space-y-4">
-                    {artifacts.map((art) => (
-                      <ArtifactCard key={art.id} artifact={art} />
-                    ))}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold tracking-tight">{selectedProject.name}</h3>
+                        {selectedProject.source_filename && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Indexed & Grounded
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 font-mono">
+                        <span>Source: {selectedProject.source_filename || 'Prompt-Created Project'}</span>
+                        <span>·</span>
+                        <span>{Object.keys(passages).length} Indexed Passages</span>
+                        <span>·</span>
+                        <span>{artifacts.length} Deliverables</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {slideArtifact && (
+                        <button
+                          onClick={() => {
+                            setSelectedSlideArtifact(slideArtifact);
+                            setActiveView('studio');
+                          }}
+                          className="text-xs px-3.5 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 transition-transform active:scale-95 shadow-sm"
+                        >
+                          <Presentation className="w-3.5 h-3.5" />
+                          <span>Open in Slide Studio</span>
+                        </button>
+                      )}
+
+                      {presentonUrl && (
+                        <a
+                          href={presentonUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-[#FF5C00] text-slate-700 dark:text-slate-300 hover:text-[#FF5C00] flex items-center gap-1 transition-colors"
+                          title="Open directly in Presenton port 5001"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Presenton (5001)</span>
+                        </a>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          setPromptText(`Generate complete classroom deliverables for ${selectedProject.name}`);
+                          setActiveView('home');
+                        }}
+                        className="text-xs px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white flex items-center gap-1.5 transition-colors"
+                      >
+                        <span>Use in Prompt</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              )}
-            </>
-          ) : (
-            <div className={`p-12 text-center rounded-2xl border border-dashed ${
-              isDarkMode ? 'border-[#32302C] text-slate-400' : 'border-[#E8E2D8] text-slate-500'
-            }`}>
-              <BookOpen className="w-10 h-10 mx-auto text-slate-400 mb-3 opacity-40" />
-              <p className="font-semibold text-sm">No chapter selected</p>
-              <p className="text-xs mt-1">Select an existing chapter on the left or create a new one to view details and passages.</p>
-            </div>
-          )}
+
+                {/* Searchable Passages Explorer (if document was uploaded) */}
+                {selectedProject.source_filename && (
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-bold tracking-tight flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-[#FF5C00]" />
+                          <span>Deterministic Grounded Passages</span>
+                        </h4>
+                        <p className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                          Passage citations cite exact sentences with zero vector-database overhead.
+                        </p>
+                      </div>
+
+                      {/* Passage Search */}
+                      <div className="relative w-full sm:w-64">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Filter passages by text or ID..."
+                          value={passageSearch}
+                          onChange={(e) => setPassageSearch(e.target.value)}
+                          className={`w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
+                            isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {Object.keys(passages).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                        {filteredPassages.map(([pId, text]) => (
+                          <div
+                            key={pId}
+                            onClick={() => copyPassageRef(pId)}
+                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                              isDarkMode
+                                ? 'bg-[#151413]/60 border-[#32302C] hover:border-[#FF5C00]'
+                                : 'bg-[#FAF7F2]/60 border-[#E8E2D8] hover:border-[#FF5C00]'
+                            }`}
+                            title="Click to copy citation tag [Pxx-Sxx]"
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-mono text-[11px] text-[#FF5C00] font-bold">{pId}</span>
+                              <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                                <Copy className="w-3 h-3" />
+                                {copiedPassageId === pId ? 'Copied Citation!' : 'Copy Tag'}
+                              </span>
+                            </div>
+                            <p className={`text-xs line-clamp-3 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-slate-600'}`}>
+                              {text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-xs text-slate-400 border border-dashed rounded-xl">
+                        No passages extracted yet. Upload a PDF or DOCX file to extract grounded passages.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Deliverables Section for Selected Project */}
+                {artifacts.length > 0 ? (
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
+                  }`}>
+                    <h4 className="text-sm font-bold tracking-tight">
+                      Project Deliverables ({artifacts.length})
+                    </h4>
+                    <div className="space-y-4">
+                      {artifacts.map((art) => (
+                        <ArtifactCard key={art.id} artifact={art} />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`p-8 text-center rounded-2xl border border-dashed ${
+                    isDarkMode ? 'border-[#32302C] text-slate-400' : 'border-[#E8E2D8] text-slate-500'
+                  }`}>
+                    <Presentation className="w-8 h-8 mx-auto text-slate-400 mb-2 opacity-50" />
+                    <p className="font-semibold text-xs">Ready for Deliverable Generation</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Use this project to generate structured presentation decks, interactive quizzes, or videos.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          setPromptText(`Create a 6-slide presentation on ${selectedProject.name}`);
+                          setActiveView('home');
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-[#FF5C00] text-white font-medium hover:bg-[#e05200] transition-colors"
+                      >
+                        Create Presentation
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className={`p-12 text-center rounded-2xl border border-dashed ${
+                isDarkMode ? 'border-[#32302C] text-slate-400' : 'border-[#E8E2D8] text-slate-500'
+              }`}>
+                <BookOpen className="w-10 h-10 mx-auto text-slate-400 mb-3 opacity-40" />
+                <p className="font-semibold text-sm">No project selected</p>
+                <p className="text-xs mt-1">Select an existing project on the left or create a new one to inspect its deliverables.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Render Settings View
   const renderSettingsView = () => (

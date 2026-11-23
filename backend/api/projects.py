@@ -1,7 +1,9 @@
 import json
 import uuid
 import logging
+import shutil
 import urllib.parse
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -62,16 +64,120 @@ async def create_project(name: str = Form(...)) -> ProjectManifest:
 
 @router.get("", response_model=List[ProjectManifest])
 async def list_projects() -> List[ProjectManifest]:
-    """List all local projects."""
-    projects = []
+    """List all local projects, automatically synchronizing with Presenton presentations."""
+    projects_map: Dict[str, ProjectManifest] = {}
     if settings.PROJECTS_DIR.exists():
         for p_dir in settings.PROJECTS_DIR.iterdir():
             if p_dir.is_dir() and (p_dir / "manifest.json").exists():
                 try:
-                    projects.append(load_manifest(p_dir.name))
+                    manifest = load_manifest(p_dir.name)
+                    projects_map[manifest.project_id] = manifest
                 except Exception:
                     continue
-    return projects
+
+    # Synchronize presentations created directly on Presenton port 5001
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get("http://localhost:5001/api/v1/ppt/presentation/all")
+            if resp.status_code == 200:
+                presenton_decks = resp.json()
+                for deck in presenton_decks:
+                    deck_id = deck.get("id")
+                    if not deck_id:
+                        continue
+
+                    # Check if this presentation is already tracked inside any project artifact
+                    already_tracked = False
+                    for manifest in projects_map.values():
+                        if manifest.artifacts:
+                            for art in manifest.artifacts.values():
+                                if art.source_data and art.source_data.get("presentation_id") == deck_id:
+                                    already_tracked = True
+                                    break
+                        if already_tracked:
+                            break
+
+                    if not already_tracked:
+                        proj_id = f"pres-{deck_id[:8]}"
+                        if proj_id in projects_map:
+                            continue
+
+                        raw_title = deck.get("title") or deck.get("content") or "Slide Presentation"
+                        # Clean up formatting artifact lines
+                        cleaned_title = raw_title.split("\n")[0].strip()
+                        if len(cleaned_title) > 60:
+                            cleaned_title = cleaned_title[:57] + "..."
+                        if not cleaned_title:
+                            cleaned_title = "Slide Presentation"
+
+                        slides_list = []
+                        for s in deck.get("slides", []):
+                            content_data = s.get("content", {})
+                            cover = content_data.get("cover_title_stack", {}) if isinstance(content_data, dict) else {}
+                            stitle = cover.get("main_heading") or s.get("title") or "Slide"
+                            ssub = cover.get("accent_heading") or ""
+                            slides_list.append({
+                                "slide_number": s.get("index", 0) + 1,
+                                "title": stitle,
+                                "subtitle": ssub,
+                                "speaker_notes": s.get("speaker_note") or "",
+                            })
+
+                        art_id = f"art-slides-{deck_id[:8]}"
+                        artifact = Artifact(
+                            id=art_id,
+                            tool_name="slides",
+                            project_id=proj_id,
+                            status=ArtifactStatus.APPROVED,
+                            files=[f"http://localhost:5001/presentation?id={deck_id}"],
+                            source_data={
+                                "title": cleaned_title,
+                                "presentation_id": deck_id,
+                                "presenton_url": f"http://localhost:5001/presentation?id={deck_id}",
+                                "outline_url": f"http://localhost:5001/outline?id={deck_id}",
+                                "n_slides": deck.get("n_slides", len(slides_list)),
+                                "slides": slides_list,
+                            }
+                        )
+
+                        created_str = deck.get("created_at")
+                        updated_str = deck.get("updated_at") or created_str
+                        try:
+                            created_dt = datetime.fromisoformat(created_str) if created_str else datetime.now(timezone.utc)
+                            updated_dt = datetime.fromisoformat(updated_str) if updated_str else datetime.now(timezone.utc)
+                        except Exception:
+                            created_dt = datetime.now(timezone.utc)
+                            updated_dt = datetime.now(timezone.utc)
+
+                        new_manifest = ProjectManifest(
+                            project_id=proj_id,
+                            name=cleaned_title,
+                            created_at=created_dt,
+                            updated_at=updated_dt,
+                            artifacts={art_id: artifact}
+                        )
+                        save_manifest(new_manifest)
+                        projects_map[proj_id] = new_manifest
+    except Exception as e:
+        logger.warning(f"Could not sync with Presenton: {e}")
+
+    # Return sorted by updated_at or created_at descending (newest first)
+    return sorted(
+        projects_map.values(),
+        key=lambda p: str(p.updated_at or p.created_at or ""),
+        reverse=True
+    )
+
+
+@router.delete("/{project_id}")
+async def delete_project(project_id: str):
+    """Delete a project and its local files."""
+    p_dir = settings.PROJECTS_DIR / project_id
+    if p_dir.exists():
+        shutil.rmtree(p_dir)
+        return {"success": True, "deleted": project_id}
+    raise HTTPException(status_code=404, detail="Project not found")
 
 
 from backend.services.template_renderer import get_template_catalog_info, render_template_layout_html

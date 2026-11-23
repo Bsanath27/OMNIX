@@ -1,0 +1,202 @@
+OMNIX: Product Requirements Document (v0.5 draft)
+Updated 16 November 2026 (Web Application architecture pivot, Core Pipeline specification, and Moodle deferral) for the IIT Madras / Commonwealth of Learning (COL) Training of Trainers programme. Status: draft for team review.
+1. Summary
+OMNIX (Open Multimodal Network for Immersive eXperiences) is a server-hosted web application (React frontend + FastAPI backend) accessible by educators via standard web browsers. It requires zero client-side installation on educator laptops, letting teachers turn a chapter (a PDF, document or typed topic) into classroom-ready material: images and diagrams, slide decks, narrated explainer videos, games, simulations, 3D/AR objects and comics. It does this behind one simple web interface, by stitching existing open-source tools and hosted model APIs instead of building a custom AI framework.
+Product goal. After a three-day ToT, each trainer can independently produce a chapter-level learning package and train other educators to do the same.
+Design principles
+The LLM never writes free-form programs for production paths. It fills JSON schemas and templates, and deterministic renderers produce the output.
+Models never draw text. Labels and captions are rendered by layout code.
+Simulations are selected from a catalogue, never generated.
+Every output ships with its source data so a trainer can verify accuracy before approving.
+Every provider sits behind a capability interface and can be swapped in config.
+Stitch and vendor existing repos; write only the thin core ourselves.
+Added in v0.5:
+Architectural pivot to Web Application: zero OS-specific installers or client-side runtime requirements; trainers access OMNIX via browser (Chrome, Edge, Safari) on any laptop or tablet. Server-side backend (Linux/Docker) manages ffmpeg, LaTeX, and Kokoro ONNX.
+Core pipeline prioritized: End-to-end ingestion (pypdf/python-docx), Groq-powered outline, python-pptx slides, client-side Mermaid diagrams, Parallel Storyboard Manim video with kokoro-onnx audio-first sync and 480p Draft Mode, and deterministic passage grounding. Moodle depth (.mbz, LTI) is deferred for future discussion; packages export as self-contained offline classroom bundles with an index.html viewer.
+2. Background and source requirements
+The COL/IIT Madras curriculum defines a 3-day, 15-hour programme: Day 1 visuals and presentations, Day 2 3D, games, simulations and XR, Day 3 animation, video and comics. Trainers are taught what each capability can do and how to prompt OMNIX; they are not taught production software. The curriculum states a central principle: teach creative possibilities and educational value, and let OMNIX handle production complexity. It also says the programme must not promise functionality that is not implemented, so everything demonstrated must work live.
+3. Users and key scenarios
+Primary user: an educator or master trainer with a standard laptop, tablet or desktop and a modern web browser; not a developer. Zero client-side software installation required.
+Core scenario (chapter-first). The trainer creates a Chapter project, adds a PDF or document (or types a topic), sets subject and grade, reviews the generated chapter outline, then generates slides, an explainer video, a game, a simulation pick, an image and optionally a 3D object or comic. They review each output beside its source data, approve or reprompt, and export a learning package.
+Secondary scenarios: one-off generation (for example just an image); saving and reopening a project; exporting an offline classroom package; trainers demonstrating one capability to other educators.
+4. Scope
+In scope (January delivery): the core pipeline tool families in section 5, document upload, project save/reopen, approve-or-reprompt review, offline classroom package export, first-run setup wizard, English language.
+Out of scope for January: OS-specific desktop installers, local LaTeX/ffmpeg client setup, lecture recording, link/URL ingestion, in-app WYSIWYG editors for slides/video, Moodle .mbz/LTI integration (deferred for future discussion), VR headset experiences, non-English UI, T2V as a required deliverable.
+Stretch: editing source data through auto-generated forms; Moodle LTI link; additional narration languages; masked image editing.
+Delivery tiers (v0.5). Tier 1, fully integrated core pipeline: chapter project, lightweight ingestion, outline, slides, diagrams and mindmaps, images, Parallel Storyboard Manim video (with Draft Mode), I2V clips, H5P quiz/flashcards, PhET picker, grounded review gate, and offline package export. Tier 2, minimal UI viewer stubs: 3D/AR (model-viewer) and comics. Deferred: Moodle depth, T2V polish, html_video, Docling neural scan pack.
+5. Functional requirements
+Priority: P0 must work at the ToT, P1 should, P2 stretch.
+Acceptance criteria (selected)
+F5: output opens and edits cleanly in PowerPoint and LibreOffice; no text clipped; every slide traces to outline items.
+F6: a 5-minute video renders as independent scenes using verified templates; draft mode preview renders each scene in <30 seconds on CPU; kokoro-onnx TTS audio duration dynamically drives scene pause time (self.wait); a failed scene retries once with fallback template parameters; total render time is shown before starting.
+F8: generated .h5p validates and plays; correct answers match the source data panel.
+F9: the selected sim URL exists in the catalogue (never LLM-invented) and loads.
+F12: a trainer can see why a generation failed and what to change.
+F16: clips can be drafted concurrently in low-res Draft Mode; educators can review and reorder scene cards on a visual storyboard; final MP4 assembly joins all approved clips in order with synchronized narration and captions.
+F17: on the golden chapter, at least 95 percent of quiz answers and slide facts carry a source reference that matches the chapter text.
+6. Non-functional requirements
+Reliability: golden-prompt suite for each P0 tool, run by omnix check; target at least 90 percent pass on the demo prompt set (defaults accepted 16 November).
+Latency: progress visible within 5 seconds of starting a job; long-job ETAs shown.
+Platforms: Universal web browser support (Chrome, Edge, Firefox, Safari). Zero client-side software installation. Server backend runs on standard Linux (Docker container / Ubuntu VM) with pre-installed ffmpeg, Cairo/Pango, TeX Live, and kokoro-onnx.
+Offline & Venue Resilience: For offline or air-gapped venues, the server backend runs on a local workshop host machine over local Wi-Fi/LAN, with pre-cached 'Golden Chapter' packages (Grade 9 Physics, Grade 10 Biology) built into the app for fail-safe live demonstrations.
+Security and privacy: keys stored locally (OS keychain or .env), never logged; the local server listens on 127.0.0.1 only and requires a per-session token; free-tier providers may log prompts, which is acceptable per the team, and trainers are told so.
+Accessibility: captions on videos; alt text on generated images; readable contrast in templates.
+Licensing: only OSI-approved licences for bundled code; no GPL/AGPL code copied into the core (see section 9).
+Maintainability: each tool is a folder with a manifest and smoke test; no tool imports another tool.
+Targets (accepted defaults, to be benchmarked in M0). Tier 1 tools pass at least 90 percent of about 20 golden prompts. Groq outline within 15 seconds, diagram or image within 30 seconds, slides within 45 seconds, quiz within 20 seconds. A Draft Mode preview for a Manim clip renders within 30 seconds (480p/15fps); final high-definition clip (1080p) renders within 2–3 minutes on server CPU. An I2V clip returns within 5 minutes (provider dependent). Progress shows within 2 seconds of starting a job, and no work is lost on a restart.
+7. Architecture
+Layers
+UI: a modern React, TypeScript, Vite and Tailwind web application. Schema-driven forms are rendered dynamically from Pydantic schemas via FastAPI endpoints (/api/tools/{name}/schema), eliminating the need for hand-crafted per-tool form components. The UI consists of four focused views: Chapter Dashboard, Schema Form Modal, Generic Artifact Card, and a Storyboard Clip Review Grid.
+Core (own code, small): tool registry, brief schemas (Pydantic), job runner (FastAPI plus SQLite worker), config, project and package format, review gate.
+Tools: one folder per capability with tool.yaml, run(brief, ctx) -> Artifact, and a smoke test.
+Provider layer: capability interfaces llm, image, video, tts, 3d; adapters per provider; config chooses and orders providers with automatic failover.
+Storage: project folders on disk. Each artifact is files plus manifest.json holding type, source data (script, quiz answers, captions), provider and model versions, cost and licences.
+Tool contract. Every tool takes a validated brief (topic, level, purpose, output, constraints, chapter outline reference) and returns an Artifact. Tools never read keys or call providers directly; they use ctx.llm, ctx.image, ctx.video, ctx.tts.
+Provider interfaces. Adapters declare capabilities (allowed durations, resolutions, sizes) and the core clamps or translates requests. Adapters hide async job polling, download results immediately, map errors to RateLimited, QuotaExhausted, BadInput and ProviderDown, and report estimated cost.
+Isolation. Start with one Python environment. A tool may declare runtime: venv or container in its manifest only if dependencies conflict. Heavy model code (Wan, TRELLIS) never runs on trainer laptops; it is reached through hosted APIs.
+Pipeline pattern for every tool: brief, plan (LLM returns JSON), validate (schema plus sanity checks, one retry), render (deterministic), review (trainer approves or reprompts).
+Manim video pipeline. Chapter outline, storyboard of scenes (JSON), per-scene template selection and parameters from a verified STEM component registry. Free-form code-generation fallback is eliminated from production paths to guarantee zero compiler crashes during live demos. Dynamic AV synchronization: kokoro-onnx TTS audio is generated first per scene; audio duration dynamically sets the Manim scene duration and pause length (self.wait(max(0.5, audio_duration - animation_runtime))). Bounding box and coordinate safety margins prevent text and formula overlap. Universal Draft Mode compiles at 480p/15fps for rapid educator review (<30s); final batch compiles at 1080p. Biological anatomy and organic cellular structures are routed away from Manim to 2D image overlays (F4) or 3D models (F10).
+Diagram pipeline. LLM writes Mermaid/markmap text, which is rendered 100% client-side in the browser via JavaScript DOM (SVG/Canvas). Zero server-side browser or headless CLI dependencies. Errors are fed back once for repair.
+Deployment (decided 16 November)
+Deployment (decided 16 November, v0.5): Web Application deployment. The backend is a standard containerized Linux service (FastAPI + SQLite job queue + ffmpeg + TeX Live) deployed on a campus server, cloud VM, or local workshop host machine. Educators connect over HTTP/HTTPS from their existing web browsers without installing Python, LaTeX, or ffmpeg. Server-side job queue regulates concurrent Manim renders (max 3-4 parallel workers) to prevent CPU thrashing. Pre-cached 'Golden Chapter' packages (Grade 9 Physics, Grade 10 Biology) are bundled on the server for fail-safe demonstrations if internet drops.
+Provider records and roles
+Providers are data, not code. Each record has a kind (openai_compat, litellm, async_job or local), a base URL, a key reference and a model list. One generic OpenAI-compatible adapter covers most LLM hosts and local servers (Ollama, LM Studio, llama.cpp, vLLM) from base URL, key and model alone [verify per provider]. Declarative YAML adapters (submit URL, request template, poll URL, status and result paths) cover async image and video hosts without new code. When a trainer enters a key, OMNIX lists models, runs a JSON-schema test and a tiny image or video test, and records a capability matrix (json, vision, image, i2v, tts). Tools request roles (planner, writer, reviewer, image, i2v, tts) and the trainer assigns a model per role; planner roles refuse models that fail the JSON test. Every adapter reports an estimated cost and maps errors to RateLimited, QuotaExhausted, BadInput and ProviderDown.
+Orchestration and routing
+The default is explicit: the chapter dashboard has one button per tool. A prompt box suggests a tool: an LLM classifier returns {tool, confidence, brief, reason}, where tool must be an enum from the registry and brief must validate against that tool’s schema (one repair retry). Below a confidence threshold it shows buttons and does not guess. Whole-package requests use plan-then-execute: the LLM drafts ordered steps, the plan is validated against the registry and shown as an editable checklist, and a deterministic runner executes it. Pipeline choice inside video is rule-based (equations, graphs and process diagrams go to Manim; realistic motion and illustration animation go to I2V). Roles in the pipeline: one planner and prompt-refiner LLM (refining is skipped when the prompt is already good), the generators, and an advisory reviewer that only reviews and never generates. There is no free-running agent loop and no multi-agent supervisor graph; a semantic router (embeddings) is optional.
+Video project and subject coverage
+A video project is a parallel storyboard of clips. Each clip has a mode (manim, i2v or t2v), a brief, a status (draft, generating, needs review, approved), its artifact and optionally a source image. Universal Draft Mode produces low-res (480p/15fps) previews concurrently in under 30 seconds per clip so trainers can review the entire storyboard without waiting. Clips can be reordered or reprompted independently. Final joining, resolution/frame-rate matching, narration and captions are ffmpeg jobs. Hyperframes (Apache-2.0) is an optional later tool for HTML-built animations. Manim is reliable for physics, maths and chemistry diagrams, graphs and process animations; biology anatomy strictly relies on 2D images, SVG overlays and PhET, because Manim procedural vector graphics fail at organic anatomical figures.
+Grounding, provenance and versions
+Grounding is implemented deterministically without vector database overhead. During lightweight ingestion (pypdf/python-docx), text is chunked into numbered passages stored in passages.json (e.g. P01-S02). Generative prompts require the LLM to output grounding citations alongside each fact, quiz question, and narration line. A deterministic substring/token overlap validator verifies citations against passages.json in <5ms; unsupported items are flagged as “not from your chapter” in the review view. Packages carry attributions, model credits, and an AI-generated label.
+8. Provider and API strategy
+Free-tier terms change often and sources disagree on exact limits; every figure below must be re-verified at signup.
+No credits will be provided by IIT Madras/COL; trainers use free tiers and their own keys, with a small paid top-up (about 5 USD) for I2V if needed.
+9. Repository integration plan
+Method: on 13 November 2026 each repository below was cloned (shallow) and its LICENSE file, last-commit date, top-level structure and dependency files were read. Nothing was installed or executed, and transitive dependency licences were not audited. Integration modes: Depend (pinned pip/npm dependency), Vendor (copy small pieces into vendor/ with an UPSTREAM.md recording source, commit and changes), Reference (read and re-implement), Avoid.
+Net result. Real dependencies: FastAPI, React/Vite, Manim, python-pptx, pypdf, kokoro-onnx, onnxruntime, LiteLLM core, Mermaid (npm), markmap (npm), model-viewer (npm), h5p-standalone (npm). (Gradio completely eliminated; PyTorch eliminated from core). Vendored code: SlideDeck AI slide logic, TheoremExplainAgent video prompts and Kokoro timing logic, makefinks/manim-generator template benchmark. Everything else is reference.
+Additional repositories audited 16 November 2026
+Same method as above (shallow clone, LICENSE file and last commit read, nothing executed).
+Orchestration and framework candidates (LICENSE files read). MIT: LangGraph, Pydantic AI, DSPy, Hatchet, Huey, semantic-router, Langflow, Portkey gateway, NiceGUI. Apache-2.0: Burr, Prefect, Dagster, Haystack, any-llm, Reflex, Flet, Streamlit. BSD-3: pywebview, Briefcase. Avoid or restricted: ComfyUI (GPL-3.0), NodeTool (AGPL-3.0), Dramatiq (GPL-family text), n8n (source-available), Flowise (mixed, parts commercial). Decision: no workflow engine. Use plain FastAPI plus a SQLite job queue (own code or Huey), Pydantic schemas, LiteLLM or any-llm for providers, and an optional semantic router. The UI is React, so Gradio, NiceGUI, Streamlit, Reflex and Flet are not used.
+10. Licence register and compliance rules
+Keep THIRD_PARTY_NOTICES.md with one row per code dependency and per model weights.
+Run pip-licenses and an npm licence check in CI; fail on GPL/AGPL in the core.
+Model weights have separate licences from code; record each model used.
+PhET: Decision confirmed 16 November: Full PhET simulation catalogue (both CC BY 4.0 and post-March 2026 CC BY-NC 4.0) is approved for inclusion under non-commercial educational use by IIT Madras and COL. Embeddings include required attribution and direct links to PhET. Simulation metadata is harvested locally to avoid runtime API dependency.
+GPL tools (ComfyUI, Piper, Lumi H5P library) may only be run as separate services, never copied into the core.
+Obtain sign-off from IIT Madras/COL on the final list; this document is not legal advice.
+Do not copy AGPL or GPL code from the video-studio and slide-tool repos (Banana Slides, NodeTool, AI Video Production Editor). n8n and Flowise are not OSI-open, and Dramatiq’s licence text is GPL-family.
+11. Delivery plan (proposal, about 11 weeks)
+Two developers: A owns core, UI, document pipeline, slides, games, packaging; B owns Manim video, component registry, I2V, images, comics, 3D.
+Changes in v0.5. Web Application architecture adopted: zero client-side installation. Core pipeline prioritized (Ingestion -> Outline -> Slides -> Diagrams -> Parallel Storyboard Manim Video -> H5P Quiz -> Grounded Review -> Offline Package). Moodle integration deferred for future discussion. Groq set as primary LLM for strict JSON speed. Kokoro pinned to pure ONNX runtime, eliminating PyTorch. Mermaid rendered client-side.
+12. Testing and quality
+Every tool ships a golden brief and expected-output checks (files exist, open, manifest validates).
+Contract tests for each provider adapter, with recorded fixtures plus an optional live smoke test.
+omnix check runs everything and reports provider health.
+Rehearsal with real laptops, a mix of operating systems, and the actual API keys.
+13. Risks and mitigations
+Slow Manim rendering on laptop CPUs: Draft Mode default (480p/15fps preview in <30s, final 1080p render in background batch), limited parallel scenes, benchmark in M0.
+Heterogeneous and locked-down trainer computers: portable embedded Python bundle (pre-bundled ffmpeg/espeak-ng), capability packs, offline bundle, an install session before the event, omnix doctor.
+Download and disk size: measure each pack in M0 and keep heavy packs optional.
+Frontend workload for two Python-strong developers: schema-driven forms and one generic artifact card instead of per-tool screens.
+Venue network: offline readiness check and pre-cached 'Golden Chapter' sample projects (Grade 9 Physics, Grade 10 Biology) bundled locally so trainers can present pre-computed artifacts seamlessly if venue Wi-Fi throttles or API rate limits trigger.
+14. Open questions
+Decisions recorded 16 November (v0.5): Web Application architecture (zero client installation); Core Pipeline prioritized; Moodle integration deferred for future discussion; Parallel Storyboard Drafting (concurrent 480p drafts on visual grid); Full PhET catalogue (CC BY & CC BY-NC) approved with attribution; Groq primary LLM for fast JSON; kokoro-onnx for zero-PyTorch TTS; 100% templated Manim with dynamic audio sync; biology anatomy routed to 2D images; Chemanim avoided; 3D/AR and comics are Tier 2 viewer stubs; grounding via passages.json.
+Server hosting choice for the January ToT: campus Linux VM, cloud server, or local high-spec classroom host over Wi-Fi/LAN?
+Workshop API key provisioning: will IIT Madras/COL provide a shared workshop key/proxy for Groq, fal.ai, and Cloudflare, or will a pre-seeded key pool be loaded on the server?
+Hyperframes: is html_video for HTML animations and games confirmed, and can it capture interactive games?
+Moodle integration: formally deferred for dedicated future discussion; January delivery provides self-contained offline classroom packages (index.html + H5P) and the core pipeline.
+Comic audience and style (general for now).
+Locate and audit Caramel, Science Infuse and the comic repos; check manim-Chemistry (verified CE) and RDKit SVG for chemical diagrams.
+Confirm free-tier defaults (Cloudflare models) live in M0.
+Appendix: what was and was not verified
+Verified (13 Nov 2026): LICENSE text, last-commit date, top-level structure and dependency pins for the cloned repositories listed in section 9; LiteLLM and LTX-Video licence fields via the GitHub API before rate limiting.
+Not verified: any code execution or installation; transitive licences; weights licences for Kokoro, Wan and image models; current free-tier limits; PhET harvesting terms; the repositories marked [verify].
+Second audit (16 November 2026). About 40 more repositories were cloned and their LICENSE files and last-commit dates read (GitHub’s API rate-limited, so most metadata came from clones). Not verified: code execution, transitive licences, weights licences, Science Infuse, Caramel’s source, the comic repos, and whether Hyperframes can capture interactive games.
+ID | Capability | Requirement | Pri
+F1 | Chapter project | Create/open/save projects as folders on disk; project holds source files, outline, artifacts and a manifest. No accounts. | P0
+F2 | Document ingestion | Accept PDF, DOCX, PPTX, TXT; lightweight default extraction via pypdf, python-docx, and python-pptx (instant CPU, sub-50MB install); deterministic passage chunking for grounding (passages.json). No URL input. | P0
+F3 | Chapter outline | One LLM pass produces concepts, vocabulary and learning objectives, shown for trainer edit and used by every tool. | P0
+F4 | Images and diagrams | Illustrations via image model (no embedded text); flowcharts and diagrams via validated Mermaid/Graphviz; mindmaps via markmap; label overlays rendered by code; regenerate with feedback and seed lock. | P0
+F5 | Slides | LLM-produced JSON rendered to editable .pptx through python-pptx templates; images placed in slots; refine with follow-up instructions. | P0
+F6 | Video: Manim | Scene-based explainers from 30s to 5m, 100% templated scenes via STEM registry (no free-form code-gen), dynamic Kokoro audio sync, parallel draft preview mode (480p/15fps, <30s render), per-scene retry, MP4 output; clips managed in visual storyboard (F16). | P0
+F7 | Video: I2V | Animate an image into a clip via hosted Wan model; joins with Manim clips in the parallel storyboard (F16). | P0 (I2V), P2 (T2V Stretch)
+F8 | Games | Multiple-choice quizzes (H5P.MultiChoice) and interactive flashcards (H5P.Dialogcards) generated from outline facts; exported as .h5p and playable in-app via h5p-standalone. Complex drag-and-drop deferred. | P0
+F9 | Simulations | Catalogue of PhET HTML5 sims (and other sources if licences allow) built from official metadata; LLM picks from a shortlist and the app embeds the sim. | P0
+F10 | 3D and AR | Generate a GLB from text/image via hosted model; view in-browser and in phone AR via model-viewer; failures shown honestly. | P1 (Tier 2)
+F11 | Comics | Script, panel prompts, image generation, layout engine for bubbles and captions; general style for now. | P1 (Tier 2)
+F12 | Review gate | Every artifact shows output plus source data; actions are Approve or Reprompt; failures display the real cause; only approved artifacts enter the package. | P0
+F13 | Packaging | Learning package = downloadable ZIP with manifest.json, media assets, and a standalone offline index.html classroom viewer. (Moodle depth deferred for future discussion). | P0 / P1
+F14 | Setup and keys | First-run wizard collects API keys, validates each, runs a tiny test per tool; omnix doctor checks ffmpeg, LaTeX, espeak-ng, keys. | P0
+F15 | Job runner | Long jobs (video, 3D, I2V) queue, show progress and estimated cost, survive app restarts. | P0
+F16 | Video project | Parallel storyboard of clips (Manim/I2V); concurrent 480p low-res draft preview (<30s); reorderable cards; kokoro-onnx audio sync; final 1080p batch merge. | P0
+F17 | Grounding | Deterministic citation referencing (passages.json); UI highlights chapter source; flags unsupported content as not from chapter. | P0
+F18 | Provenance & credits | Package manifest includes attributions (PhET), model/provider credits, AI-generated content label, and project cleanup action. | P0
+F19 | Routing & planning | Capability buttons plus natural-language prompt box; LLM classifier suggests tool and pre-fills brief; whole-package plan-then-execute. | P0
+F20 | html_video | Render HTML-built animations to MP4 with Hyperframes; deferred/optional. | P2
+Capability | Default | Backup | Key needed | Notes
+LLM | Groq (llama-3.3-70b-versatile, llama-3.1-8b-instant) | Cloudflare Workers AI (open models) | Groq API key (or workshop master key), plus Cloudflare token | Blazing fast 300+ tok/s; strict JSON schema mode for outlines, slides, and quizzes; Cloudflare Workers AI as ordered failover.
+Image | Cloudflare FLUX.1 schnell | Together or fal | Same Cloudflare token | Check which models remain on the free plan
+I2V / T2V | Wan 2.2 on a hosted aggregator (Replicate or fal) | Atlas Cloud or WaveSpeed | One provider key with a small top-up | Cost per 5-second clip ranges from cents to a couple of dollars depending on tier; default to the fast 480p tier; show cost estimate
+TTS | Local kokoro-onnx (CPU) | none | None | Pure ONNX Runtime, zero PyTorch; runs in ~120MB memory on server CPU; instant audio generation.
+Parser | Native lightweight (pypdf, python-docx, python-pptx) | Docling / OCR (optional scan pack) | None | Instant, sub-50MB install; no torch or neural OCR required for standard digital chapters. Avoid AGPL/GPL parsers.
+3D | Per the team 3D research list | n/a | Provider-specific | TRELLIS.2 needs a 24 GB NVIDIA GPU, so hosted only
+Repo | Licence (read from file) | Last commit | What to take | Mode | Notes and risks
+barun-saha/slide-deck-ai | MIT | 2026-10-26 | JSON schema, core.py, pptx_helper.py, templates, refine loop, PDF input | Vendor | Streamlit app plus slidedeckai package; pins litellm and python-pptx 1.0.2; requirements include torch, transformers and sentence-transformers for icon matching, which is heavy: make that optional or drop it; templates stored with Git LFS
+scanny/python-pptx | MIT | 2024-08-07 | PPTX writing | Depend | Stable but not recently updated; pin version
+icip-cas/PPTAgent | MIT | 2026-11-08 | Edit-based two-stage deck generation; CLI and MCP | Reference, optional backend | Research-grade; evaluate quality against SlideDeck AI on five chapters
+presenton/presenton | Apache-2.0 (with NOTICE) | 2026-11-06 | API shape, layout templates, document input handling | Reference | Next.js plus FastAPI plus Electron; too heavy to embed
+THU-MAIC/OpenMAIC | MIT | 2026-11-13 | Scene/outline schema, quiz and export modules, offline classroom bundle idea | Reference | TypeScript, Node 22.19 or newer, v1.5.0-rc.2; large; one source previously reported AGPL before the v0.3.0 relicence, current LICENSE is MIT
+TIGER-AI-Lab/TheoremExplainAgent | MIT | 2025-07-26 | Video planner, code generator, renderer, error-fix prompts, Manim style cheat sheets, Kokoro voiceover module, RAG over Manim docs | Vendor prompts and logic; do not depend | Stale (about 16 months); pins manim 0.18.1 and 2024-era dependencies (PyAudio, Cython, glcontext, Azure speech, gTTS); port to current Manim and Kokoro
+showlab/Code2Video | MIT | 2026-08-24 | Five-stage prompts, planner/coder/critic loop, scope refinement | Reference | Maths and CS focus; external icon assets depend on a third-party API
+makefinks/manim-generator | MIT | 2026-09-04 | Render and review loop, review prompts, benchmark prompts | Vendor | Small and clean; use benchmark to validate prompt templates; free-form generation removed from production.
+rohitg00/manim-video-generator | MIT | 2026-01-29 | Template library ideas | Reference | TypeScript (motia); not Python
+ManimCommunity/manim | MIT (3Blue1Brown LLC) | 2026-11-13 | Rendering engine | Depend (pin) | Needs ffmpeg, Cairo/Pango, LaTeX for MathTex
+Matheart/manim-physics | MIT | 2026-10-15 | Physics components | Depend, wrap in registry | Check compatibility with pinned Manim
+manim-Chemistry, Chemanim | [verify] | n/a | Molecule/PDB components | Unverified | Avoid Chemanim (mixes ManimGL and Manim CE, causing OpenGL/Cairo conflicts); use native Manim CE 2D chemistry components or RDKit SVG for chemical diagrams.
+hexgrad/kokoro | Apache-2.0 | 2025-08-06 | kokoro-onnx runtime + weights | Depend | Run via kokoro-onnx (ONNX Runtime); eliminates PyTorch and torchaudio dependencies.
+docling-project/docling | MIT | 2026-11-13 | Document parsing and OCR | Optional Pack | Demoted from default core to optional scan pack; core uses lightweight pypdf and python-docx to avoid heavy 4GB+ PyTorch install.
+BerriAI/litellm | Mixed (GitHub reports no single SPDX; MIT core with a paid enterprise directory) | 2026-11-13 | LLM gateway; image/video/speech calls where supported | Depend (core only) | Never copy enterprise/; treat image/video support as untested
+mermaid-js/mermaid | MIT | 2026-11-12 | Diagram rendering | Depend (Client-side npm) | Rendered 100% client-side in React browser DOM; zero server-side headless browser needed.
+markmap/markmap | MIT | 2026-11-10 | Mindmaps | Depend | JavaScript
+google/model-viewer | Apache-2.0 | 2026-11-12 | 3D and phone AR viewer | Depend | Phone AR support varies by device
+microsoft/TRELLIS.2 | MIT | 2026-06-05 | Image-to-3D | Hosted only | Tested on Linux with a 24 GB NVIDIA GPU
+Wan-Video/Wan2.2 | Apache-2.0 | 2026-09-21 | I2V/T2V model | Hosted API only | 5B model runs on a consumer 4090; README gives the 14B command as needing at least 80 GB VRAM
+Lightricks/LTX-Video | Apache-2.0 (code; weights licence conflicts across sources [verify]) | 2026-11-02 | Alternative video model | Alternative | Verify weights terms
+Lumieducation/H5P-Nodejs-library | GPL-3.0 | 2026-10-13 | n/a | Avoid copying | Copying would make OMNIX GPL; write our own .h5p exporter instead
+h5p-php-library | GPL (per README) | n/a | n/a | Avoid | Same reason
+OHF-Voice/piper1-gpl | GPL-3.0 | 2026-11-12 | n/a | Avoid | Use Kokoro
+Caramel (French education forge) | Open source claimed; repo and licence [verify] | n/a | H5P generator approach, 25 activity types, H5P and MBZ export | Reference until audited | Not hosted on GitHub
+Science Infuse (Ada), manim-gpt, comic-maker, Drawatoon, Clawed, OpenTutor | [verify] | n/a | Moodle MBZ export architecture; Manim UI and TTS loop; comics blueprint | Reference | Not audited in this pass
+ComfyUI | GPL-3.0 (from earlier research) | n/a | Self-hosted image/3D/video workflows | Defer; separate service only | Not needed for MVP
+Repo | Licence (file read) | Last commit | Mode | Notes
+heygen-com/hyperframes | Apache-2.0 | 2026-11-16 | Optional later | HTML to MP4; needs Node 22+, FFmpeg, headless Chrome; not required for Manim or I2V joins
+darshons/Openstax-Undergrads | MIT | 2026-08-19 | Reference (strong) | Manim scene planner, repair loop, layout-critique overlay, Kokoro voiceover, image regeneration from feedback; its README says Manim is reliable for flowcharts, graphs and process diagrams and weak for anatomy
+addsumtech/slides_maker | MIT | 2026-11-12 | Reference | Native editable PPTX, critic agent, source tracing; use for the review gate and grounding
+Anionex/banana-slides | AGPL-3.0 | 2026-11-15 | Avoid | Image-based slides, editable PPTX in beta, commercial use needs a licence
+rishidandu/cutagent | MIT | 2026-04-19 | Reference | Storyboard-first, per-scene generation, auto-chaining of last frames; Next.js, fal.ai only
+nodetool-ai/nodetool | AGPL-3.0 | 2026-11-16 | Reference only | Per-shot regeneration UX; do not copy code
+MartinDelophy/ai-video-editor | MIT | 2026-11-14 | Reference | Browser timeline editor
+Saitarun29/ai-video-storyboard-studio | MIT | 2026-11-01 | Reference | Shot list and style-bible prompts
+LudwigKienle/ai-video-production-editor | GPL-3.0 | 2026-10-28 | Avoid | Electron app
+christopherjohnogden/CineGen | No LICENSE file (README says MIT) | 2026-09-15 | Verify | Do not copy until confirmed
+TronikXR/smoothbrain | No licence file | 2026-03-24 | Avoid copying | Wan2GP plugin
+sid-thephysicskid/leap | Apache-2.0 | 2025-04-11 | Reference (stale) | Manim, LangGraph, FastAPI
+pushpitkamboj/AnimAI | Apache-2.0 | 2026-06-09 | Reference | LangGraph plus RAG for Manim
+ajha-dev/manim-gpt, freQuensy23-coder/manim-gpt | No LICENSE file | 2026-01-21, 2025-06-07 | Avoid copying | One uses Piper (GPL); the other’s README metadata says MIT
+tunapanda/h5p-standalone | MIT | 2026-03-24 | Depend | Plays .h5p files in the browser
+Chemanim (PyPI) | MIT per PyPI | n/a | Avoid | Mixes ManimGL and Manim CE usage causing headless rendering instability. Use manim-Chemistry (verified CE) or RDKit SVG instead.
+Milestone | Target | Content
+M0 Spike | by 22 Nov | Provider interfaces (Groq primary, Cloudflare failover); kokoro-onnx CPU benchmark; Manim 480p draft template render speed; core pipeline skeleton.
+M1 Early demo | by about 12 Dec | Web UI chapter dashboard, lightweight ingestion, outline extraction, slides (.pptx), diagrams (Mermaid/markmap), one H5P quiz, PhET picker, Manim draft scene with Kokoro sync.
+M2 | by about 2 Jan | Parallel storyboard video pipeline, I2V clips, full 5-minute batch assembly, grounded review gate, package exporter with offline index.html.
+M3 | by about 16 Jan | Tier-2 viewer stubs (3D model-viewer, comics), server concurrency tuning, pre-cached Golden Chapters, workshop freeze.
+Freeze and rehearsal | 17 to 23 Jan | Full dry run with realistic number of simultaneous users, golden-prompt suite green, trainer documentation
+ToT delivery | late January | 
+Risk | Impact | Mitigation
+Live generation of 5-minute videos is slow and rate-limited with many trainers | Demo failure | Scene-based jobs, queue, visible ETA, per-trainer keys, rehearsal, pre-generated fallback samples
+Simultaneous server load during workshop (20–30 trainers generating video) | Server CPU freeze / queue delays | Server job queue with worker concurrency limit (max 3-4 parallel Manim renders); low-res 480p Draft Mode keeps renders <30s; pre-cached Golden Chapter fallback.
+Free tiers change or disappear | Broken defaults | Ordered failover, provider health in omnix check, small paid top-up as backup
+I2V cost and quality variance | Budget overrun, poor clips | Fast 480p default, cost shown, clips only as b-roll
+Weak models produce bad JSON or Manim | Failed outputs | 100% templated scenes via STEM registry (free-form code-gen eliminated), strict JSON schemas, retries with parameter clamping, model benchmark on templates
+Licence surprises (PhET NC, GPL H5P libraries, model weights) | Compliance issues | Licence register, sign-off, avoid-list
+Stale upstream (TheoremExplainAgent, python-pptx) | Maintenance burden | Vendor and port, pin versions
+Scope creep (Moodle plugins, complex drag-and-drop games, WYSIWYG editors) | Missed deadline | Moodle deferred for future discussion; offline index.html classroom export; strict template-only renderers; Tier-2 viewer-only stubs.
