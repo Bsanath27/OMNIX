@@ -7,6 +7,7 @@ import {
   fetchPassages,
   fetchTools,
   runTool,
+  routeCapabilityPrompt,
   ProjectManifest,
   Artifact,
   ToolMetadata,
@@ -39,7 +40,6 @@ import {
   Palette,
   Check,
   ArrowRight,
-  Upload,
   Sparkles,
   Loader2,
   Download,
@@ -53,10 +53,10 @@ export const ChapterDashboard: React.FC = () => {
   // Theme state: defaults to clean modern minimalist light mode (#F8FAFC / #FFFFFF)
   // Animated cycling placeholder text for the prompt capsule
   const PLACEHOLDERS = [
-    "Ask OMNIX to create a slide deck, video explainer, or quiz from your chapter...",
-    "Create a 6-slide lecture with speaker notes and textbook citations...",
-    "Build an interactive quiz with MCQs, flashcards, and scoring...",
-    "Generate a 2D Manim animation explaining the key equations...",
+    "What would you like to teach? e.g. 'Photosynthesis in Grade 10 Biology'...",
+    "e.g. 'Create an interactive quiz on Newton's Laws with 5 questions'...",
+    "e.g. 'Explain the Human Circulatory System and Blood Flow'...",
+    "e.g. 'Mindmap of Organic Chemistry reaction mechanisms'...",
   ];
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [placeholderKey, setPlaceholderKey] = useState(0);
@@ -270,39 +270,60 @@ export const ChapterDashboard: React.FC = () => {
   };
 
   const handleSendPrompt = async () => {
-    let currentProj = selectedProject;
-    if (!currentProj) {
-      currentProj = await handleCreateProject(promptText.slice(0, 30) || 'New Chapter Project');
-    }
-    if (!currentProj) {
-      alert('Please select or create a chapter project first.');
+    const rawPrompt = promptText.trim();
+    if (!rawPrompt && !selectedProject) {
+      alert('Please type what you would like to teach or ask OMNIX.');
       return;
     }
 
+    const inputToRoute = rawPrompt || selectedProject?.name || 'Classroom Presentation';
     setIsGenerating(true);
+
     try {
-      const targetTool = selectedCapability === 'quizzes' ? 'quizzes' : 'slides';
+      // 1. Invoke the Main LLM router to classify intent and extract clean topic
+      const decision = await routeCapabilityPrompt(
+        inputToRoute,
+        selectedCapability,
+        selectedProject?.project_id
+      );
 
-      let brief: any = {
-        topic: promptText.trim() || currentProj.name,
-        subject: 'General Science',
-        grade_level: 'Grade 10',
-      };
+      const topicToUse = decision.topic || inputToRoute;
 
-      if (targetTool === 'slides') {
-        // Direct transition into Presenton 4-step presentation pipeline (Prompt -> Outline Review -> Theme -> Studio)
+      // 2. Auto-provision project workspace if none is currently selected
+      let currentProj = selectedProject;
+      if (!currentProj) {
+        currentProj = await handleCreateProject(topicToUse.slice(0, 40));
+      }
+
+      // 3. Intelligently route to the target capability engine
+      if (decision.capability === 'slides') {
+        setPromptText(topicToUse);
         setActiveView('studio');
         return;
-      } else if (targetTool === 'quizzes') {
+      }
+
+      // Otherwise, execute the tool directly (quizzes, video, diagrams)
+      if (!currentProj) {
+        throw new Error('Project workspace could not be initialized.');
+      }
+
+      let brief: any = {
+        topic: topicToUse,
+        subject: currentProj.outline?.subject || 'General Science',
+        grade_level: currentProj.outline?.grade_level || 'Grade 10',
+        ...(decision.parameters || {}),
+      };
+
+      if (decision.capability === 'quizzes') {
         brief = {
           ...brief,
-          num_questions: 4,
+          num_questions: decision.parameters?.num_questions || 5,
           quiz_types: ['multiple_choice', 'flashcard', 'true_false'],
-          difficulty: 'intermediate',
+          difficulty: decision.parameters?.difficulty || 'intermediate',
         };
       }
 
-      const newArtifact = await runTool(targetTool, currentProj.project_id, brief);
+      const newArtifact = await runTool(decision.capability, currentProj.project_id, brief);
       setArtifacts((prev) => [newArtifact, ...prev]);
       setPromptText('');
     } catch (err: any) {
@@ -434,13 +455,6 @@ export const ChapterDashboard: React.FC = () => {
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="text-xs px-4 py-2 rounded-full font-bold bg-[#FF5C00] hover:bg-[#e05200] text-white shadow-md shadow-orange-500/20 transition-transform active:scale-95 flex items-center gap-1.5"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>{isUploading ? "Extracting..." : "Upload Chapter"}</span>
-            </button>
             <input
               type="file"
               ref={fileInputRef}
@@ -462,7 +476,7 @@ export const ChapterDashboard: React.FC = () => {
               </span>
             </h1>
             <p className="text-sm sm:text-base max-w-xl mx-auto text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-              Generate curriculum-aligned presentation slides, interactive assessments, and visual explainers directly from your textbook chapters.
+              Type any lesson topic, concept, or test question. OMNIX automatically routes and builds your presentation slides, interactive assessments, or visual explainers.
             </p>
           </div>
 
@@ -544,7 +558,7 @@ export const ChapterDashboard: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={handleSendPrompt}
+                    onClick={() => handleSendPrompt()}
                     disabled={isGenerating}
                     className="px-4 py-2 rounded-2xl bg-[#FF5C00] hover:bg-[#e05200] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/30 transition-all shrink-0"
                   >

@@ -8,7 +8,6 @@ import {
   compileSlideFromOutline,
   fetchSlideTemplates,
 } from '../api';
-import { SlideStudioView } from './SlideStudioView';
 import { PresentonSlideStudio } from './PresentonSlideStudio';
 import { MiniSlidePreview } from './MiniSlidePreview';
 import { themes, ThemeProperties } from '../lib/presentonThemes';
@@ -121,10 +120,6 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
     if (initialArtifact?.source_data?.slides?.length) return 'studio';
     return 'input';
   });
-
-  // Studio View Mode: 'pro' (PresentonSlideStudio) vs 'classic' (SlideStudioView)
-  // Defaults to 'pro' for immediate interactive block testing
-  const [studioMode, setStudioMode] = useState<'pro' | 'classic'>('pro');
 
   // Step 1: Input & Configuration states
   const [promptText, setPromptText] = useState(() => {
@@ -359,33 +354,10 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Studio Mode Switcher in Pipeline Subheader */}
-            <div className="flex items-center bg-[#1c1b18] border border-[#3b3834] rounded-md p-0.5">
-              <button
-                type="button"
-                onClick={() => setStudioMode('pro')}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
-                  studioMode === 'pro'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Switch to Studio Pro (OMNIX Interactive Blocks)"
-              >
-                <Sparkles className="w-3 h-3 text-emerald-300" />
-                <span>Studio Pro (OMNIX)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setStudioMode('classic')}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
-                  studioMode === 'classic'
-                    ? 'bg-slate-700 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Switch to Classic Studio"
-              >
-                <span>Classic Studio</span>
-              </button>
+            {/* Presenton Studio Badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-[10px] font-mono text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Presenton Engine</span>
             </div>
 
             <button
@@ -398,33 +370,17 @@ export const PresentonSlidePipeline: React.FC<PresentonSlidePipelineProps> = ({
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {studioMode === 'pro' ? (
-            <PresentonSlideStudio
-              project={project}
-              artifact={currentArtifact}
-              passages={passages}
-              isDarkMode={isDarkMode}
-              onBack={onBack}
-              onArtifactUpdated={(updated) => {
-                setCurrentArtifact(updated);
-                if (onArtifactUpdated) onArtifactUpdated(updated);
-              }}
-              currentMode={studioMode}
-              onSwitchMode={setStudioMode}
-            />
-          ) : (
-            <SlideStudioView
-              project={project}
-              artifact={currentArtifact}
-              passages={passages}
-              isDarkMode={isDarkMode}
-              onBack={onBack}
-              onArtifactUpdated={(updated) => {
-                setCurrentArtifact(updated);
-                if (onArtifactUpdated) onArtifactUpdated(updated);
-              }}
-            />
-          )}
+          <PresentonSlideStudio
+            project={project}
+            artifact={currentArtifact}
+            passages={passages}
+            isDarkMode={isDarkMode}
+            onBack={onBack}
+            onArtifactUpdated={(updated) => {
+              setCurrentArtifact(updated);
+              if (onArtifactUpdated) onArtifactUpdated(updated);
+            }}
+          />
         </div>
       </div>
     );

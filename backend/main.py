@@ -101,6 +101,51 @@ async def generate_image_endpoint(payload: dict):
     return await generate_ai_image_async(prompt, style, title)
 
 
+@app.post("/v1/images/generations")
+async def openai_compatible_images_endpoint(payload: dict):
+    """OpenAI-compatible image generation route for slide generator and external tools."""
+    import time
+    import base64
+    from pathlib import Path
+    from backend.tools.slides.image_service import generate_ai_image_async
+
+    prompt = payload.get("prompt", "Educational illustration")
+    size_str = str(payload.get("size", "1024x1024"))
+    try:
+        parts = size_str.lower().split("x")
+        width = int(parts[0]) if len(parts) >= 2 else 1024
+        height = int(parts[1]) if len(parts) >= 2 else 768
+    except Exception:
+        width, height = 1024, 768
+
+    result = await generate_ai_image_async(
+        prompt=prompt,
+        style="scientific",
+        title=prompt[:60],
+        width=width,
+        height=height,
+    )
+
+    file_path = result.get("file_path")
+    b64_str = ""
+    if file_path and Path(file_path).exists():
+        with open(file_path, "rb") as f:
+            b64_str = base64.b64encode(f.read()).decode("utf-8")
+
+    img_url = f"http://host.docker.internal:8000{result.get('url')}"
+
+    return {
+        "created": int(time.time()),
+        "data": [
+            {
+                "url": img_url,
+                "b64_json": b64_str,
+                "revised_prompt": prompt,
+            }
+        ],
+    }
+
+
 @app.get("/api/health")
 async def health_check():
     """Basic health check endpoint."""

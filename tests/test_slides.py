@@ -321,9 +321,76 @@ def test_native_diagram_resolver_and_picture_embedding():
             out_path.unlink()
 
 
+def test_presenton_hydration_and_block_schema_persistence():
+    import subprocess
+    import json
+    from backend.tools.slides.slide_tool import SlideContent, SlideCard
+
+    # 1. Verify blocks schema field round-trip in SlideContent
+    blocks_data = [
+        {"id": "b1", "type": "header", "title": "Interactive Block 1"},
+        {"id": "b2", "type": "card", "title": "Interactive Card 2", "body": "Card description"}
+    ]
+    slide = SlideContent(
+        slide_number=1,
+        title="Block Pipeline Slide",
+        archetype="card_grid_3",
+        cards=[SlideCard(title="C1", body="B1")],
+        blocks=blocks_data
+    )
+    dumped = slide.model_dump()
+    assert "blocks" in dumped
+    assert dumped["blocks"] == blocks_data
+
+    reconstructed = SlideContent(**dumped)
+    assert reconstructed.blocks == blocks_data
+
+    # 2. Verify server-side template layout hydration and HTML rendering
+    # Landmark Layout 4 previously suffered from persistent "LOCATION & CONNECTIVITY"
+    input_payload = {
+        "template_id": "landmark",
+        "layout_id": "photo_backdrop_with_intro_and_staggered_cards_1941",
+        "slide": {
+            "slide_number": 2,
+            "title": "Quantum Cryptography and Entanglement",
+            "subtitle": "Secure Quantum Key Distribution",
+            "image_url": "/static/images/quantum_crypto_sim.png",
+            "cards": [
+                {"title": "BB84 Protocol", "body": "Polarization basis encoding for eavesdropping detection."},
+                {"title": "E91 Protocol", "body": "Entangled photon pairs utilizing Bell inequality violations."}
+            ]
+        }
+    }
+
+    result = subprocess.run(
+        ["node", "backend/tools/slides/render_layout_html.mjs"],
+        input=json.dumps(input_payload),
+        text=True,
+        capture_output=True,
+        check=True
+    )
+
+    rendered = json.loads(result.stdout)
+    assert "html" in rendered
+    html = rendered["html"]
+
+    # Verify "LOCATION & CONNECTIVITY" is 100% eliminated
+    assert "LOCATION & CONNECTIVITY" not in html
+    # Verify slide title was hydrated
+    assert "Quantum Cryptography and Entanglement" in html
+    # Verify cards were hydrated
+    assert "BB84 Protocol" in html
+    assert "Polarization basis encoding" in html
+    # Verify static URL replacement regex did NOT corrupt /static/images/
+    assert "/templates/landmark/static/images/" not in html
+    assert "/static/images/quantum_crypto_sim.png" in html
+    assert "replaceable_template_image.png" not in html
+
+
 if __name__ == "__main__":
     test_slide_tool_direct_execution()
     test_slide_tool_api()
     test_suggest_slide_edits_and_refine_card()
     test_multi_archetype_pptx_compiler()
     test_native_diagram_resolver_and_picture_embedding()
+    test_presenton_hydration_and_block_schema_persistence()

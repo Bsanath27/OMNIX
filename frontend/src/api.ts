@@ -372,4 +372,33 @@ export async function generateAIImage(
   return res.json();
 }
 
+export interface CapabilityRouteResponse {
+  capability: 'slides' | 'quizzes' | 'video' | 'diagrams';
+  topic: string;
+  title: string;
+  explanation: string;
+  parameters: Record<string, any>;
+}
+
+export async function routeCapabilityPrompt(
+  prompt: string,
+  preferredCapability: string = 'all',
+  projectId?: string
+): Promise<CapabilityRouteResponse> {
+  const res = await fetch('/api/tools/route', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      preferred_capability: preferredCapability,
+      project_id: projectId,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to route prompt');
+  }
+  return res.json();
+}
+
+
 

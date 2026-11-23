@@ -304,6 +304,7 @@ class SlideContent(BaseModel):
     chart_data: Optional[List[Dict[str, Any]]] = None
     html_content: Optional[str] = None
     template_layout_id: Optional[str] = None
+    blocks: Optional[List[Dict[str, Any]]] = None
 
 
 class SlideBrief(ToolBrief):

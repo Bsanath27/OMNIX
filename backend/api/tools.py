@@ -1,14 +1,154 @@
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import json
+import re
+import subprocess
+import httpx
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Query
 from backend.core.config import settings
 from backend.core.registry import registry, ExecutionContext
 from backend.core.models import Artifact, ToolBrief, ProjectManifest
 from backend.tools.ingestion.grounding import load_passages_from_json
+from backend.core.llm import call_llm, get_active_llm_provider, clean_topic_string, safe_json_loads
 
 router = APIRouter(prefix="/api/tools", tags=["Tools"])
+
+
+class CapabilityRoutingRequest(BaseModel):
+    prompt: str
+    preferred_capability: Optional[str] = "all"
+    project_id: Optional[str] = None
+
+
+class CapabilityRoutingResponse(BaseModel):
+    capability: str  # 'slides' | 'quizzes' | 'video' | 'diagrams'
+    topic: str
+    title: str
+    explanation: str
+    parameters: Dict[str, Any] = {}
+
+
+@router.post("/route", response_model=CapabilityRoutingResponse)
+async def route_capability_prompt(req: CapabilityRoutingRequest):
+    """
+    Main LLM capability routing engine:
+    Analyzes natural language teacher prompt and automatically decides whether
+    to invoke Slides, Quizzes, Video, or Diagrams, extracting clean topic and parameters.
+    """
+    raw_prompt = req.prompt.strip()
+    preferred = (req.preferred_capability or "all").lower().strip()
+
+    # If user explicitly locked onto a capability pill, respect it directly
+    if preferred in ["slides", "quizzes", "video", "diagrams"]:
+        topic = clean_topic_string(raw_prompt, fallback=raw_prompt or "Lesson Module")
+        return CapabilityRoutingResponse(
+            capability=preferred,
+            topic=topic,
+            title=topic,
+            explanation=f"Explicitly selected {preferred} capability.",
+            parameters={"n_slides": 6} if preferred == "slides" else {}
+        )
+
+    # Fast keyword heuristics to avoid LLM latency if obvious keywords exist
+    lower_prompt = raw_prompt.lower()
+
+    # Check for Quiz keywords
+    if any(k in lower_prompt for k in ["quiz", "mcq", "multiple choice", "exam", "assessment", "flashcard", "practice questions"]):
+        topic = re.sub(r'\b(quiz|mcqs?|tests?|exams?|assessments?|flashcards?|questions?|make|create|generate|a|an|the)\b', '', lower_prompt, flags=re.IGNORECASE).strip()
+        topic = clean_topic_string(topic, fallback=raw_prompt)
+        return CapabilityRoutingResponse(
+            capability="quizzes",
+            topic=topic or "Curriculum Assessment",
+            title=f"Quiz: {(topic or 'Curriculum Assessment').title()}",
+            explanation="Detected assessment/quiz keywords.",
+            parameters={"num_questions": 5, "difficulty": "intermediate"}
+        )
+
+    # Check for Video / Animation keywords
+    if any(k in lower_prompt for k in ["video", "animation", "manim", "narrated", "simulate", "motion explainer"]):
+        topic = re.sub(r'\b(video|animation|manim|narrated|explainer|make|create|generate|a|an|the)\b', '', lower_prompt, flags=re.IGNORECASE).strip()
+        topic = clean_topic_string(topic, fallback=raw_prompt)
+        return CapabilityRoutingResponse(
+            capability="video",
+            topic=topic or "STEM Video Explainer",
+            title=f"Video: {(topic or 'STEM Video Explainer').title()}",
+            explanation="Detected video/animation explainer keywords.",
+            parameters={}
+        )
+
+    # Check for Diagram / Mindmap keywords
+    if any(k in lower_prompt for k in ["diagram", "mindmap", "flowchart", "mermaid", "concept map", "hierarchy"]):
+        topic = re.sub(r'\b(diagram|mindmap|flowchart|mermaid|concept map|hierarchy|make|create|generate|a|an|the)\b', '', lower_prompt, flags=re.IGNORECASE).strip()
+        topic = clean_topic_string(topic, fallback=raw_prompt)
+        return CapabilityRoutingResponse(
+            capability="diagrams",
+            topic=topic or "Concept Mindmap",
+            title=f"Diagram: {(topic or 'Concept Mindmap').title()}",
+            explanation="Detected visual diagram/mindmap keywords.",
+            parameters={}
+        )
+
+    # If LLM is configured, call LLM to intelligently analyze nuances
+    llm_provider = get_active_llm_provider()
+    if llm_provider != "none" and raw_prompt:
+        try:
+            system_prompt = (
+                "You are the master routing intelligence for OMNIX, an educator platform.\n"
+                "Analyze the teacher's lesson prompt and choose the most effective delivery engine:\n"
+                "- 'slides': For presentations, slide decks, lectures, visual overviews, pitch decks, talk outlines, or general topic explanations.\n"
+                "- 'quizzes': For assessments, tests, multiple-choice questions (MCQs), flashcards, practice questions.\n"
+                "- 'video': For explainer animations, video lessons, Manim animations, narrated STEM walkthroughs.\n"
+                "- 'diagrams': For mindmaps, conceptual flowcharts, visual relationship maps.\n\n"
+                "Rules:\n"
+                "1. Default to 'slides' if the prompt is a general educational topic without explicit quiz or video keywords.\n"
+                "2. Extract a clean, concise topic title (strip imperative prefixes).\n"
+                "3. Return ONLY a valid JSON object matching:\n"
+                "{\n"
+                '  "capability": "slides" | "quizzes" | "video" | "diagrams",\n'
+                '  "topic": "Clean Concept Topic",\n'
+                '  "title": "Engaging Lesson Title",\n'
+                '  "explanation": "Brief reason for this choice",\n'
+                '  "parameters": {"n_slides": 6, "grade_level": "Grade 10"}\n'
+                "}"
+            )
+            response_str = await call_llm(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Classify and route this educational prompt: '{raw_prompt}'"}
+                ],
+                json_mode=True,
+                temperature=0.1,
+                max_tokens=256
+            )
+            if response_str:
+                data = safe_json_loads(response_str)
+                cap = str(data.get("capability", "slides")).lower()
+                if cap not in ["slides", "quizzes", "video", "diagrams"]:
+                    cap = "slides"
+                topic = data.get("topic") or clean_topic_string(raw_prompt)
+                title = data.get("title") or topic
+                explanation = data.get("explanation") or "Routed via AI intent classification."
+                params = data.get("parameters") or {}
+                return CapabilityRoutingResponse(
+                    capability=cap,
+                    topic=topic,
+                    title=title,
+                    explanation=explanation,
+                    parameters=params
+                )
+        except Exception:
+            pass
+
+    # Fallback default: slides (primary pedagogical format)
+    clean_topic = clean_topic_string(raw_prompt, fallback=raw_prompt or "Classroom Presentation")
+    return CapabilityRoutingResponse(
+        capability="slides",
+        topic=clean_topic,
+        title=clean_topic,
+        explanation="Defaulted to presentation slides for comprehensive topic explanation.",
+        parameters={"n_slides": 6}
+    )
 
 
 @router.get("", response_model=List[Dict[str, Any]])

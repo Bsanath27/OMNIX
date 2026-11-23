@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertCircle,
   Loader2,
+  ArrowLeft,
+  RotateCcw,
 } from 'lucide-react';
 import { ProjectManifest } from '../api';
 
@@ -87,6 +89,40 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
 
   return (
     <div className="relative h-screen w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
+      {/* Top Header Bar */}
+      <header className="h-12 px-4 border-b border-slate-800 bg-[#111318] flex items-center justify-between shrink-0 z-30">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 text-[#FF5C00]" />
+            <span>Back to OMNIX</span>
+          </button>
+          <div className="h-4 w-px bg-slate-800" />
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#FF5C00]" />
+            <h2 className="text-xs font-bold text-white truncate max-w-md">
+              {topicTitle}
+            </h2>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs">
+          <span className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-2.5 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Presenton Engine (Port 5001)
+          </span>
+          <button
+            onClick={handleReload}
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            title="Reload Studio Frame"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </header>
+
       {/* Main Full-App Embed Frame (100% Height & Width) */}
       <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden">
         {/* Loading Overlay */}
@@ -137,7 +173,7 @@ export const PresentonNativeEmbed: React.FC<PresentonNativeEmbedProps> = ({
         <iframe
           ref={iframeRef}
           src={iframeUrl}
-          title="Presenton Presentation Generator"
+          title="OMNIX Slide Studio"
           className="w-full h-full border-0"
           onLoad={() => setIsLoading(false)}
           allow="clipboard-read; clipboard-write; fullscreen"
