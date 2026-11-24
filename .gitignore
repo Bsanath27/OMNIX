@@ -63,5 +63,7 @@ data/golden_chapters/*
 *.zip
 media/
 output/
+playground/
+
 
 

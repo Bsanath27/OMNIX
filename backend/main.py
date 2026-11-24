@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 from backend.core.config import settings
-from backend.api import doctor, projects, tools
+from backend.api import doctor, projects, tools, video
 # Ensure tools are imported and registered
 import backend.tools.ingestion  # noqa
 import backend.tools.slides  # noqa
@@ -29,11 +29,17 @@ app.add_middleware(
 app.include_router(doctor.router)
 app.include_router(projects.router)
 app.include_router(tools.router)
+app.include_router(video.router)
 
 # Mount local image cache directory
 image_cache_dir = settings.ROOT_DIR / "output" / "image_cache"
 image_cache_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/images", StaticFiles(directory=image_cache_dir), name="static_images")
+
+# Mount local video directory
+video_dir = settings.ROOT_DIR / "output" / "videos"
+video_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/videos", StaticFiles(directory=video_dir), name="static_videos")
 
 # Mount Presenton 16-theme template catalog static assets
 templates_catalog_dir = settings.ROOT_DIR / "backend" / "templates" / "catalog"

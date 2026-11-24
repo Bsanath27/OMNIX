@@ -987,12 +987,14 @@ class SlideTool(BaseTool):
                 s.grounding.verified = verified
                 grounding_refs.append(s.grounding)
 
+        files_list = [str(pptx_path.relative_to(p_dir)), str(json_path.relative_to(p_dir))]
+
         return Artifact(
             id=f"art-slides-{brief.topic[:10].replace(' ', '_').lower()}",
             tool_name=self.name,
             project_id=ctx.project_id,
             status=ArtifactStatus.NEEDS_REVIEW,
-            files=[str(pptx_path.relative_to(p_dir)), str(json_path.relative_to(p_dir))],
+            files=files_list,
             source_data=preview_data,
             grounding_refs=grounding_refs,
             cost_estimate_usd=0.0,

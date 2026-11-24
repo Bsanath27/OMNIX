@@ -563,7 +563,7 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
                 "add_teacher_tip": "Add a practical, actionable teaching tip into speaker notes.",
                 "add_discussion_question": "Add a peer discussion think-pair-share prompt to test student comprehension.",
                 "simplify": "Simplify technical jargon into learner-friendly academic terminology.",
-                "suggest_layout": "Propose the most effective Presenton Smart Layout archetype (e.g. timeline, before_after, pros_cons, pyramid_hierarchy, circular_hub, chart_data) based on the conceptual structure of the content."
+                "suggest_layout": "Propose the most effective Presenton Smart Layout archetype (e.g. process_cycle, timeline, sequence_steps, before_after, pyramid_hierarchy, circular_hub, chart_data) based on the conceptual structure of the content. For sequential steps, cycles, phases, or processes, always use 'process_cycle', 'timeline', or 'sequence_steps'."
             }.get(inst, f"Refine the slide: {inst}")
 
             refine_prompt = (
@@ -574,7 +574,7 @@ async def suggest_slide_edits(project_id: str, req: SuggestSlideEditsRequest) ->
                 f"1. Return ONLY a valid JSON object with keys:\n"
                 f"   - 'suggested_slide': The refined slide object with updated 'title', 'cards', 'bullets', 'speaker_notes', 'archetype', and 'image_query'.\n"
                 f"   - 'explanation': A 1-2 sentence explanation of the refinements made.\n"
-                f"2. 'archetype': You MAY propose a different archetype if the conceptual content better fits another layout (e.g., 'timeline' for chronological stages, 'before_after' for problem/solution, 'pyramid_hierarchy' for tiers, 'chart_data' for statistics, 'editorial_quote' for core thesis/axiom, 'circular_hub' for core + pillars). If you change it, explain in 'explanation'.\n"
+                f"2. 'archetype': If the content describes cycles, phases, processes, stages, or steps (e.g. titles with 'cycle', 'process', 'phases', 'steps'), you MUST choose 'process_cycle', 'timeline', or 'sequence_steps'. For comparisons, use 'before_after' or 'split_comparison'. For hierarchy, use 'pyramid_hierarchy'. Explain any change in 'explanation'.\n"
                 f"3. 'image_query': If the focus shifts, provide a tailored 2-4 word scientific/educational image search query.\n"
                 f"4. Ensure each card has a punchy 'badge', meaningful 'title' (2-4 words), and clear 'body'.\n"
                 f"5. Strictly avoid placeholder words or repetitive boilerplate."

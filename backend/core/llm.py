@@ -62,18 +62,20 @@ def clean_topic_string(raw: str, fallback: str = "Lesson Presentation") -> str:
 
 
 def safe_json_loads(s: str) -> Any:
-    """Robust JSON parser that repairs common LLM syntax issues (invalid escapes, trailing commas, markdown wrappers)."""
+    """Robust JSON parser that repairs common LLM syntax issues (invalid escapes, trailing commas, markdown wrappers, thinking tags)."""
     if not s or not s.strip():
         return {}
     clean = s.strip()
+    # Strip thinking tags from reasoning models
+    clean = re.sub(r"<think>[\s\S]*?</think>", "", clean, flags=re.IGNORECASE).strip()
     if clean.startswith("```"):
         clean = re.sub(r"^```(?:json)?\s*", "", clean)
         clean = re.sub(r"\s*```$", "", clean)
 
-    # First attempt: direct load
+    # First attempt: direct load with non-strict control characters allowed
     try:
-        return json.loads(clean)
-    except json.JSONDecodeError:
+        return json.loads(clean, strict=False)
+    except Exception:
         pass
 
     # Clean trailing commas: e.g. [1, 2, ] -> [1, 2] or {"a": 1, } -> {"a": 1}
@@ -81,7 +83,7 @@ def safe_json_loads(s: str) -> Any:
     # Fix backslash escapes that aren't valid JSON escapes
     fixed = re.sub(r'\\([^"\\/bfnrtu])', r'\1', fixed)
     try:
-        return json.loads(fixed)
+        return json.loads(fixed, strict=False)
     except Exception:
         pass
 
@@ -92,7 +94,7 @@ def safe_json_loads(s: str) -> Any:
         inner = re.sub(r',\s*([}\]])', r'\1', inner)
         inner = re.sub(r'\\([^"\\/bfnrtu])', r'\1', inner)
         try:
-            return json.loads(inner)
+            return json.loads(inner, strict=False)
         except Exception as e:
             logger.warning(f"safe_json_loads fallback failed: {e}")
             raise
@@ -133,50 +135,69 @@ async def call_llm(
     for provider in providers:
         for attempt in range(retries + 1):
             try:
+                http_client = httpx.Client(verify=certifi.where(), timeout=httpx.Timeout(60.0, connect=10.0))
                 if provider == "google":
                     from openai import OpenAI
-                    http_client = httpx.Client(verify=certifi.where())
                     client = OpenAI(
                         api_key=settings.GOOGLE_API_KEY.strip(),
                         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-                        http_client=http_client
+                        http_client=http_client,
+                        max_retries=0,
                     )
-                    model = settings.GOOGLE_MODEL.replace("models/", "").strip() or "gemini-3.5-flash-lite"
-                    resp = client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        response_format={"type": "json_object"} if json_mode else None
-                    )
+                    model = (settings.GOOGLE_MODEL or "").replace("models/", "").strip() or "gemini-3.5-flash-lite"
+                    try:
+                        resp = client.chat.completions.create(
+                            model=model,
+                            messages=messages,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            response_format={"type": "json_object"} if json_mode else None
+                        )
+                    except Exception as ge:
+                        # Google OpenAI endpoint occasionally returns 503 or 400 when response_format is json_object
+                        if json_mode and ("503" in str(ge) or "400" in str(ge) or "unsupported" in str(ge).lower()):
+                            logger.warning(f"Google JSON-mode request hit {ge}; retrying without response_format...")
+                            resp = client.chat.completions.create(
+                                model=model,
+                                messages=messages,
+                                temperature=temperature,
+                                max_tokens=max_tokens,
+                            )
+                        else:
+                            raise ge
+
                     content = resp.choices[0].message.content
                     if content:
                         return content
 
                 elif provider == "openrouter":
                     from openai import OpenAI
-                    http_client = httpx.Client(verify=certifi.where())
                     client = OpenAI(
                         api_key=settings.OPENROUTER_API_KEY.strip(),
                         base_url="https://openrouter.ai/api/v1",
-                        http_client=http_client
+                        http_client=http_client,
+                        max_retries=0,
                     )
-                    model = settings.OPENROUTER_MODEL.strip() or "nvidia/nemotron-3.5-lightning:free"
+                    model = (settings.OPENROUTER_MODEL or "").strip() or "nvidia/nemotron-3.5-lightning:free"
                     resp = client.chat.completions.create(
                         model=model,
                         messages=messages,
                         temperature=temperature,
-                        max_tokens=max_tokens,
+                        max_tokens=max(max_tokens, 2048),
                         response_format={"type": "json_object"} if json_mode else None
                     )
-                    content = resp.choices[0].message.content
+                    choice = resp.choices[0]
+                    content = choice.message.content
+                    if not content and hasattr(choice.message, "reasoning") and choice.message.reasoning:
+                        # Some reasoning models put output in reasoning if max_tokens was tight
+                        content = choice.message.reasoning
                     if content:
                         return content
 
                 elif provider == "groq":
                     from groq import Groq
-                    client = Groq(api_key=settings.GROQ_API_KEY.strip())
-                    model = settings.GROQ_MODEL.replace("groq/", "").strip() or "llama-3.3-70b-versatile"
+                    client = Groq(api_key=settings.GROQ_API_KEY.strip(), timeout=60.0)
+                    model = (settings.GROQ_MODEL or "").replace("groq/", "").strip() or "llama-3.3-70b-versatile"
                     resp = client.chat.completions.create(
                         model=model,
                         messages=messages,
@@ -190,9 +211,9 @@ async def call_llm(
 
                 elif provider == "openai":
                     from openai import OpenAI
-                    client = OpenAI(api_key=settings.OPENAI_API_KEY.strip())
+                    client = OpenAI(api_key=settings.OPENAI_API_KEY.strip(), http_client=http_client, max_retries=0)
                     resp = client.chat.completions.create(
-                        model=settings.OPENAI_MODEL.strip() or "gpt-4o",
+                        model=(settings.OPENAI_MODEL or "").strip() or "gpt-4o",
                         messages=messages,
                         temperature=temperature,
                         max_tokens=max_tokens,
@@ -204,9 +225,10 @@ async def call_llm(
 
             except Exception as e:
                 err_msg = str(e)
-                if ("503" in err_msg or "429" in err_msg or "overloaded" in err_msg.lower()) and attempt < retries:
-                    logger.warning(f"Transient error from {provider} (attempt {attempt+1}/{retries+1}): {err_msg}. Retrying in 1.2s...")
-                    await asyncio.sleep(1.2)
+                # On 503/429/overloaded, retry at most once with quick 0.8s backoff, then failover immediately
+                if ("503" in err_msg or "429" in err_msg or "overloaded" in err_msg.lower()) and attempt == 0 and retries > 0:
+                    logger.warning(f"Transient error from {provider} (attempt 1): {err_msg}. Retrying once...")
+                    await asyncio.sleep(0.8)
                     continue
                 logger.error(f"Provider '{provider}' failed: {e}. Trying next available provider...")
                 break

@@ -408,5 +408,138 @@ export async function routeCapabilityPrompt(
   return res.json();
 }
 
+// ---------------- Video Studio Types & APIs (Leap-style Workflow) ----------------
+
+export interface SceneItem {
+  id: number;
+  title: string;
+  narration: string;
+  visual_concept: string;
+  diffusion_prompt: string;
+  animation_type: 'diffusion' | 'manim';
+  duration_seconds: number;
+  status: 'pending' | 'approved' | 'denied';
+}
+
+export interface PlanScriptResponse {
+  title: string;
+  summary: string;
+  target_duration: number;
+  scenes: SceneItem[];
+}
+
+export interface VideoJobStatus {
+  job_id: string;
+  title: string;
+  status: 'processing' | 'completed' | 'failed';
+  progress: number;
+  current_step: string;
+  video_url?: string;
+  thumbnail_url?: string;
+  error?: string;
+  duration?: number;
+  shots_count?: number;
+}
+
+export async function planVideoScript(
+  topic: string,
+  level: string = 'normal',
+  style: string = 'diffusion',
+  targetDuration: number = 60
+): Promise<PlanScriptResponse> {
+  const res = await fetch('/api/video/plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      topic,
+      level,
+      style,
+      target_duration: targetDuration,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to plan script' }));
+    throw new Error(err.detail || 'Failed to plan video script');
+  }
+  return res.json();
+}
+
+export async function regenerateVideoScene(
+  scene: SceneItem,
+  feedback?: string
+): Promise<SceneItem> {
+  const res = await fetch('/api/video/regenerate-scene', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scene, feedback }),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to regenerate scene');
+  }
+  return res.json();
+}
+
+export async function startBatchVideoGeneration(
+  title: string,
+  scenes: SceneItem[]
+): Promise<{ job_id: string; status: string }> {
+  const res = await fetch('/api/video/batch-generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, scenes }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to start generation' }));
+    throw new Error(err.detail || 'Failed to start batch generation');
+  }
+  return res.json();
+}
+
+export async function getVideoJobStatus(jobId: string): Promise<VideoJobStatus> {
+  const res = await fetch(`/api/video/jobs/${jobId}`);
+  if (!res.ok) {
+    throw new Error('Failed to fetch job status');
+  }
+  return res.json();
+}
+
+export interface GeneratedVideo {
+  id: string;
+  filename: string;
+  title: string;
+  video_url: string;
+  thumbnail_url?: string;
+  size_bytes: number;
+  duration_seconds: number;
+  created_at: string;
+}
+
+export async function fetchGeneratedVideos(): Promise<GeneratedVideo[]> {
+  try {
+    const res = await fetch('/api/video/list');
+    if (!res.ok) {
+      return [];
+    }
+    return res.json();
+  } catch (err) {
+    console.error('Failed to fetch generated videos', err);
+    return [];
+  }
+}
+
+export async function deleteGeneratedVideo(filename: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/video/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Failed to delete generated video', err);
+    return false;
+  }
+}
+
+
+
 
 
