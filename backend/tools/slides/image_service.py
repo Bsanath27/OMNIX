@@ -124,10 +124,11 @@ def fetch_from_ai_diffusion(prompt: str, width: int = 1024, height: int = 768) -
     """Generate high-quality AI visual via fast diffusion engine with SSL verification."""
     ctx = get_ssl_context()
     encoded_prompt = urllib.parse.quote(prompt[:120])
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&nologo=true"
+    # Pass model=flux to utilize the free Flux diffusion engine without 402 payment errors
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, context=ctx, timeout=9) as resp:
+        with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
             if resp.status == 200:
                 raw = resp.read()
                 if len(raw) > 4000:

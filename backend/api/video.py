@@ -318,13 +318,16 @@ async def execute_batch_generation(job_id: str, title: str, scenes: List[SceneIt
     for d in [job_dir, raw_dir, final_shots_dir]:
         d.mkdir(parents=True, exist_ok=True)
 
-    hf_token = os.getenv("HF_TOKEN")
+    hf_token = (settings.HF_TOKEN or os.getenv("HF_TOKEN") or "").strip()
     client = None
     if hf_token:
         try:
             from gradio_client import Client
+            logger.info("Initializing Lightricks LTX Video Distilled cloud diffusion client...")
             client = Client("Lightricks/ltx-video-distilled", token=hf_token)
+            logger.info("Cloud diffusion client ready.")
         except Exception as e:
+            logger.warning(f"Cloud diffusion initialization warning: {e}")
             JOBS[job_id]["error"] = f"Cloud diffusion initialization: {e}"
 
     total_scenes = len(scenes)
@@ -335,19 +338,20 @@ async def execute_batch_generation(job_id: str, title: str, scenes: List[SceneIt
             JOBS[job_id]["current_step"] = f"Rendering shot {idx+1}/{total_scenes}: {scene.title}"
             JOBS[job_id]["progress"] = round((idx / total_scenes) * 80, 1)
 
-            # 1. Video Clip Generation
+            # 1. Video Clip Generation via LTX-Video Cloud Diffusion
             raw_vid = raw_dir / f"raw_shot_{scene.id:02d}.mp4"
             if client and not raw_vid.exists():
                 try:
+                    logger.info(f"Generating diffusion video for Shot {scene.id}: {scene.diffusion_prompt[:60]}...")
                     res, _ = client.predict(
                         prompt=scene.diffusion_prompt,
-                        negative_prompt="worst quality, blurry, distorted, watermark",
+                        negative_prompt="worst quality, blurry, distorted, jittery, watermark",
                         input_image_filepath=None,
                         input_video_filepath=None,
                         height_ui=512.0,
                         width_ui=704.0,
                         mode="text-to-video",
-                        duration_ui=4.0,
+                        duration_ui=2.0,
                         ui_frames_to_use=9.0,
                         seed_ui=scene.id * 13 + 42,
                         randomize_seed=True,
@@ -355,10 +359,19 @@ async def execute_batch_generation(job_id: str, title: str, scenes: List[SceneIt
                         improve_texture_flag=True,
                         api_name="/text_to_video",
                     )
-                    src = res["video"] if isinstance(res, dict) else res
-                    shutil.copy(src, raw_vid)
+                    if isinstance(res, dict):
+                        src = res.get("video")
+                    elif isinstance(res, (list, tuple)) and len(res) > 0:
+                        first = res[0]
+                        src = first.get("video") if isinstance(first, dict) else first
+                    else:
+                        src = res
+
+                    if src and Path(src).exists():
+                        shutil.copy(src, raw_vid)
+                        logger.info(f"Shot {scene.id} diffusion clip saved ({raw_vid.stat().st_size} bytes).")
                 except Exception as e:
-                    print(f"Diffusion API notice: {e}, using dynamic visual synthesis")
+                    logger.warning(f"Diffusion API notice for Shot {scene.id}: {e}, using dynamic visual synthesis")
 
             # If raw_vid was not generated from diffusion API, synthesize an authentic visual scene
             if not raw_vid.exists() or raw_vid.stat().st_size < 1000:
@@ -369,7 +382,7 @@ async def execute_batch_generation(job_id: str, title: str, scenes: List[SceneIt
                         "-f",
                         "lavfi",
                         "-i",
-                        "color=c=0x0a0f1c:s=704x512:d=4.0,fps=25",
+                        "color=c=0x0f172a:s=704x512:d=4.0,fps=25",
                         "-c:v",
                         "libx264",
                         "-pix_fmt",

@@ -1,6 +1,12 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Ensure .env is explicitly populated into os.environ for third-party libraries (e.g. gradio_client, huggingface_hub)
+_env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
 
 
 class Settings(BaseSettings):
@@ -41,6 +47,7 @@ class Settings(BaseSettings):
     # Image & Video Providers
     FAL_KEY: str = ""
     REPLICATE_API_TOKEN: str = ""
+    HF_TOKEN: str = ""
 
     # TTS Settings (kokoro-onnx on CPU)
     TTS_MODEL_PATH: str = ""
