@@ -5,16 +5,15 @@ import {
   createProject,
   deleteProject,
   uploadChapterFile,
+  fetchPassages,
   fetchTools,
   runTool,
   routeCapabilityPrompt,
-  fetchGeneratedVideos,
-  deleteGeneratedVideo,
   ProjectManifest,
   Artifact,
   ToolMetadata,
-  GeneratedVideo,
 } from '../api';
+import { ArtifactCard } from './ArtifactCard';
 import { DoctorBanner } from './DoctorBanner';
 import {
   Home,
@@ -28,10 +27,10 @@ import {
   CheckCircle2,
   Sun,
   Moon,
+  Copy,
   ChevronRight,
   Presentation,
   Video,
-  Film,
   FileQuestion,
   Network,
   FileText,
@@ -45,15 +44,10 @@ import {
   Download,
   Paperclip,
   Trash2,
-  Play,
-  Layers,
-  Clock,
-  Eye,
-  RotateCcw,
+  Film,
 } from 'lucide-react';
 import { PresentonNativeEmbed } from './PresentonNativeEmbed';
 import { VideoStudioView } from './video/VideoStudioView';
-import { themes, ThemeName } from '../lib/presentonThemes';
 
 type NavView = 'home' | 'tools' | 'library' | 'settings' | 'studio' | 'video';
 type CapabilityType = 'all' | 'slides' | 'video' | 'quizzes' | 'diagrams';
@@ -107,30 +101,18 @@ export const ChapterDashboard: React.FC = () => {
   }, [isDarkMode]);
 
 
-  // Project states
+  // Project & Ingestion states
   const [projects, setProjects] = useState<ProjectManifest[]>([]);
   const [selectedProject, setSelectedProject] = useState<ProjectManifest | null>(null);
-  
-  // Library Asset Gallery states
-  const [libraryFilter, setLibraryFilter] = useState<'all' | 'video' | 'slides' | 'quizzes' | 'diagrams'>('all');
-  const [librarySearch, setLibrarySearch] = useState('');
-  const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'title'>('newest');
-  const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
-  const [activeVideoModal, setActiveVideoModal] = useState<GeneratedVideo | { title: string; video_url: string; filename?: string } | null>(null);
-  const [activeQuizModal, setActiveQuizModal] = useState<{
-    title: string;
-    items: Array<{
-      question: string;
-      options: string[];
-      correct_answer: any;
-      explanation?: string;
-      grounding?: { passage_id?: string; quote?: string };
-    }>;
-    currentIndex: number;
-    selectedOption: number | null;
-    isAnswered: boolean;
-    score: number;
-  } | null>(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [projectSearch, setProjectSearch] = useState('');
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'slides' | 'grounded' | 'quizzes'>('all');
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Passages & search states
+  const [passages, setPassages] = useState<Record<string, string>>({});
+  const [passageSearch, setPassageSearch] = useState('');
+  const [copiedPassageId, setCopiedPassageId] = useState<string | null>(null);
 
   // Conversational prompt & capability states
   const [selectedCapability, setSelectedCapability] = useState<CapabilityType>('all');
@@ -154,25 +136,18 @@ export const ChapterDashboard: React.FC = () => {
   const [registeredTools, setRegisteredTools] = useState<ToolMetadata[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const libraryFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load projects, dynamic tools, and generated videos on startup
+  // Load projects and dynamic tools on startup
   useEffect(() => {
     loadProjects();
     fetchTools().then(setRegisteredTools).catch(() => []);
-    fetchGeneratedVideos().then(setGeneratedVideos).catch(() => []);
   }, []);
 
-  // Reload assets whenever entering Library view
-  useEffect(() => {
-    if (activeView === 'library') {
-      fetchProjects().then(setProjects).catch(console.error);
-      fetchGeneratedVideos().then(setGeneratedVideos).catch(console.error);
-    }
-  }, [activeView]);
-
-  // When project changes, load its artifacts
+  // When project changes, load its passages and artifacts
   useEffect(() => {
     if (selectedProject) {
+      fetchPassages(selectedProject.project_id).then(setPassages);
       fetchProject(selectedProject.project_id).then((p) => {
         if (p.artifacts) {
           const sorted = Object.values(p.artifacts).sort(
@@ -184,6 +159,7 @@ export const ChapterDashboard: React.FC = () => {
         }
       });
     } else {
+      setPassages({});
       setArtifacts([]);
     }
   }, [selectedProject?.project_id]);
@@ -245,10 +221,39 @@ export const ChapterDashboard: React.FC = () => {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    setIsUploading(true);
+    try {
+      let targetProj = selectedProject;
+      if (!targetProj) {
+        const fallbackName = file.name.replace(/\.[^/.]+$/, '');
+        targetProj = await handleCreateProject(fallbackName);
+      }
+      if (targetProj) {
+        await uploadChapterFile(targetProj.project_id, file);
+        const updated = await fetchProject(targetProj.project_id);
+        setSelectedProject(updated);
+        const newPassages = await fetchPassages(targetProj.project_id);
+        setPassages(newPassages);
+      }
+    } finally {
+      setIsUploading(false);
+      if (libraryFileInputRef.current) libraryFileInputRef.current.value = '';
+    }
+  };
+
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
     }
+  };
+
+  const copyPassageRef = (pId: string) => {
+    navigator.clipboard.writeText(`[${pId}]`);
+    setCopiedPassageId(pId);
+    setTimeout(() => setCopiedPassageId(null), 1500);
   };
 
   const handleSendPrompt = async (forcedTopic?: string) => {
@@ -281,6 +286,8 @@ export const ChapterDashboard: React.FC = () => {
         await uploadChapterFile(currentProj.project_id, attachedFile);
         const updated = await fetchProject(currentProj.project_id);
         setSelectedProject(updated);
+        const newPassages = await fetchPassages(currentProj.project_id);
+        setPassages(newPassages);
         setAttachedFile(null);
       }
 
@@ -292,7 +299,7 @@ export const ChapterDashboard: React.FC = () => {
         return;
       }
 
-      if (selectedCapability === 'video' || decision.capability === 'video') {
+      if (decision.capability === 'video') {
         setSelectedProject(currentProj);
         setPromptText(topicToUse);
         setActiveView('video');
@@ -330,6 +337,47 @@ export const ChapterDashboard: React.FC = () => {
       setIsGenerating(false);
     }
   };
+
+  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    try {
+      await deleteProject(projectId);
+      setProjects((prev) => prev.filter((p) => p.project_id !== projectId));
+      if (selectedProject?.project_id === projectId) {
+        setSelectedProject(null);
+        setArtifacts([]);
+        setPassages({});
+      }
+    } catch (err: any) {
+      alert(`Failed to delete project: ${err.message}`);
+    }
+  };
+
+  const filteredPassages = Object.entries(passages).filter(([id, text]) => {
+    const q = passageSearch.toLowerCase();
+    return id.toLowerCase().includes(q) || text.toLowerCase().includes(q);
+  });
+
+  const filteredProjects = projects.filter((p) => {
+    const q = projectSearch.toLowerCase();
+    const matchesSearch = p.name.toLowerCase().includes(q) || (p.source_filename && p.source_filename.toLowerCase().includes(q));
+    if (!matchesSearch) return false;
+
+    if (libraryFilter === 'slides') {
+      return (
+        p.project_id.startsWith('pres-') ||
+        (p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'slides'))
+      );
+    }
+    if (libraryFilter === 'grounded') {
+      return Boolean(p.source_filename);
+    }
+    if (libraryFilter === 'quizzes') {
+      return Boolean(p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'quizzes'));
+    }
+    return true;
+  });
 
   // Render Home View: Replit / Lovable / Bolt AI-First Hero Creator
   const renderHomeView = () => {
@@ -864,12 +912,8 @@ export const ChapterDashboard: React.FC = () => {
                   <span className="text-[11px] text-slate-400 font-mono">Status: Ready</span>
                   <button
                     onClick={() => {
-                      if (tool.id === 'video') {
-                        setActiveView('video');
-                      } else {
-                        setSelectedCapability(tool.capability);
-                        setActiveView('home');
-                      }
+                      setSelectedCapability(tool.capability);
+                      setActiveView('home');
                     }}
                     className="text-xs px-3 py-1.5 rounded-lg bg-[#FF5C00] hover:bg-[#e05200] text-white font-medium flex items-center gap-1 transition-transform active:scale-95"
                   >
@@ -885,157 +929,17 @@ export const ChapterDashboard: React.FC = () => {
     );
   };
 
-  // Render Library View: Clean Deliverables Wireframe showing ONLY genuine user-generated assets
+  // Render Library View: Dedicated 2-Column Pedagogical Workspace for Projects & Deliverables
   const renderLibraryView = () => {
-    // Collect genuine assets across projects and video studio
-    const libraryAssets: Array<{
-      id: string;
-      type: 'video' | 'slides' | 'quizzes' | 'diagrams';
-      title: string;
-      projectName?: string;
-      projectId?: string;
-      createdAt: string;
-      status: string;
-      duration?: string;
-      itemCount?: number;
-      theme?: string;
-      videoUrl?: string;
-      thumbnailUrl?: string;
-      rawArtifact?: Artifact;
-      videoData?: GeneratedVideo;
-      files?: string[];
-      sourceData?: any;
-    }> = [];
-
-    // 1. Standalone generated videos from Video Studio
-    generatedVideos.forEach((v) => {
-      libraryAssets.push({
-        id: `vid-${v.id}`,
-        type: 'video',
-        title: v.title,
-        projectName: 'Video Studio',
-        createdAt: v.created_at,
-        status: 'completed',
-        duration: `${Math.floor(v.duration_seconds / 60)}:${Math.round(v.duration_seconds % 60).toString().padStart(2, '0')}`,
-        videoUrl: v.video_url,
-        thumbnailUrl: v.thumbnail_url,
-        videoData: v,
-        files: [v.filename],
-      });
-    });
-
-    // 2. Real project artifacts (slide decks, quizzes, diagrams, project videos)
-    projects.forEach((p) => {
-      if (!p.artifacts) return;
-      Object.values(p.artifacts).forEach((art) => {
-        const rawTool = art.tool_name?.toLowerCase();
-        let type: 'video' | 'slides' | 'quizzes' | 'diagrams' = 'slides';
-        if (rawTool === 'video') type = 'video';
-        else if (rawTool === 'quizzes' || rawTool === 'quiz') type = 'quizzes';
-        else if (rawTool === 'diagrams' || rawTool === 'diagram') type = 'diagrams';
-        else type = 'slides';
-
-        // Prevent duplicate video entries if already collected from generatedVideos
-        if (type === 'video' && libraryAssets.some((item) => item.videoUrl?.includes(art.id) || item.id.includes(art.id))) {
-          return;
-        }
-
-        const title = art.source_data?.title || p.name || 'Untitled Deliverable';
-        let itemCount = 0;
-        let theme = art.source_data?.theme || undefined;
-        let slideThumbnail = art.source_data?.slides?.[0]?.cards?.find((c: any) => c.image_url)?.image_url
-          || art.source_data?.slides?.[0]?.image_url
-          || art.source_data?.image_url;
-
-        if (type === 'slides') {
-          itemCount = art.source_data?.slides?.length || 0;
-        } else if (type === 'quizzes') {
-          itemCount = art.source_data?.items?.length || art.source_data?.questions?.length || 0;
-        }
-
-        libraryAssets.push({
-          id: art.id,
-          type,
-          title,
-          projectName: p.name,
-          projectId: p.project_id,
-          createdAt: art.created_at || art.updated_at || p.created_at,
-          status: art.status || 'completed',
-          itemCount,
-          theme,
-          thumbnailUrl: slideThumbnail,
-          rawArtifact: art,
-          files: art.files || [],
-          sourceData: art.source_data,
-        });
-      });
-    });
-
-    // Category live counts
-    const counts = {
-      all: libraryAssets.length,
-      video: libraryAssets.filter((a) => a.type === 'video').length,
-      slides: libraryAssets.filter((a) => a.type === 'slides').length,
-      quizzes: libraryAssets.filter((a) => a.type === 'quizzes').length,
-      diagrams: libraryAssets.filter((a) => a.type === 'diagrams').length,
-    };
-
-    // Filter and sort
-    const filteredAssets = libraryAssets
-      .filter((a) => {
-        if (libraryFilter !== 'all' && a.type !== libraryFilter) return false;
-        if (!librarySearch.trim()) return true;
-        const q = librarySearch.toLowerCase();
-        return (
-          a.title.toLowerCase().includes(q) ||
-          (a.projectName && a.projectName.toLowerCase().includes(q)) ||
-          (a.theme && a.theme.toLowerCase().includes(q))
-        );
-      })
-      .sort((a, b) => {
-        if (librarySort === 'oldest') {
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        }
-        if (librarySort === 'title') {
-          return a.title.localeCompare(b.title);
-        }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-
-    const handleDeleteAsset = async (asset: typeof libraryAssets[0], e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!window.confirm(`Are you sure you want to delete "${asset.title}"?`)) return;
-
-      if (asset.type === 'video' && asset.videoData?.filename) {
-        const ok = await deleteGeneratedVideo(asset.videoData.filename);
-        if (ok) {
-          setGeneratedVideos((prev) => prev.filter((v) => v.filename !== asset.videoData?.filename));
-        }
-      } else if (asset.projectId) {
-        await deleteProject(asset.projectId);
-        setProjects((prev) => prev.filter((p) => p.project_id !== asset.projectId));
-        if (selectedProject?.project_id === asset.projectId) {
-          setSelectedProject(null);
-          setArtifacts([]);
-        }
-      }
-    };
-
-    const handleOpenInStudio = (asset: typeof libraryAssets[0]) => {
-      if (asset.type === 'video') {
-        setPromptText(asset.title);
-        setActiveView('video');
-      } else if (asset.type === 'slides') {
-        const matchedProj = projects.find((p) => p.project_id === asset.projectId) || null;
-        if (matchedProj) {
-          setSelectedProject(matchedProj);
-        }
-        if (asset.rawArtifact) {
-          setSelectedSlideArtifact(asset.rawArtifact);
-        }
-        setActiveView('studio');
-      }
-    };
+    const slideArtifact = selectedProject ? (
+      artifacts.find(a => a.tool_name === 'slides') ||
+      (selectedProject.artifacts && Object.values(selectedProject.artifacts).find(a => a.tool_name === 'slides'))
+    ) : null;
+    const presentonUrl = slideArtifact?.source_data?.presenton_url || (
+      slideArtifact?.source_data?.presentation_id
+        ? `http://localhost:5001/presentation?id=${slideArtifact.source_data.presentation_id}`
+        : null
+    );
 
     return (
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 flex-1 flex flex-col">
@@ -1045,748 +949,389 @@ export const ChapterDashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <BookOpen className="w-6 h-6 text-[#FF5C00]" />
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Generated <span className="text-[#FF5C00]">Assets Library</span>
+                Projects & <span className="text-[#FF5C00]">Deliverables Library</span>
               </h2>
-              <span className="text-xs px-2.5 py-0.5 rounded-full font-mono font-bold bg-[#FF5C00]/10 text-[#FF5C00] border border-[#FF5C00]/20">
-                {counts.all} {counts.all === 1 ? 'Deliverable' : 'Deliverables'}
-              </span>
             </div>
             <p className={`text-xs sm:text-sm mt-1 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-              Only your genuine user-generated learning materials across videos, presentations, quizzes, and diagrams.
+              Keep track of all created projects, launch slide presentations, inspect passages, and review learning materials.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveView('video')}
-              className="text-xs px-3.5 py-2 rounded-xl border border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 font-semibold flex items-center gap-1.5 transition-colors"
-            >
-              <Film className="w-3.5 h-3.5" />
-              <span>Create Video</span>
-            </button>
-            <button
-              onClick={() => setActiveView('studio')}
+              onClick={() => libraryFileInputRef.current?.click()}
               className="text-xs px-4 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              <span>Create Presentation</span>
+              <span>{isUploading ? 'Extracting File...' : 'Attach Document'}</span>
             </button>
+            <input
+              type="file"
+              ref={libraryFileInputRef}
+              accept=".pdf,.docx,.txt"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
           </div>
         </div>
 
-        {/* Controls Bar: Category Pills + Search & Sort */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Category Tabs */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-x-auto text-xs font-semibold">
-            <button
-              onClick={() => setLibraryFilter('all')}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                libraryFilter === 'all'
-                  ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>All ({counts.all})</span>
-            </button>
+        {/* 2-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-start">
+          {/* Column 1: Projects Management (Left 4 cols) */}
+          <div className={`lg:col-span-4 rounded-2xl border p-5 space-y-4 ${
+            isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                All Projects ({projects.length})
+              </span>
+            </div>
 
-            <button
-              onClick={() => setLibraryFilter('video')}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                libraryFilter === 'video'
-                  ? 'bg-white dark:bg-slate-800 shadow-sm text-purple-500'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Film className="w-3.5 h-3.5" />
-              <span>Videos ({counts.video})</span>
-            </button>
+            {/* Quick Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-semibold">
+              <button
+                onClick={() => setLibraryFilter('all')}
+                className={`flex-1 py-1 rounded-lg transition-all ${
+                  libraryFilter === 'all'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setLibraryFilter('slides')}
+                className={`flex-1 py-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  libraryFilter === 'slides'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Presentation className="w-3 h-3" />
+                <span>Slides</span>
+              </button>
+              <button
+                onClick={() => setLibraryFilter('grounded')}
+                className={`flex-1 py-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  libraryFilter === 'grounded'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-3 h-3" />
+                <span>Docs</span>
+              </button>
+              <button
+                onClick={() => setLibraryFilter('quizzes')}
+                className={`flex-1 py-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  libraryFilter === 'quizzes'
+                    ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <FileQuestion className="w-3 h-3" />
+                <span>Quiz</span>
+              </button>
+            </div>
 
-            <button
-              onClick={() => setLibraryFilter('slides')}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                libraryFilter === 'slides'
-                  ? 'bg-white dark:bg-slate-800 shadow-sm text-[#FF5C00]'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Presentation className="w-3.5 h-3.5" />
-              <span>Slide Decks ({counts.slides})</span>
-            </button>
-
-            <button
-              onClick={() => setLibraryFilter('quizzes')}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                libraryFilter === 'quizzes'
-                  ? 'bg-white dark:bg-slate-800 shadow-sm text-emerald-500'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <FileQuestion className="w-3.5 h-3.5" />
-              <span>Quizzes ({counts.quizzes})</span>
-            </button>
-
-            <button
-              onClick={() => setLibraryFilter('diagrams')}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                libraryFilter === 'diagrams'
-                  ? 'bg-white dark:bg-slate-800 shadow-sm text-cyan-500'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" />
-              <span>Diagrams ({counts.diagrams})</span>
-            </button>
-          </div>
-
-          {/* Search & Sort Controls */}
-          <div className="flex items-center gap-2.5">
-            <div className="relative flex-1 md:w-64">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+            {/* New Project Title Input */}
+            <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Filter deliverables..."
-                value={librarySearch}
-                onChange={(e) => setLibrarySearch(e.target.value)}
-                className={`w-full text-xs pl-8 pr-7 py-2 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
+                placeholder="Create new project title..."
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateProject(newProjectName);
+                    setNewProjectName('');
+                  }
+                }}
+                className={`flex-1 text-xs px-3 py-2 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
                   isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
                 }`}
               />
-              {librarySearch && (
-                <button
-                  onClick={() => setLibrarySearch('')}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
+              <button
+                onClick={() => {
+                  handleCreateProject(newProjectName);
+                  setNewProjectName('');
+                }}
+                className="px-3 py-2 bg-[#FF5C00] text-white rounded-xl hover:bg-[#e05200] transition-colors"
+                title="Create Project"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Projects Search Filter */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={projectSearch}
+                onChange={(e) => setProjectSearch(e.target.value)}
+                className={`w-full text-xs pl-8 pr-2.5 py-1.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
+                  isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
+                }`}
+              />
+            </div>
+
+            {/* Projects List */}
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              {filteredProjects.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400 border border-dashed rounded-xl">
+                  No projects match the selected filter.
+                </div>
+              ) : (
+                filteredProjects.map((p) => {
+                  const isSelected = selectedProject?.project_id === p.project_id;
+                  const hasSlides = p.project_id.startsWith('pres-') || (p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'slides'));
+                  const hasQuizzes = p.artifacts && Object.values(p.artifacts).some((a) => a.tool_name === 'quizzes');
+
+                  return (
+                    <div
+                      key={p.project_id}
+                      onClick={() => setSelectedProject(p)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all group ${
+                        isSelected
+                          ? 'bg-[#FF5C00]/10 border-[#FF5C00] shadow-sm'
+                          : isDarkMode
+                          ? 'bg-[#151413]/50 border-[#32302C] hover:border-slate-500'
+                          : 'bg-[#FAF7F2]/60 border-[#E8E2D8] hover:border-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <h4 className={`text-xs font-bold truncate flex-1 ${
+                          isSelected ? 'text-[#FF5C00]' : ''
+                        }`}>
+                          {p.name}
+                        </h4>
+                        <button
+                          onClick={(e) => handleDeleteProject(p.project_id, e)}
+                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity p-0.5 rounded"
+                          title="Delete Project"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Content Badges */}
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                        {hasSlides && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-[#FF5C00] border border-[#FF5C00]/20 font-semibold flex items-center gap-0.5">
+                            <Presentation className="w-2.5 h-2.5" /> Slides
+                          </span>
+                        )}
+                        {p.source_filename && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono flex items-center gap-0.5">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Grounded
+                          </span>
+                        )}
+                        {hasQuizzes && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 font-semibold flex items-center gap-0.5">
+                            <FileQuestion className="w-2.5 h-2.5" /> Quiz
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="truncate max-w-[150px] font-mono">
+                          {p.source_filename ? p.source_filename : hasSlides ? 'Slide Deck' : 'Curriculum Project'}
+                        </span>
+                        <span>{new Date(p.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
-
-            <select
-              value={librarySort}
-              onChange={(e: any) => setLibrarySort(e.target.value)}
-              className={`text-xs px-3 py-2 rounded-xl border focus:outline-none ${
-                isDarkMode ? 'bg-[#151413] border-[#32302C] text-slate-300' : 'bg-white border-[#E8E2D8] text-slate-700'
-              }`}
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="title">Title (A-Z)</option>
-            </select>
           </div>
-        </div>
 
-        {/* Deliverables Grid Wireframe */}
-        {filteredAssets.length === 0 ? (
-          <div className={`py-16 text-center rounded-3xl border border-dashed flex flex-col items-center justify-center p-8 ${
-            isDarkMode ? 'border-[#32302C] bg-[#1E1D1B]/40' : 'border-[#E8E2D8] bg-white/60 shadow-sm'
-          }`}>
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-orange-500/10 text-[#FF5C00]">
-              {libraryFilter === 'video' && <Film className="w-8 h-8 text-purple-500" />}
-              {libraryFilter === 'slides' && <Presentation className="w-8 h-8 text-[#FF5C00]" />}
-              {libraryFilter === 'quizzes' && <FileQuestion className="w-8 h-8 text-emerald-500" />}
-              {libraryFilter === 'diagrams' && <Network className="w-8 h-8 text-cyan-500" />}
-              {libraryFilter === 'all' && <Layers className="w-8 h-8 text-[#FF5C00]" />}
-            </div>
-
-            <h3 className="text-lg font-bold">
-              {libraryFilter === 'video' && 'No Videos Generated Yet'}
-              {libraryFilter === 'slides' && 'No Slide Decks Generated Yet'}
-              {libraryFilter === 'quizzes' && 'No Quizzes Generated Yet'}
-              {libraryFilter === 'diagrams' && 'No Diagrams Generated Yet'}
-              {libraryFilter === 'all' && 'No Generated Deliverables Yet'}
-            </h3>
-
-            <p className={`text-xs max-w-md mt-1.5 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
-              {librarySearch
-                ? `No assets match your search "${librarySearch}". Try clearing your filter or searching for a different keyword.`
-                : 'Your library only shows deliverables you have actively created with OMNIX AI. Use the prompt or our dedicated studios to create your first asset.'}
-            </p>
-
-            <div className="flex items-center gap-3 mt-6 flex-wrap justify-center">
-              <button
-                onClick={() => setActiveView('video')}
-                className="text-xs px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
-              >
-                <Film className="w-3.5 h-3.5" />
-                <span>Open Video Studio</span>
-              </button>
-              <button
-                onClick={() => setActiveView('studio')}
-                className="text-xs px-4 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
-              >
-                <Presentation className="w-3.5 h-3.5" />
-                <span>Create Slides</span>
-              </button>
-              <button
-                onClick={() => setActiveView('home')}
-                className="text-xs px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-[#FF5C00] text-slate-700 dark:text-slate-300 font-medium transition-colors"
-              >
-                <span>Ask OMNIX Prompt</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 items-start">
-            {filteredAssets.map((asset) => {
-              const pptxFile = asset.files?.find((f) => f.endsWith('.pptx'));
-              const presentonUrl = asset.sourceData?.presenton_url || (
-                asset.sourceData?.presentation_id
-                  ? `http://localhost:5001/presentation?id=${asset.sourceData.presentation_id}`
-                  : null
-              );
-
-              return (
-                <div
-                  key={asset.id}
-                  className={`rounded-2xl border overflow-hidden transition-all duration-200 flex flex-col group hover:shadow-lg ${
-                    isDarkMode ? 'bg-[#1E1D1B]/80 border-[#32302C] hover:border-slate-600' : 'bg-white border-[#E8E2D8] hover:border-slate-400'
-                  }`}
-                >
-                  {/* Card Header: Type Badge, Status, Delete */}
-                  <div className="p-4 pb-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80">
-                    <div className="flex items-center gap-2">
-                      {asset.type === 'video' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-bold flex items-center gap-1">
-                          <Film className="w-3 h-3" /> Video
-                        </span>
-                      )}
-                      {asset.type === 'slides' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-[#FF5C00] border border-[#FF5C00]/20 font-bold flex items-center gap-1">
-                          <Presentation className="w-3 h-3" /> Slide Deck
-                        </span>
-                      )}
-                      {asset.type === 'quizzes' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold flex items-center gap-1">
-                          <FileQuestion className="w-3 h-3" /> Quiz
-                        </span>
-                      )}
-                      {asset.type === 'diagrams' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 font-bold flex items-center gap-1">
-                          <Network className="w-3 h-3" /> Diagram
-                        </span>
-                      )}
-
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {new Date(asset.createdAt).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={(e) => handleDeleteAsset(asset, e)}
-                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Delete Deliverable"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Visual Preview Container */}
-                  <div className="relative aspect-video w-full bg-slate-900 overflow-hidden flex items-center justify-center group/preview select-none">
-                    {asset.type === 'video' && (
-                      <div
-                        onClick={() => {
-                          if (asset.videoUrl) {
-                            setActiveVideoModal({
-                              title: asset.title,
-                              video_url: asset.videoUrl,
-                              filename: asset.videoData?.filename,
-                            });
-                          }
-                        }}
-                        className="w-full h-full cursor-pointer relative flex items-center justify-center bg-slate-950 overflow-hidden"
-                      >
-                        {/* Authentic Video Poster Frame Thumbnail */}
-                        {asset.thumbnailUrl ? (
-                          <img
-                            src={asset.thumbnailUrl}
-                            alt={asset.title}
-                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover/preview:scale-105"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                        ) : asset.videoUrl ? (
-                          <video
-                            src={`${asset.videoUrl}#t=0.5`}
-                            preload="metadata"
-                            muted
-                            playsInline
-                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover/preview:scale-105"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-purple-950/40 to-slate-950" />
-                        )}
-
-                        {/* Cinematic Ambient Gradient Tint Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/40 group-hover/preview:via-black/10 transition-colors" />
-
-                        {/* Film perforation strip pattern */}
-                        <div className="absolute inset-x-0 top-0 h-4 bg-black/40 flex justify-between px-3 items-center pointer-events-none opacity-40">
-                          {[...Array(8)].map((_, i) => (
-                            <div key={i} className="w-2.5 h-1.5 rounded-[2px] bg-white/70" />
-                          ))}
-                        </div>
-
-                        {/* Central Glowing Play button */}
-                        <div className="w-12 h-12 rounded-full bg-purple-600/90 hover:bg-purple-600 text-white flex items-center justify-center shadow-2xl transform transition-transform group-hover/preview:scale-110 active:scale-95 z-10 backdrop-blur-sm border border-white/20">
-                          <Play className="w-5 h-5 ml-0.5 fill-white" />
-                        </div>
-
-                        {/* Duration Pill */}
-                        {asset.duration && (
-                          <div className="absolute bottom-2.5 right-2.5 px-2.5 py-0.5 rounded-lg bg-black/80 text-white font-mono text-[10px] flex items-center gap-1 z-10 backdrop-blur-sm border border-white/10">
-                            <Clock className="w-3 h-3 text-purple-400" />
-                            <span>{asset.duration}</span>
-                          </div>
-                        )}
-
-                        <div className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-lg bg-purple-500/30 text-purple-200 border border-purple-500/40 font-mono text-[9px] flex items-center gap-1 z-10 backdrop-blur-sm">
-                          <Film className="w-3 h-3" />
-                          <span>LTX-Video DiT</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {asset.type === 'slides' && (() => {
-                      const firstSlide = asset.sourceData?.slides?.[0];
-                      const themeKey = (asset.theme || asset.sourceData?.theme || 'editorial').toLowerCase();
-                      const activeTheme = themes[themeKey as ThemeName] || themes['editorial'] || themes['cornflower'];
-                      const bgStyle = activeTheme?.background?.override || activeTheme?.colors?.background || '#0b0f19';
-                      const headingColor = activeTheme?.colors?.heading || activeTheme?.colors?.primary || '#ffffff';
-                      const accentColor = activeTheme?.colors?.accent || '#FF5C00';
-                      const textColor = activeTheme?.colors?.text || '#94a3b8';
-                      const cardBg = activeTheme?.colors?.cardBackground || 'rgba(255, 255, 255, 0.05)';
-                      const cardBorder = activeTheme?.mode === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
-
-                      // Clean presentation title and subtitle
-                      let cleanTitle = firstSlide?.title && firstSlide.title !== 'Slide'
-                        ? firstSlide.title
-                        : (asset.sourceData?.title || asset.title || 'Slide Presentation');
-
-                      let cleanSubtitle = firstSlide?.subtitle || '';
-
-                      if (cleanTitle.includes('Presenter:')) {
-                        const parts = cleanTitle.split('Presenter:');
-                        cleanTitle = parts[0].trim();
-                        if (!cleanSubtitle) cleanSubtitle = 'Presenter: ' + parts[1].split('Date:')[0].trim();
-                      } else if (cleanTitle.includes('Presented by:')) {
-                        const parts = cleanTitle.split('Presented by:');
-                        cleanTitle = parts[0].trim();
-                        if (!cleanSubtitle) cleanSubtitle = 'Presented by: ' + parts[1].split('Date:')[0].trim();
-                      }
-                      cleanTitle = cleanTitle.replace(/\s*\.\.\.$/, '').trim();
-
-                      const topicBadge = firstSlide?.badge || (cleanTitle.length > 20 ? cleanTitle.split(' ')[0].toUpperCase() : 'MODULE 01');
-
-                      return (
-                        <div
-                          onClick={() => handleOpenInStudio(asset)}
-                          className="w-full h-full cursor-pointer relative overflow-hidden group-hover/preview:opacity-95 transition-all flex items-center justify-center select-none"
-                          style={{
-                            backgroundColor: bgStyle,
-                            color: textColor,
-                            fontFamily: activeTheme?.fonts?.body || 'system-ui, sans-serif',
-                          }}
-                        >
-                          {/* 1. Actual First Slide Visual Image if present */}
-                          {asset.thumbnailUrl ? (
-                            <img
-                              src={asset.thumbnailUrl}
-                              alt={cleanTitle}
-                              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover/preview:scale-[1.03]"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                          ) : null}
-
-                          {/* 2. Authentic First Slide Presentation Canvas */}
-                          <div className={`w-full h-full p-4 flex flex-col justify-between relative overflow-hidden ${asset.thumbnailUrl ? 'hidden' : 'flex'}`}>
-                            {/* Radial ambient glow matching theme accent */}
-                            <div
-                              className="absolute inset-0 pointer-events-none opacity-35 mix-blend-screen"
-                              style={{
-                                background: `radial-gradient(circle at 80% 20%, ${accentColor}25 0%, transparent 60%), radial-gradient(circle at 20% 80%, ${headingColor}15 0%, transparent 50%)`,
-                              }}
-                            />
-
-                            {/* Top Kicker & Slide Count Bar */}
-                            <div className="relative z-10 flex items-center justify-between text-[10px] font-mono">
-                              <span
-                                className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border shadow-xs"
-                                style={{
-                                  borderColor: `${accentColor}40`,
-                                  backgroundColor: `${accentColor}18`,
-                                  color: accentColor,
-                                }}
-                              >
-                                {topicBadge}
-                              </span>
-                              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-black/40 text-slate-300 border border-white/10 backdrop-blur-xs">
-                                {asset.itemCount || 1} Slides • 16:9 PPT
-                              </span>
-                            </div>
-
-                            {/* Center Hero Title Block */}
-                            <div className="relative z-10 my-auto space-y-1.5 text-center px-2">
-                              <h4
-                                className="text-sm sm:text-base lg:text-lg font-black tracking-tight leading-snug line-clamp-2 text-center"
-                                style={{
-                                  color: headingColor,
-                                  fontFamily: activeTheme?.fonts?.heading || 'inherit',
-                                }}
-                              >
-                                {cleanTitle}
-                              </h4>
-
-                              {cleanSubtitle && (
-                                <p
-                                  className="text-[10px] sm:text-[11px] font-medium line-clamp-1 opacity-80 text-center max-w-xs mx-auto"
-                                  style={{ color: textColor }}
-                                >
-                                  {cleanSubtitle}
-                                </p>
-                              )}
-
-                              {/* Dynamic Cards Snippet if Slide 1 has cards */}
-                              {firstSlide?.cards && firstSlide.cards.length > 0 && (
-                                <div className="grid grid-cols-3 gap-1.5 pt-1.5 max-w-sm mx-auto">
-                                  {firstSlide.cards.slice(0, 3).map((card: any, cI: number) => (
-                                    <div
-                                      key={cI}
-                                      className="p-1 rounded-md border text-left backdrop-blur-xs"
-                                      style={{
-                                        backgroundColor: cardBg,
-                                        borderColor: cardBorder,
-                                      }}
-                                    >
-                                      {card.badge && (
-                                        <span className="block text-[6px] font-bold uppercase tracking-wider opacity-80" style={{ color: accentColor }}>
-                                          {card.badge}
-                                        </span>
-                                      )}
-                                      <span className="text-[7.5px] font-semibold text-white/90 line-clamp-1 block">
-                                        {card.title || `Point ${cI + 1}`}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Bottom Theme Accent Bar */}
-                            <div
-                              className="relative z-10 h-1 w-full rounded-full opacity-80"
-                              style={{ backgroundColor: accentColor }}
-                            />
-                          </div>
-
-                          {/* Interactive Slide Overlay on Hover */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-slate-950/50 opacity-0 group-hover/preview:opacity-100 transition-opacity flex flex-col justify-between p-3.5 z-20">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-black/80 text-orange-400 border border-orange-500/30 font-bold backdrop-blur-sm">
-                                PowerPoint Slide 01
-                              </span>
-                              <span className="text-[10px] font-bold text-white bg-black/80 px-2 py-0.5 rounded-md border border-white/10 backdrop-blur-sm">
-                                {asset.itemCount || 1} Slides
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-center">
-                              <span className="px-3.5 py-1.5 rounded-xl bg-[#FF5C00] text-white text-xs font-bold shadow-xl flex items-center gap-1.5 transform transition-transform group-hover/preview:scale-105 active:scale-95">
-                                <Presentation className="w-3.5 h-3.5" />
-                                Open in Slide Studio
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[9px] text-slate-300 font-mono">
-                              <span>16:9 Widescreen</span>
-                              <span className="text-orange-300 flex items-center gap-0.5 font-bold">
-                                {asset.theme || 'PowerPoint Deck'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Persistent badge in bottom-right when not hovered */}
-                          <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/80 text-white font-mono text-[9px] border border-white/15 group-hover/preview:opacity-0 transition-opacity z-10 backdrop-blur-sm">
-                            SLIDE 01 / {asset.itemCount || 1}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {asset.type === 'quizzes' && (
-                      <div
-                        onClick={() => {
-                          const items = asset.sourceData?.items || asset.sourceData?.questions || [];
-                          if (items.length > 0) {
-                            setActiveQuizModal({
-                              title: asset.title,
-                              items,
-                              currentIndex: 0,
-                              selectedOption: null,
-                              isAnswered: false,
-                              score: 0,
-                            });
-                          }
-                        }}
-                        className="w-full h-full cursor-pointer relative p-4 flex flex-col justify-between bg-gradient-to-br from-slate-900 via-emerald-950/40 to-slate-950 overflow-hidden group-hover/preview:opacity-95 transition-all"
-                      >
-                        {/* Header */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            Assessment Quiz
-                          </span>
-                          <span className="text-[10px] font-bold text-white/90 flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/10">
-                            <FileQuestion className="w-3 h-3 text-emerald-400" />
-                            {asset.itemCount || 0} Questions
-                          </span>
-                        </div>
-
-                        {/* Question & Options Preview */}
-                        <div className="space-y-1.5 my-auto">
-                          <p className="text-white text-xs font-semibold line-clamp-1">
-                            {asset.sourceData?.items?.[0]?.question || asset.title}
-                          </p>
-
-                          <div className="space-y-1 opacity-80 pointer-events-none">
-                            <div className="px-2 py-1 rounded-md bg-white/10 text-[9px] text-white/90 flex items-center gap-1.5 border border-white/10">
-                              <span className="w-3.5 h-3.5 rounded bg-emerald-500/30 text-emerald-300 flex items-center justify-center font-mono font-bold text-[8px]">
-                                A
-                              </span>
-                              <span className="truncate">
-                                {asset.sourceData?.items?.[0]?.options?.[0] || 'Core curriculum concept'}
-                              </span>
-                            </div>
-                            <div className="px-2 py-1 rounded-md bg-white/5 text-[9px] text-white/70 flex items-center gap-1.5 border border-white/5">
-                              <span className="w-3.5 h-3.5 rounded bg-white/10 text-white/50 flex items-center justify-center font-mono font-bold text-[8px]">
-                                B
-                              </span>
-                              <span className="truncate">
-                                {asset.sourceData?.items?.[0]?.options?.[1] || 'Secondary derivation'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono pt-1">
-                          <span>Practice Assessment</span>
-                          <span className="text-emerald-400 flex items-center gap-0.5 font-bold group-hover/preview:translate-x-0.5 transition-transform">
-                            Practice Quiz <ChevronRight className="w-3 h-3" />
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {asset.type === 'diagrams' && (
-                      <div className="w-full h-full p-4 flex flex-col justify-between bg-gradient-to-br from-slate-900 via-cyan-950/40 to-slate-950 text-center">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                            Mermaid Architecture
-                          </span>
-                          <span className="text-[10px] font-bold text-white/90 flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/10">
-                            <Network className="w-3 h-3 text-cyan-400" />
-                            Diagram
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-center gap-3 my-auto opacity-80">
-                          <div className="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-[9px] font-mono text-cyan-300">
-                            Input Node
-                          </div>
-                          <div className="w-6 h-px bg-cyan-400/50" />
-                          <div className="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-500/40 text-[9px] font-mono text-purple-300">
-                            Core Engine
-                          </div>
-                          <div className="w-6 h-px bg-cyan-400/50" />
-                          <div className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-mono text-emerald-300">
-                            Output
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono pt-1">
-                          <span className="truncate max-w-[150px]">{asset.title}</span>
-                          <span className="text-cyan-400 flex items-center gap-0.5 font-bold">
-                            View <ChevronRight className="w-3 h-3" />
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Body: Info & Actions */}
-                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+          {/* Column 2: Selected Project Summary, Passages Explorer & Deliverables (Right 8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            {selectedProject ? (
+              <>
+                {/* Selected Project Header Card */}
+                <div className={`p-5 rounded-2xl border ${
+                  isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <h4 className="text-sm font-bold truncate" title={asset.title}>
-                        {asset.title}
-                      </h4>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
-                        <span className="truncate max-w-[180px] font-mono">
-                          {asset.projectName}
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold tracking-tight">{selectedProject.name}</h3>
+                        {selectedProject.source_filename && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Indexed & Grounded
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 font-mono">
+                        <span>Source: {selectedProject.source_filename || 'Prompt-Created Project'}</span>
                         <span>·</span>
-                        <span className="capitalize">{asset.status}</span>
+                        <span>{Object.keys(passages).length} Indexed Passages</span>
+                        <span>·</span>
+                        <span>{artifacts.length} Deliverables</span>
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
-                      {asset.type === 'video' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              if (asset.videoUrl) {
-                                setActiveVideoModal({
-                                  title: asset.title,
-                                  video_url: asset.videoUrl,
-                                  filename: asset.videoData?.filename,
-                                });
-                              }
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-1.5 transition-colors"
-                          >
-                            <Play className="w-3 h-3" />
-                            <span>Play Video</span>
-                          </button>
-
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => {
-                                setPromptText(asset.title);
-                                setActiveView('video');
-                              }}
-                              className="text-xs p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-purple-500 text-slate-600 dark:text-slate-300 hover:text-purple-500 transition-colors"
-                              title="Open in Video Studio"
-                            >
-                              <Film className="w-3.5 h-3.5" />
-                            </button>
-
-                            {asset.videoUrl && (
-                              <a
-                                href={asset.videoUrl}
-                                download={asset.videoData?.filename || 'video.mp4'}
-                                className="text-xs p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-[#FF5C00] text-slate-600 dark:text-slate-300 hover:text-[#FF5C00] transition-colors"
-                                title="Download MP4 Video"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-                          </div>
-                        </>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {slideArtifact && (
+                        <button
+                          onClick={() => {
+                            setSelectedSlideArtifact(slideArtifact);
+                            setActiveView('studio');
+                          }}
+                          className="text-xs px-3.5 py-2 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 transition-transform active:scale-95 shadow-sm"
+                        >
+                          <Presentation className="w-3.5 h-3.5" />
+                          <span>Open in Slide Studio</span>
+                        </button>
                       )}
 
-                      {asset.type === 'slides' && (
-                        <>
-                          <button
-                            onClick={() => handleOpenInStudio(asset)}
-                            className="text-xs px-3 py-1.5 rounded-xl bg-[#FF5C00] hover:bg-[#e05200] text-white font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
-                          >
-                            <Presentation className="w-3 h-3" />
-                            <span>Open Studio</span>
-                          </button>
-
-                          <div className="flex items-center gap-1.5">
-                            {presentonUrl && (
-                              <a
-                                href={presentonUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-[#FF5C00] text-slate-600 dark:text-slate-300 hover:text-[#FF5C00] transition-colors"
-                                title="Open in Presenton (5001)"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-
-                            {pptxFile && asset.projectId && (
-                              <a
-                                href={`/api/projects/${asset.projectId}/download/${encodeURIComponent(pptxFile)}`}
-                                download
-                                className="text-xs p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-[#FF5C00] text-slate-600 dark:text-slate-300 hover:text-[#FF5C00] transition-colors"
-                                title="Download PowerPoint Deck (.pptx)"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-                          </div>
-                        </>
+                      {presentonUrl && (
+                        <a
+                          href={presentonUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-[#FF5C00] text-slate-700 dark:text-slate-300 hover:text-[#FF5C00] flex items-center gap-1 transition-colors"
+                          title="Open directly in Presenton port 5001"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Presenton (5001)</span>
+                        </a>
                       )}
 
-                      {asset.type === 'quizzes' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              const items = asset.sourceData?.items || asset.sourceData?.questions || [];
-                              if (items.length > 0) {
-                                setActiveQuizModal({
-                                  title: asset.title,
-                                  items,
-                                  currentIndex: 0,
-                                  selectedOption: null,
-                                  isAnswered: false,
-                                  score: 0,
-                                });
-                              }
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 transition-colors"
-                          >
-                            <FileQuestion className="w-3 h-3" />
-                            <span>Practice Quiz</span>
-                          </button>
-
-                          {asset.files && asset.files[0] && asset.projectId && (
-                            <a
-                              href={`/api/projects/${asset.projectId}/download/${encodeURIComponent(asset.files[0])}`}
-                              download
-                              className="text-xs p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-600 dark:text-slate-300 hover:text-emerald-500 transition-colors"
-                              title="Download Quiz JSON"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </a>
-                          )}
-                        </>
-                      )}
-
-                      {asset.type === 'diagrams' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              alert(`Diagram Content:\n\n${asset.sourceData?.mermaid_code || asset.title}`);
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold flex items-center gap-1.5 transition-colors"
-                          >
-                            <Eye className="w-3 h-3" />
-                            <span>View Diagram</span>
-                          </button>
-
-                          {asset.files && asset.files[0] && asset.projectId && (
-                            <a
-                              href={`/api/projects/${asset.projectId}/download/${encodeURIComponent(asset.files[0])}`}
-                              download
-                              className="text-xs p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-cyan-500 text-slate-600 dark:text-slate-300 hover:text-cyan-500 transition-colors"
-                              title="Download Diagram"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </a>
-                          )}
-                        </>
-                      )}
+                      <button
+                        onClick={() => {
+                          setPromptText(`Generate complete classroom deliverables for ${selectedProject.name}`);
+                          setActiveView('home');
+                        }}
+                        className="text-xs px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white flex items-center gap-1.5 transition-colors"
+                      >
+                        <span>Use in Prompt</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Searchable Passages Explorer (if document was uploaded) */}
+                {selectedProject.source_filename && (
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-bold tracking-tight flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-[#FF5C00]" />
+                          <span>Deterministic Grounded Passages</span>
+                        </h4>
+                        <p className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-[#9CA3AF]' : 'text-[#716D64]'}`}>
+                          Passage citations cite exact sentences with zero vector-database overhead.
+                        </p>
+                      </div>
+
+                      {/* Passage Search */}
+                      <div className="relative w-full sm:w-64">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Filter passages by text or ID..."
+                          value={passageSearch}
+                          onChange={(e) => setPassageSearch(e.target.value)}
+                          className={`w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#FF5C00] ${
+                            isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-[#FAF7F2] border-[#E8E2D8]'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {Object.keys(passages).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                        {filteredPassages.map(([pId, text]) => (
+                          <div
+                            key={pId}
+                            onClick={() => copyPassageRef(pId)}
+                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                              isDarkMode
+                                ? 'bg-[#151413]/60 border-[#32302C] hover:border-[#FF5C00]'
+                                : 'bg-[#FAF7F2]/60 border-[#E8E2D8] hover:border-[#FF5C00]'
+                            }`}
+                            title="Click to copy citation tag [Pxx-Sxx]"
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-mono text-[11px] text-[#FF5C00] font-bold">{pId}</span>
+                              <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                                <Copy className="w-3 h-3" />
+                                {copiedPassageId === pId ? 'Copied Citation!' : 'Copy Tag'}
+                              </span>
+                            </div>
+                            <p className={`text-xs line-clamp-3 leading-relaxed ${isDarkMode ? 'text-[#9CA3AF]' : 'text-slate-600'}`}>
+                              {text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-xs text-slate-400 border border-dashed rounded-xl">
+                        No passages extracted yet. Upload a PDF or DOCX file to extract grounded passages.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Deliverables Section for Selected Project */}
+                {artifacts.length > 0 ? (
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDarkMode ? 'bg-[#1E1D1B]/70 border-[#32302C]' : 'bg-white/80 border-[#E8E2D8] shadow-sm'
+                  }`}>
+                    <h4 className="text-sm font-bold tracking-tight">
+                      Project Deliverables ({artifacts.length})
+                    </h4>
+                    <div className="space-y-4">
+                      {artifacts.map((art) => (
+                        <ArtifactCard key={art.id} artifact={art} />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`p-8 text-center rounded-2xl border border-dashed ${
+                    isDarkMode ? 'border-[#32302C] text-slate-400' : 'border-[#E8E2D8] text-slate-500'
+                  }`}>
+                    <Presentation className="w-8 h-8 mx-auto text-slate-400 mb-2 opacity-50" />
+                    <p className="font-semibold text-xs">Ready for Deliverable Generation</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Use this project to generate structured presentation decks, interactive quizzes, or videos.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          setPromptText(`Create a 6-slide presentation on ${selectedProject.name}`);
+                          setActiveView('home');
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-[#FF5C00] text-white font-medium hover:bg-[#e05200] transition-colors"
+                      >
+                        Create Presentation
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className={`p-12 text-center rounded-2xl border border-dashed ${
+                isDarkMode ? 'border-[#32302C] text-slate-400' : 'border-[#E8E2D8] text-slate-500'
+              }`}>
+                <BookOpen className="w-10 h-10 mx-auto text-slate-400 mb-3 opacity-40" />
+                <p className="font-semibold text-sm">No project selected</p>
+                <p className="text-xs mt-1">Select an existing project on the left or create a new one to inspect its deliverables.</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     );
   };
-
 
   // Render Settings View
   const renderSettingsView = () => (
@@ -1966,10 +1511,10 @@ export const ChapterDashboard: React.FC = () => {
           <nav className="space-y-1.5" aria-label="Global Navigation">
             {[
               { id: 'home' as NavView, label: 'Home', icon: Home, desc: 'Conversational Studio' },
-              { id: 'video' as NavView, label: 'Video Studio', icon: Video, desc: 'Leap Storyboard & Animations' },
               { id: 'studio' as NavView, label: 'Slide Studio', icon: Presentation, desc: 'Presenton 16:9 Stage' },
+              { id: 'video' as NavView, label: 'Video Studio', icon: Film, desc: 'Diffusion & Manim Video' },
               { id: 'tools' as NavView, label: 'Tools', icon: Wrench, desc: 'Pedagogical Engines' },
-              { id: 'library' as NavView, label: 'Library', icon: BookOpen, desc: 'Generated Deliverables' },
+              { id: 'library' as NavView, label: 'Library', icon: BookOpen, desc: 'Chapters & Passages' },
               { id: 'settings' as NavView, label: 'Settings', icon: Settings, desc: 'Diagnostics & System' },
             ].map((item) => {
               const Icon = item.icon;
@@ -2090,8 +1635,8 @@ export const ChapterDashboard: React.FC = () => {
                 <nav className="space-y-1.5">
                   {[
                     { id: 'home' as NavView, label: 'Home', icon: Home },
-                    { id: 'video' as NavView, label: 'Video Studio', icon: Video },
                     { id: 'studio' as NavView, label: 'Slide Studio', icon: Presentation },
+                    { id: 'video' as NavView, label: 'Video Studio', icon: Film },
                     { id: 'tools' as NavView, label: 'Tools', icon: Wrench },
                     { id: 'library' as NavView, label: 'Library', icon: BookOpen },
                     { id: 'settings' as NavView, label: 'Settings', icon: Settings },
@@ -2148,258 +1693,6 @@ export const ChapterDashboard: React.FC = () => {
         {activeView === 'tools' && renderToolsView()}
         {activeView === 'library' && renderLibraryView()}
         {activeView === 'settings' && renderSettingsView()}
-
-        {/* Global Video Player Modal */}
-        {activeVideoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
-            <div className={`w-full max-w-4xl rounded-3xl border overflow-hidden shadow-2xl flex flex-col ${
-              isDarkMode ? 'bg-[#1E1D1B] border-[#32302C]' : 'bg-white border-[#E8E2D8]'
-            }`}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <Film className="w-5 h-5 text-purple-500" />
-                  <h3 className="font-bold text-base sm:text-lg truncate max-w-lg">
-                    {activeVideoModal.title}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setActiveVideoModal(null)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="bg-black flex items-center justify-center aspect-video max-h-[68vh] overflow-hidden">
-                <video
-                  src={activeVideoModal.video_url}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#151413]">
-                <span className="text-xs text-slate-400 font-mono">
-                  Standard Format: 704x512 MP4 • Zero-Looping Master • Edge-TTS Narration
-                </span>
-                <div className="flex items-center gap-2.5">
-                  <a
-                    href={activeVideoModal.video_url}
-                    download={activeVideoModal.filename || 'omnix_video.mp4'}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white transition-colors flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download MP4</span>
-                  </a>
-                  <button
-                    onClick={() => setActiveVideoModal(null)}
-                    className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Global Interactive Quiz Practice Modal */}
-        {activeQuizModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
-            <div className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl flex flex-col ${
-              isDarkMode ? 'bg-[#1E1D1B] border-[#32302C]' : 'bg-white border-[#E8E2D8]'
-            }`}>
-              {/* Quiz Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <FileQuestion className="w-5 h-5 text-emerald-500" />
-                  <div>
-                    <h3 className="font-bold text-sm sm:text-base truncate max-w-md">
-                      {activeQuizModal.title}
-                    </h3>
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      Question {activeQuizModal.currentIndex + 1} of {activeQuizModal.items.length} · Score: {activeQuizModal.score}/{activeQuizModal.items.length}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setActiveQuizModal(null)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Quiz Question Body */}
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                {activeQuizModal.items[activeQuizModal.currentIndex] ? (
-                  <>
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold">
-                        Question {activeQuizModal.currentIndex + 1}
-                      </span>
-                      <h4 className="text-base sm:text-lg font-bold leading-snug">
-                        {activeQuizModal.items[activeQuizModal.currentIndex].question}
-                      </h4>
-                    </div>
-
-                    {/* Options list */}
-                    <div className="space-y-2.5">
-                      {(activeQuizModal.items[activeQuizModal.currentIndex].options || []).map((opt: string, optIdx: number) => {
-                        const curQ = activeQuizModal.items[activeQuizModal.currentIndex];
-                        const isCorrectAnswer =
-                          curQ.correct_answer === optIdx ||
-                          curQ.correct_answer === opt ||
-                          curQ.correct_answer === String.fromCharCode(65 + optIdx);
-                        const isSelected = activeQuizModal.selectedOption === optIdx;
-
-                        let btnClasses = isDarkMode
-                          ? 'bg-[#151413] border-[#32302C] hover:border-slate-500 text-slate-200'
-                          : 'bg-[#FAF7F2] border-[#E8E2D8] hover:border-slate-400 text-slate-800';
-
-                        if (activeQuizModal.isAnswered) {
-                          if (isCorrectAnswer) {
-                            btnClasses = 'bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-semibold';
-                          } else if (isSelected) {
-                            btnClasses = 'bg-red-500/15 border-red-500 text-red-600 dark:text-red-400 font-semibold';
-                          } else {
-                            btnClasses = 'opacity-50 border-transparent';
-                          }
-                        }
-
-                        return (
-                          <button
-                            key={optIdx}
-                            disabled={activeQuizModal.isAnswered}
-                            onClick={() => {
-                              const wasCorrect = isCorrectAnswer;
-                              setActiveQuizModal((prev) => {
-                                if (!prev) return null;
-                                return {
-                                  ...prev,
-                                  selectedOption: optIdx,
-                                  isAnswered: true,
-                                  score: wasCorrect ? prev.score + 1 : prev.score,
-                                };
-                              });
-                            }}
-                            className={`w-full p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${btnClasses}`}
-                          >
-                            <span className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-800 text-xs font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
-                              {String.fromCharCode(65 + optIdx)}
-                            </span>
-                            <span className="text-xs sm:text-sm leading-relaxed flex-1">{opt}</span>
-                            {activeQuizModal.isAnswered && isCorrectAnswer && (
-                              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Feedback & Grounding Section */}
-                    {activeQuizModal.isAnswered && (
-                      <div className={`p-4 rounded-2xl border space-y-2 animate-fadeIn ${
-                        isDarkMode ? 'bg-[#151413] border-[#32302C]' : 'bg-slate-50 border-slate-200'
-                      }`}>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                            Pedagogical Explanation
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                          {activeQuizModal.items[activeQuizModal.currentIndex].explanation ||
-                            'Based on the verified curriculum passages for this chapter.'}
-                        </p>
-                        {activeQuizModal.items[activeQuizModal.currentIndex].grounding?.passage_id && (
-                          <span className="inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-orange-500/10 text-[#FF5C00] border border-[#FF5C00]/20">
-                            Source Citation: [{activeQuizModal.items[activeQuizModal.currentIndex].grounding?.passage_id}]
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="py-8 text-center space-y-4">
-                    <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-                    <h4 className="text-xl font-bold">Quiz Complete!</h4>
-                    <p className="text-sm text-slate-400 font-mono">
-                      Your Final Score: {activeQuizModal.score} / {activeQuizModal.items.length} (
-                      {Math.round((activeQuizModal.score / activeQuizModal.items.length) * 100)}%)
-                    </p>
-                    <button
-                      onClick={() => {
-                        setActiveQuizModal((prev) => {
-                          if (!prev) return null;
-                          return {
-                            ...prev,
-                            currentIndex: 0,
-                            selectedOption: null,
-                            isAnswered: false,
-                            score: 0,
-                          };
-                        });
-                      }}
-                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-2 shadow-sm transition-transform active:scale-95"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      <span>Retake Quiz</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Quiz Footer Controls */}
-              {activeQuizModal.items[activeQuizModal.currentIndex] && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#151413]">
-                  <button
-                    disabled={activeQuizModal.currentIndex === 0}
-                    onClick={() => {
-                      setActiveQuizModal((prev) => {
-                        if (!prev || prev.currentIndex === 0) return prev;
-                        return {
-                          ...prev,
-                          currentIndex: prev.currentIndex - 1,
-                          selectedOption: null,
-                          isAnswered: false,
-                        };
-                      });
-                    }}
-                    className="px-3.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    Previous
-                  </button>
-
-                  <button
-                    disabled={!activeQuizModal.isAnswered}
-                    onClick={() => {
-                      setActiveQuizModal((prev) => {
-                        if (!prev) return null;
-                        return {
-                          ...prev,
-                          currentIndex: prev.currentIndex + 1,
-                          selectedOption: null,
-                          isAnswered: false,
-                        };
-                      });
-                    }}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5 shadow-sm"
-                  >
-                    <span>
-                      {activeQuizModal.currentIndex + 1 >= activeQuizModal.items.length
-                        ? 'Finish Quiz'
-                        : 'Next Question'}
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   );
